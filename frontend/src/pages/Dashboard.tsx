@@ -84,7 +84,7 @@ const DashboardPage = () => {
       exposures.push(running);
     });
     const netExposure = running;
-    const lastTrade = trades.at(-1);
+    const lastTrade = trades.length ? trades[trades.length - 1] : undefined;
     const realised = trades.reduce((acc, trade) => acc + trade.qty * trade.price, 0);
     const avgTradeValue = tradeCount ? realised / tradeCount : 0;
     return { tradeCount, netExposure, lastTrade, exposures, realised, avgTradeValue };

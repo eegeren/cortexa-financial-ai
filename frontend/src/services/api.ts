@@ -222,7 +222,7 @@ export const fetchLatestPrice = async (symbol: string, interval = '1h') => {
   const { data } = await api.get<PriceResponse>(`/api/prices/${symbol}`, {
     params: { interval, limit: 1 }
   });
-  const latest = data.ohlcv.at(-1);
+  const latest = data.ohlcv.length ? data.ohlcv[data.ohlcv.length - 1] : undefined;
   if (!latest) {
     return { symbol, price: null, time: null };
   }

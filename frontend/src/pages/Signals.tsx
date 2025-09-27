@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
 import Spinner from '@/components/Spinner';
@@ -320,7 +321,9 @@ const SignalsPage = () => {
           if (done) {
             break;
           }
-          buffer += decoder.decode(value, { stream: true });
+          if (value) {
+            buffer += decoder.decode(value, { stream: true });
+          }
           let separatorIndex = buffer.indexOf('\n\n');
           while (separatorIndex !== -1) {
             const chunk = buffer.slice(0, separatorIndex).trim();
@@ -580,25 +583,31 @@ const SignalsPage = () => {
                 <div>
                   <h4 className="text-xs uppercase tracking-wide text-slate-500">Votes</h4>
                   <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                    {Object.entries(signal.mtf.votes).map(([frame, value]) => (
+                    {Object.entries(signal.mtf.votes).map(([frame, vote]) => {
+                      const numericVote = Number(vote ?? 0);
+                      return (
                       <li key={frame} className="flex items-center justify-between">
                         <span>{frame}</span>
-                        <span>{value.toFixed(2)}</span>
+                        <span>{numericVote.toFixed(2)}</span>
                       </li>
-                    ))}
+                    );
+                    })}
                   </ul>
                 </div>
                 <div>
                   <h4 className="text-xs uppercase tracking-wide text-slate-500">Filters</h4>
                   <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                    {Object.entries(signal.mtf.filters).map(([filter, value]) => (
-                      <li key={filter} className="flex items-center justify-between">
-                        <span>{filter}</span>
-                        <span className={`font-semibold ${value ? 'text-emerald-300' : 'text-rose-300'}`}>
-                          {value ? 'PASS' : 'BLOCK'}
-                        </span>
-                      </li>
-                    ))}
+                    {Object.entries(signal.mtf.filters).map(([filter, passed]) => {
+                      const isPassed = Boolean(passed);
+                      return (
+                        <li key={filter} className="flex items-center justify-between">
+                          <span>{filter}</span>
+                          <span className={`font-semibold ${isPassed ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            {isPassed ? 'PASS' : 'BLOCK'}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               </div>
@@ -817,7 +826,7 @@ const SignalsPage = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {backtest.weekday_breakdown.map((row) => (
+                            {(backtest.weekday_breakdown ?? []).map((row) => (
                               <tr key={row.day} className="border-t border-slate-800/70">
                                 <td className="px-2 py-1">{row.day}</td>
                                 <td className="px-2 py-1">{row.trades}</td>
@@ -847,19 +856,23 @@ const SignalsPage = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {backtest.history.map((row) => (
-                              <tr key={row.time} className="border-t border-slate-800/70">
-                                <td className="px-3 py-2 text-slate-400">{new Date(row.time).toLocaleString()}</td>
-                                <td className="px-3 py-2 text-slate-200">{row.side}</td>
-                                <td className="px-3 py-2 text-slate-200">{row.score.toFixed(2)}</td>
-                                <td className={`px-3 py-2 ${row.gross_return >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                                  {(row.gross_return * 100).toFixed(2)}%
-                                </td>
-                                <td className={`px-3 py-2 ${row.net_return >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                                  {(row.net_return * 100).toFixed(2)}%
-                                </td>
-                              </tr>
-                            ))}
+                            {backtest.history.map((row) => {
+                              const grossReturn = row.gross_return ?? 0;
+                              const netReturn = row.net_return ?? 0;
+                              return (
+                                <tr key={row.time} className="border-t border-slate-800/70">
+                                  <td className="px-3 py-2 text-slate-400">{new Date(row.time).toLocaleString()}</td>
+                                  <td className="px-3 py-2 text-slate-200">{row.side}</td>
+                                  <td className="px-3 py-2 text-slate-200">{row.score.toFixed(2)}</td>
+                                  <td className={`px-3 py-2 ${grossReturn >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                    {(grossReturn * 100).toFixed(2)}%
+                                  </td>
+                                  <td className={`px-3 py-2 ${netReturn >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                    {(netReturn * 100).toFixed(2)}%
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -884,9 +897,9 @@ const SignalsPage = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {backtest.score_buckets
+                            {(backtest.score_buckets ?? [])
                               .slice()
-                              .sort((a, b) => (a.bucket > b.bucket ? 1 : -1))
+                              .sort((a, b) => a.bucket.localeCompare(b.bucket))
                               .map((bucket) => (
                                 <tr key={bucket.bucket} className="border-t border-slate-800/70">
                                   <td className="px-2 py-1">{bucket.bucket}</td>

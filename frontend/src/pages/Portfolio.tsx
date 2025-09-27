@@ -3,7 +3,7 @@ import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
 import Spinner from '@/components/Spinner';
 import Banner from '@/components/Banner';
-import { createTrade, fetchPortfolio, PortfolioResponse } from '@/services/api';
+import { createTrade, fetchPortfolio, PortfolioResponse, Trade } from '@/services/api';
 import { Link } from 'react-router-dom';
 
 const topSymbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'];
@@ -16,13 +16,17 @@ const symbolLabels: Record<string, string> = {
   DOGEUSDT: 'Dogecoin'
 };
 
+type TradeSide = 'BUY' | 'SELL';
+
 const PortfolioPage = () => {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [form, setForm] = useState({ symbol: 'BTCUSDT', side: 'BUY', qty: 0.001, price: 0 });
+  const [form, setForm] = useState<{ symbol: string; side: TradeSide; qty: number; price: number }>(
+    { symbol: 'BTCUSDT', side: 'BUY', qty: 0.001, price: 0 }
+  );
   const [filters, setFilters] = useState({ symbol: 'ALL', side: 'ALL', startDate: '', endDate: '' });
 
   const loadPortfolio = async () => {
@@ -78,21 +82,24 @@ const PortfolioPage = () => {
     if (!portfolio) {
       return null;
     }
-    const trades = portfolio.trades ?? [];
-    const volume = trades.reduce((acc, trade) => acc + trade.qty, 0);
-    const net = trades.reduce((acc, trade) => acc + (trade.side === 'BUY' ? trade.qty * trade.price : -trade.qty * trade.price), 0);
+    const trades = (portfolio.trades ?? []) as Trade[];
+    const volume = trades.reduce<number>((acc, trade) => acc + trade.qty, 0);
+    const net = trades.reduce<number>(
+      (acc, trade) => acc + (trade.side === 'BUY' ? trade.qty * trade.price : -trade.qty * trade.price),
+      0
+    );
     const last = trades[0];
     return { count: trades.length, volume, net, last };
   }, [portfolio]);
 
   const availableSymbols = useMemo(() => {
-    const trades = portfolio?.trades ?? [];
+    const trades = (portfolio?.trades ?? []) as Trade[];
     const uniques = new Set(trades.map((trade) => trade.symbol));
     return Array.from(uniques).sort();
   }, [portfolio]);
 
   const filteredTrades = useMemo(() => {
-    const trades = portfolio?.trades ?? [];
+    const trades = (portfolio?.trades ?? []) as Trade[];
     if (!trades.length) {
       return [];
     }
@@ -227,17 +234,17 @@ const PortfolioPage = () => {
                   ))}
                 </div>
               </div>
-              <label className="text-xs uppercase tracking-wide text-slate-400">
-                Side
-                <select
-                  value={form.side}
-                  onChange={(event) => setForm((prev) => ({ ...prev, side: event.target.value }))}
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                >
-                  <option value="BUY">BUY</option>
-                  <option value="SELL">SELL</option>
-                </select>
-              </label>
+          <label className="text-xs uppercase tracking-wide text-slate-400">
+            Side
+            <select
+              value={form.side}
+              onChange={(event) => setForm((prev) => ({ ...prev, side: event.target.value as TradeSide }))}
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
+            >
+              <option value="BUY">BUY</option>
+              <option value="SELL">SELL</option>
+            </select>
+          </label>
               <label className="text-xs uppercase tracking-wide text-slate-400">
                 Quantity
                 <input
