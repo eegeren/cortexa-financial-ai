@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference lib="WebWorker" />
 
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
