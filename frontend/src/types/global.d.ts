@@ -1,1 +1,8 @@
-declare const Worker: any;
+export {};
+
+declare global {
+  interface Worker {
+    postMessage: (...args: unknown[]) => void;
+    terminate: () => void;
+  }
+}
