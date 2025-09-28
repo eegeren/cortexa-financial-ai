@@ -1,3 +1,4 @@
+import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { Outlet } from 'react-router-dom';
 import NavBar from './NavBar';
 import OnboardingTour from './OnboardingTour';
@@ -10,7 +11,15 @@ const Layout = () => {
     <ThemeProvider>
       <I18nProvider>
         <ToastProvider>
-          <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-50 transition-[background-color] duration-300 dark:bg-slate-950">
+          <HelmetProvider>
+          <Helmet>
+            <link rel="icon" href="/favicon.ico?v=3" />
+            <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
+            <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=3" />
+            <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
+            <title>Cortexa Trade</title>
+          </Helmet>
+            <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-50 transition-[background-color] duration-300 dark:bg-slate-950">
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute left-1/2 top-[-20%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
               <div className="absolute right-[-10%] bottom-[-25%] h-[380px] w-[380px] rounded-full bg-accent/10 blur-3xl" />
@@ -25,6 +34,7 @@ const Layout = () => {
               <OnboardingTour />
             </div>
           </div>
+          </HelmetProvider>
         </ToastProvider>
       </I18nProvider>
     </ThemeProvider>
