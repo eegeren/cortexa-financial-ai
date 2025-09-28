@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}/auth/login`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'https://cortexa-financial-ai.onrender.com'}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -80,7 +80,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}/auth/register`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'https://cortexa-financial-ai.onrender.com'}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })

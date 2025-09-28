@@ -40,7 +40,7 @@ const quantileLabels: Record<(typeof quantileKeys)[number], string> = {
   p95: '95th pct'
 };
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://cortexa-financial-ai.onrender.com';
 const SCORE_HISTORY_LIMIT = 120;
 
 const SignalsPage = () => {
