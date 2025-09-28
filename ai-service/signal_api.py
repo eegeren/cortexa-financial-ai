@@ -50,21 +50,41 @@ def parse_int_list(value: str) -> list[int]:
     except Exception as exc:
         raise HTTPException(400, "invalid int list") from exc
 
-from fastapi import FastAPI, HTTPException
+import os
+from typing import Iterable, Tuple
+
 import requests
+from fastapi import FastAPI, HTTPException
 import pandas as pd
 import numpy as np
 import ta
-import os
 
 app = FastAPI()
-_BINANCE_BASE = os.getenv("BINANCE_BASE_URL", "https://api.binance.com").rstrip('/')
-_BINANCE_KLINES_PATH = os.getenv("BINANCE_KLINES_PATH", "/api/v3/klines")
-if not _BINANCE_KLINES_PATH.startswith('/'):
-    _BINANCE_KLINES_PATH = f"/{_BINANCE_KLINES_PATH}"
-BINANCE_URL = f"{_BINANCE_BASE}{_BINANCE_KLINES_PATH}"
 
-pd.options.mode.use_inf_as_na = True
+def _normalize_path(path: str) -> str:
+    if not path.startswith('/'):
+        return f"/{path}"
+    return path
+
+def _build_sources() -> Iterable[Tuple[str, str]]:
+    primary_base = os.getenv("BINANCE_BASE_URL", "https://api.binance.com").rstrip('/')
+    primary_path = _normalize_path(os.getenv("BINANCE_KLINES_PATH", "/api/v3/klines"))
+
+    fallback_base = os.getenv("BINANCE_FALLBACK_URL", "https://data-api.binance.vision").rstrip('/')
+    fallback_path = _normalize_path(os.getenv("BINANCE_FALLBACK_KLINES_PATH", "/api/v3/klines"))
+
+    # Remove duplicates while preserving order
+    seen = set()
+    for base, path in ((primary_base, primary_path), (fallback_base, fallback_path)):
+        if not base:
+            continue
+        key = (base, path)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield key
+
+DATA_SOURCES = tuple(_build_sources()) or (("https://data-api.binance.vision", "/api/v3/klines"),)
 
 def safe_num(x, ndigits=None):
     try:
@@ -75,21 +95,43 @@ def safe_num(x, ndigits=None):
         return None
     return round(v, ndigits) if ndigits is not None else v
 
-def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
-    url = f"{BINANCE_URL}?symbol={symbol}&interval={interval}&limit={limit}"
-    r = requests.get(url, timeout=10)
-    if r.status_code != 200:
-        raise HTTPException(502, f"binance {r.status_code}: {r.text}")
-    data = r.json()
-    if not data:
-        raise HTTPException(502, "empty klines")
+def _request_klines(base: str, path: str, *, symbol: str, interval: str, limit: int) -> requests.Response:
+    url = f"{base}{path}?symbol={symbol}&interval={interval}&limit={limit}"
+    return requests.get(url, timeout=10)
 
-    cols = ["time","open","high","low","close","volume","ct","qv","n","tb","tq","ig"]
-    df = pd.DataFrame(data, columns=cols)
-    for col in ["open","high","low","close","volume"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df["symbol"] = symbol
-    return df
+
+def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
+    errors = []
+    for base, path in DATA_SOURCES:
+        try:
+            resp = _request_klines(base, path, symbol=symbol, interval=interval, limit=limit)
+        except requests.RequestException as exc:
+            errors.append(f"{base}{path}: request failed ({exc})")
+            continue
+
+        if resp.status_code != 200:
+            errors.append(f"{base}{path}: status {resp.status_code} {resp.text[:120]}")
+            continue
+
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            errors.append(f"{base}{path}: invalid json ({exc})")
+            continue
+
+        if not data:
+            errors.append(f"{base}{path}: empty klines")
+            continue
+
+        cols = ["time","open","high","low","close","volume","ct","qv","n","tb","tq","ig"]
+        df = pd.DataFrame(data, columns=cols)
+        for col in ["open","high","low","close","volume"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+        df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        df["symbol"] = symbol
+        return df
+
+    raise HTTPException(502, "all data providers failed: " + " | ".join(errors))
 
 def add_indicators(df: pd.DataFrame):
     """Tek timeframe indikatörleri (EMA, MACD, RSI, ADX, BB, ATR)."""
