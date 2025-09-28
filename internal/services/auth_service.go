@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/cortexa-labs/cortexa-trade-ai-backend/internal/config"
@@ -49,7 +50,14 @@ func (s *AuthService) Register(ctx context.Context, email, password, firstName, 
 	    VALUES($1,$2,'user',NOW(),$3,$4,$5,true,NOW())`,
 		email, string(hash), firstName, lastName, phonePtr,
 	)
-	return err
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return fmt.Errorf("an account with this email already exists")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password string) (models.User, error) {
