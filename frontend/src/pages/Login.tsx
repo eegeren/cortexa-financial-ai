@@ -45,6 +45,14 @@ const LoginPage = () => {
     setResetSuccess(false);
   };
 
+  useEffect(() => {
+    if (!forgotOpen) {
+      setResetEmail('');
+      setResetError(null);
+      setResetSuccess(false);
+    }
+  }, [forgotOpen]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
@@ -125,7 +133,12 @@ const LoginPage = () => {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    if (error) {
+                      clearError();
+                    }
+                    setEmail(event.target.value);
+                  }}
                   required
                   autoComplete="email"
                   className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/80 focus:ring-1 focus:ring-primary/50"
@@ -137,7 +150,12 @@ const LoginPage = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    if (error) {
+                      clearError();
+                    }
+                    setPassword(event.target.value);
+                  }}
                   required
                   autoComplete="current-password"
                   className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/80 focus:ring-1 focus:ring-primary/50"
