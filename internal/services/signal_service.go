@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -105,25 +106,25 @@ type backtestResp struct {
 		NetReturn   float64 `json:"net_return_sum"`
 		HitRate     float64 `json:"hit_rate"`
 	} `json:"regime_metrics"`
-	Sharpe       float64 `json:"sharpe"`
-	Sortino      float64 `json:"sortino"`
-	MaxDrawdown  float64 `json:"max_drawdown"`
-	AvgWin       float64 `json:"avg_win"`
-	AvgLoss      float64 `json:"avg_loss"`
-	Expectancy   float64 `json:"expectancy"`
-	ProfitFactor float64 `json:"profit_factor"`
-	WinLossRatio float64 `json:"win_loss_ratio"`
-	MedianReturn float64 `json:"median_return"`
-	ReturnStd    float64 `json:"return_std"`
+	Sharpe          float64            `json:"sharpe"`
+	Sortino         float64            `json:"sortino"`
+	MaxDrawdown     float64            `json:"max_drawdown"`
+	AvgWin          float64            `json:"avg_win"`
+	AvgLoss         float64            `json:"avg_loss"`
+	Expectancy      float64            `json:"expectancy"`
+	ProfitFactor    float64            `json:"profit_factor"`
+	WinLossRatio    float64            `json:"win_loss_ratio"`
+	MedianReturn    float64            `json:"median_return"`
+	ReturnStd       float64            `json:"return_std"`
 	ReturnQuantiles map[string]float64 `json:"return_quantiles"`
-	SideBreakdown struct {
+	SideBreakdown   struct {
 		Buy  sideBreakdownMetrics `json:"buy"`
 		Sell sideBreakdownMetrics `json:"sell"`
 	} `json:"side_breakdown"`
 	WeekdayBreakdown []weekdayBreakdownRow `json:"weekday_breakdown"`
-	Streaks          streakMetrics        `json:"streaks"`
-	Exposure         exposureMetrics     `json:"exposure"`
-	ScoreBuckets []struct {
+	Streaks          streakMetrics         `json:"streaks"`
+	Exposure         exposureMetrics       `json:"exposure"`
+	ScoreBuckets     []struct {
 		Bucket       string  `json:"bucket"`
 		Trades       int     `json:"trades"`
 		NetReturnAvg float64 `json:"net_return_avg"`
@@ -152,6 +153,14 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 		return models.Signal{}, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(resp.Body)
+		trimmed := strings.TrimSpace(string(msg))
+		if trimmed == "" {
+			trimmed = "ai service error"
+		}
+		return models.Signal{}, fmt.Errorf("ai service status %d: %s", resp.StatusCode, trimmed)
+	}
 
 	var pr predictResp
 	if err := json.NewDecoder(resp.Body).Decode(&pr); err != nil {

@@ -1,6 +1,8 @@
 package server
 
 import (
+	"log"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/jmoiron/sqlx"
@@ -17,6 +19,9 @@ type Server struct {
 
 func New(cfg config.Config) *Server {
 	db := storage.MustOpen(cfg.DBURL)
+	if err := storage.EnsureSchema(db); err != nil {
+		log.Fatalf("ensure schema: %v", err)
+	}
 
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{

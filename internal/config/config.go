@@ -13,7 +13,7 @@ type Config struct {
 	AIServiceURL   string // Python FastAPI /predict
 	BinanceAPIKey  string
 	BinanceSecret  string
-	BinanceBaseURL string // e.g. https://testnet.binance.vision
+	BinanceBaseURL string // e.g. https://api.binance.com
 	OwnerEmail     string
 }
 
@@ -33,7 +33,7 @@ func Load() Config {
 		AIServiceURL:   getenv("AI_SERVICE_URL", "http://localhost:8001/predict"),
 		BinanceAPIKey:  getenv("BINANCE_API_KEY", ""),
 		BinanceSecret:  getenv("BINANCE_API_SECRET", ""),
-		BinanceBaseURL: getenv("BINANCE_BASE_URL", "https://testnet.binance.vision"),
+		BinanceBaseURL: getenv("BINANCE_BASE_URL", "https://api.binance.com"),
 		OwnerEmail:     getenv("OWNER_EMAIL", "yusufegeeren@cortexaai.net"),
 	}
 	if cfg.JWTSecret == "dev_secret_change_me" {
