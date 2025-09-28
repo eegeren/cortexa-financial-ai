@@ -62,7 +62,7 @@ func (s *AuthService) GetUserByID(ctx context.Context, id int64) (models.User, e
 }
 
 func (s *AuthService) UpdateUserRole(ctx context.Context, userID int64, role string) (models.User, error) {
-	allowed := map[string]bool{"user": true, "premium": true, "admin": true}
+	allowed := map[string]bool{"user": true, "premium": true}
 	role = strings.ToLower(strings.TrimSpace(role))
 	if !allowed[role] {
 		return models.User{}, fmt.Errorf("invalid role")
@@ -144,14 +144,6 @@ func (s *AuthService) AdminUserSummaries(ctx context.Context) ([]AdminUserSummar
 		status := "Trial"
 		seats := "Single seat"
 		renewal := row.CreatedAt.Add(14 * 24 * time.Hour)
-
-		if row.Role == "admin" {
-			plan = "Desk Admin"
-			monthlyFee = 0
-			status = "Internal"
-			seats = "Admin access"
-			renewal = now.Add(30 * 24 * time.Hour)
-		}
 
 		if owner != "" && strings.EqualFold(owner, row.Email) {
 			plan = "Premium Access"

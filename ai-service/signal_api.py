@@ -144,9 +144,10 @@ def mtf_context(symbol: str):
 
 def regime_filters(row):
     """Rejim/gürültü filtresi: ADX ve ATR%."""
-    adx_ok = safe_num(row.get("adx")) is not None and row["adx"] >= 15  # çok düşük trend gücünde filtrele
+    adx_val = safe_num(row.get("adx"))
     atrp = safe_num(row.get("atr_pct"))
-    vol_ok = atrp is not None and 0.001 <= atrp <= 0.03               # aşırı düşük/yüksek volatiliteyi ele
+    adx_ok = adx_val is not None and adx_val >= 12  # hafif gevşetildi, daha fazla trend kabul et
+    vol_ok = atrp is not None and 0.0005 <= atrp <= 0.04               # volatilite aralığı genişletildi
     return adx_ok, vol_ok
 
 def directional_vote(row):
@@ -174,23 +175,30 @@ def compute_signal_row(base_row, h1_row, h4_row):
     v_h4 = directional_vote(h4_row)
 
     side = "HOLD"
-    if v_base > 0 and v_h1 >= 0 and v_h4 >= 0 and adx_ok and vol_ok:
+    if v_base > 0 and v_h1 >= -0.25 and v_h4 >= -0.25 and adx_ok and vol_ok:
         side = "BUY"
-    elif v_base < 0 and v_h1 <= 0 and v_h4 <= 0 and adx_ok and vol_ok:
+    elif v_base < 0 and v_h1 <= 0.25 and v_h4 <= 0.25 and adx_ok and vol_ok:
         side = "SELL"
 
     score = score_from_components(v_base, v_h1, v_h4, adx_ok, vol_ok)
+
+    # Skor bazlı ikinci değerlendirme: güçlü skorlar yön versin
+    if side == "HOLD":
+        if score >= 0.6:
+            side = "BUY"
+        elif score <= 0.4:
+            side = "SELL"
     return side, score
 
 def score_from_components(votes_base, votes_h1, votes_h4, adx_ok, vol_ok):
     """Skor: MTF hizalama + rejim filtresi + normalize."""
     align = 0
     if votes_base > 0:  # long tarafı
-        if votes_h1 > 0: align += 0.25
-        if votes_h4 > 0: align += 0.25
+        if votes_h1 >= 0: align += 0.25
+        if votes_h4 >= 0: align += 0.25
     elif votes_base < 0:  # short tarafı
-        if votes_h1 < 0: align += 0.25
-        if votes_h4 < 0: align += 0.25
+        if votes_h1 <= 0: align += 0.25
+        if votes_h4 <= 0: align += 0.25
 
     # temel oyları [-3,3] → [0,1] normalize
     def norm(v): 
