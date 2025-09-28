@@ -13,6 +13,7 @@ import (
 func main() {
 	_ = godotenv.Load() // optional in local dev
 	cfg := config.Load()
+	log.Printf("AI service URL: %s", cfg.AIServiceURL)
 
 	srv := server.New(cfg)
 	log.Printf("starting api on %s", cfg.HTTPAddr)
