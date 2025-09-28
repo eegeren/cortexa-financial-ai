@@ -3,7 +3,7 @@
     "composite": true,
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "NodeNext",
     "strict": true,
     "jsx": "react-jsx",
     "lib": ["ESNext", "DOM"],
