@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import Layout from '@/components/Layout';
+import Layout from './components/Layout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoginPage from '@/pages/Login';
 import RegisterPage from '@/pages/Register';
 import DashboardPage from '@/pages/Dashboard';
 import SignalsPage from '@/pages/Signals';
 import PortfolioPage from '@/pages/Portfolio';
+import AdminPage from '@/pages/Admin';
 import Spinner from '@/components/Spinner';
 import { useAuthStore } from '@/store/auth';
 
@@ -63,6 +64,7 @@ const App = () => {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/signals" element={<SignalsPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

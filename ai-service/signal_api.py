@@ -149,6 +149,32 @@ def add_indicators(df: pd.DataFrame):
     df["atr"] = atr.average_true_range()
     # ATR yüzdesi (fiyat göreli volatilite)
     df["atr_pct"] = (df["atr"] / df["close"]).clip(lower=0)
+
+    # === Additional features for higher signal quality ===
+    # EMA slopes (trend velocity)
+    df["ema_fast_slope"] = df["ema_fast"].diff()
+    df["ema_slow_slope"] = df["ema_slow"].diff()
+
+    # Bollinger Band width (relative)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        df["bb_width"] = (df["bb_high"] - df["bb_low"]) / df["bb_mid"]
+        df["bb_width"].replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    # Keltner Channel for squeeze detection
+    try:
+        kc = ta.volatility.KeltnerChannel(df["high"], df["low"], df["close"], window=20, original_version=False)
+        df["kc_high"], df["kc_low"] = kc.keltner_channel_hband(), kc.keltner_channel_lband()
+        # "Squeeze on" when Bollinger is inside Keltner (avoid trading until expansion)
+        df["squeeze_on"] = (df["bb_high"] < df["kc_high"]) & (df["bb_low"] > df["kc_low"]) 
+    except Exception:
+        # If Keltner can't be computed for any reason, default to no-squeeze
+        df["kc_high"], df["kc_low"], df["squeeze_on"] = np.nan, np.nan, False
+
+    # Distance from mean (BB mid) in ATR units to avoid mean-reversion chop
+    with np.errstate(divide='ignore', invalid='ignore'):
+        df["dist_from_mid_atr"] = np.abs(df["close"] - df["bb_mid"]) / df["atr"]
+        df["dist_from_mid_atr"].replace([np.inf, -np.inf], np.nan, inplace=True)
+
     return df
 
 
@@ -193,24 +219,62 @@ def regime_filters(row):
     """Rejim/gürültü filtresi: ADX ve ATR%."""
     adx_val = safe_num(row.get("adx"))
     atrp = safe_num(row.get("atr_pct"))
-    adx_ok = adx_val is not None and adx_val >= 12  # hafif gevşetildi, daha fazla trend kabul et
-    vol_ok = atrp is not None and 0.0005 <= atrp <= 0.04               # volatilite aralığı genişletildi
+    bbw = safe_num(row.get("bb_width"))
+    squeeze = row.get("squeeze_on", False)
+    dist_mid = safe_num(row.get("dist_from_mid_atr"))
+
+    # Trend/volatility gates
+    adx_ok = adx_val is not None and adx_val >= 12
+
+    # Volatility acceptable window (avoid too quiet and too wild)
+    vol_ok = (atrp is not None and 0.0005 <= atrp <= 0.04)
+
+    # Avoid trades during Bollinger squeeze; wait for expansion
+    if squeeze is True:
+        vol_ok = False
+
+    # Require minimum distance from mean to reduce whipsaws near BB mid
+    if dist_mid is None or dist_mid < 0.15:
+        vol_ok = False
+
+    # Additional sanity on BB width (avoid extreme compression/expansion)
+    if bbw is not None:
+        if bbw < 0.01 or bbw > 0.25:
+            vol_ok = False
+
     return adx_ok, vol_ok
 
 def directional_vote(row):
     """Yön sinyali: EMA, MACD, RSI, BB pozisyonu—basit oy sistemi."""
     votes = 0
-    # EMA cross
-    if safe_num(row["ema_fast"]) and safe_num(row["ema_slow"]):
-        votes += 1 if row["ema_fast"] > row["ema_slow"] else -1
+    # EMA composite (cross + slopes), capped to [-1, 1]
+    ema_component = 0.0
+    if safe_num(row.get("ema_fast")) is not None and safe_num(row.get("ema_slow")) is not None:
+        ema_component += 0.6 if row["ema_fast"] > row["ema_slow"] else -0.6
+    if safe_num(row.get("ema_fast_slope")) is not None:
+        ema_component += 0.2 if row["ema_fast_slope"] > 0 else -0.2
+    if safe_num(row.get("ema_slow_slope")) is not None:
+        ema_component += 0.2 if row["ema_slow_slope"] > 0 else -0.2
+    # hard cap
+    if ema_component > 1.0:
+        ema_component = 1.0
+    elif ema_component < -1.0:
+        ema_component = -1.0
+    votes += ema_component
     # MACD histogram
-    if safe_num(row["macd_hist"]) is not None:
+    if safe_num(row.get("macd_hist")) is not None:
         votes += 1 if row["macd_hist"] > 0 else -1
-    # RSI (50 eşik)
-    if safe_num(row["rsi"]) is not None:
-        votes += 0.5 if row["rsi"] > 50 else -0.5
+    # RSI with wider neutrality band (reduce chop)
+    rsi_val = safe_num(row.get("rsi"))
+    if rsi_val is not None:
+        if rsi_val >= 55:
+            votes += 0.5
+        elif rsi_val <= 45:
+            votes -= 0.5
+        else:
+            votes += 0.0  # neutral zone
     # Bollinger lokasyonu (orta üzeri hafif pozitif)
-    if safe_num(row["bb_mid"]) and safe_num(row["close"]):
+    if safe_num(row.get("bb_mid")) and safe_num(row.get("close")):
         votes += 0.5 if row["close"] > row["bb_mid"] else -0.5
     return votes  # ~ [-3, +3] aralığı
 
@@ -221,10 +285,14 @@ def compute_signal_row(base_row, h1_row, h4_row):
     v_h1 = directional_vote(h1_row)
     v_h4 = directional_vote(h4_row)
 
+    # HTF bias: if 1h and 4h both clearly positive/negative, be less sensitive to minor counter signals on 15m
+    bias_long = (v_h1 >= 0.5 and v_h4 >= 0.5)
+    bias_short = (v_h1 <= -0.5 and v_h4 <= -0.5)
+
     side = "HOLD"
-    if v_base > 0 and v_h1 >= -0.25 and v_h4 >= -0.25 and adx_ok and vol_ok:
+    if v_base > 0 and (v_h1 >= (-0.25 if bias_long else -0.1)) and (v_h4 >= (-0.25 if bias_long else -0.1)) and adx_ok and vol_ok:
         side = "BUY"
-    elif v_base < 0 and v_h1 <= 0.25 and v_h4 <= 0.25 and adx_ok and vol_ok:
+    elif v_base < 0 and (v_h1 <= (0.25 if bias_short else 0.1)) and (v_h4 <= (0.25 if bias_short else 0.1)) and adx_ok and vol_ok:
         side = "SELL"
 
     score = score_from_components(v_base, v_h1, v_h4, adx_ok, vol_ok)
@@ -257,7 +325,8 @@ def score_from_components(votes_base, votes_h1, votes_h4, adx_ok, vol_ok):
     # rejim bonusu/penaltısı
     regime = (0.2 if adx_ok else -0.2) + (0.2 if vol_ok else -0.2)
 
-    raw = 0.5*base_s + 0.2*h1_s + 0.1*h4_s + align + regime
+    # Slightly upweight higher TFs in the final score (stability)
+    raw = 0.45*base_s + 0.3*h1_s + 0.15*h4_s + align + regime
     return max(0.0, min(1.0, raw))
 
 def adaptive_sl_tp(price, atr, side, adx, atr_pct):
