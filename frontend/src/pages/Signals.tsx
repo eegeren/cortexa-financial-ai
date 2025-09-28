@@ -2,7 +2,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { Link } from 'react-router-dom';
 import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
-import Spinner from '@/components/Spinner';
 import {
   fetchSignal,
   SignalResponse,
@@ -18,6 +17,7 @@ import TrendChart from '@/components/TrendChart';
 import MetricCard from '@/components/MetricCard';
 import HeatmapMatrix from '@/components/HeatmapMatrix';
 import { useToast } from '@/components/ToastProvider';
+import Skeleton from '@/components/Skeleton';
 
 const topSymbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'];
 const symbolLabels: Record<string, string> = {
@@ -268,6 +268,7 @@ const SignalsPage = () => {
   }, [backtest]);
 
   const autoTradeDisabled = !isPremium;
+  const showSignalSkeleton = loading && !signal;
 
   useEffect(() => {
     void loadSignal(symbol.trim().toUpperCase());
@@ -470,7 +471,6 @@ const SignalsPage = () => {
         </div>
       </PageHeader>
 
-      {loading && <Spinner />}
       {error && <Banner tone="error">{error}</Banner>}
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
@@ -478,51 +478,85 @@ const SignalsPage = () => {
           <Card className="relative overflow-hidden border-slate-700/60 bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950">
             <div className="pointer-events-none absolute -top-24 right-[-6rem] h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative space-y-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{signal?.symbol ?? symbol}</p>
-                  <span
-                    className={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${sideMeta.badge}`}
-                  >
-                    {symbolLabels[signal?.symbol ?? symbol] ?? signal?.symbol ?? symbol} · {signal?.side ?? 'Waiting'}
-                  </span>
+              {showSignalSkeleton ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-24 w-full" />
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-20 w-full" />
+                    ))}
+                  </div>
                 </div>
-                <div className={`text-4xl font-semibold ${sideMeta.score}`}>
-                  {signal ? signal.score.toFixed(2) : '--'}
-                </div>
-              </div>
-              <TrendChart values={scoreSpark} height={90} />
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {metricPreview.map(([label, value]) => (
-                  <MetricCard key={label} label={label} value={formatMetricValue(value, 4)} />
-                ))}
-              </div>
-              {additionalMetrics.length > 0 && (
-                <div className="grid gap-3 sm:grid-cols-2 text-sm text-slate-300">
-                  {additionalMetrics.map(([label, value]) => (
-                    <div key={label} className="rounded-lg border border-slate-800/70 bg-slate-900/50 p-3">
-                      <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
-                      <p className="mt-1 text-base font-semibold text-white">{formatMetricValue(value, 4)}</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{signal?.symbol ?? symbol}</p>
+                      <span
+                        className={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${sideMeta.badge}`}
+                      >
+                        {symbolLabels[signal?.symbol ?? symbol] ?? signal?.symbol ?? symbol} · {signal?.side ?? 'Waiting'}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-              <div className="text-xs text-slate-400">{sideMeta.label}</div>
-              {signal && (signal.sl || signal.tp) && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-slate-800/70 bg-slate-900/50 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-500">Stop Loss</p>
-                    <p className="mt-1 text-base font-semibold text-slate-200">
-                      {signal.sl ? signal.sl.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '--'}
-                    </p>
+                    <div className={`text-4xl font-semibold ${sideMeta.score}`}>
+                      {signal ? signal.score.toFixed(2) : '--'}
+                    </div>
                   </div>
-                  <div className="rounded-xl border border-slate-800/70 bg-slate-900/50 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-500">Take Profit</p>
-                    <p className="mt-1 text-base font-semibold text-slate-200">
-                      {signal.tp ? signal.tp.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '--'}
-                    </p>
-                  </div>
-                </div>
+                  {signal ? (
+                    <>
+                      <TrendChart values={scoreSpark} height={90} />
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {metricPreview.map(([label, value]) => (
+                          <MetricCard key={label} label={label} value={formatMetricValue(value, 4)} />
+                        ))}
+                      </div>
+                      {additionalMetrics.length > 0 && (
+                        <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+                          {additionalMetrics.map(([label, value]) => (
+                            <div key={label} className="rounded-lg border border-slate-800/70 bg-slate-900/50 p-3">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
+                              <p className="mt-1 text-base font-semibold text-white">{formatMetricValue(value, 4)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="text-xs text-slate-400">{sideMeta.label}</div>
+                      {(signal.sl || signal.tp) && (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-xl border border-slate-800/70 bg-slate-900/50 p-3">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Stop Loss</p>
+                            <p className="mt-1 text-base font-semibold text-slate-200">
+                              {signal.sl ? signal.sl.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '--'}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-slate-800/70 bg-slate-900/50 p-3">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Take Profit</p>
+                            <p className="mt-1 text-base font-semibold text-slate-200">
+                              {signal.tp ? signal.tp.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '--'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-5 text-sm text-slate-300">
+                      <p className="font-semibold text-slate-100">Awaiting live data</p>
+                      <p className="mt-1 text-slate-400">
+                        We have not received a fresh score from the AI service yet. Sit tight or refresh the symbol to
+                        kick off a manual pull.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void loadSignal(symbol.trim().toUpperCase())}
+                        className="mt-3 inline-flex items-center rounded-full border border-primary/60 px-4 py-1 text-xs font-semibold text-primary transition hover:border-primary hover:text-white"
+                      >
+                        Refresh now
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </Card>
@@ -568,7 +602,7 @@ const SignalsPage = () => {
               className="mt-4 w-full rounded-full bg-accent/20 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/30 disabled:cursor-not-allowed disabled:bg-slate-800/50 disabled:text-slate-400"
               disabled={autoTradeDisabled}
             >
-              {autoTradeDisabled ? 'Premium ile aktive et' : 'Trigger auto trade'}
+              {autoTradeDisabled ? 'Activate with Premium' : 'Trigger auto trade'}
             </button>
             {autoResult && <p className="mt-3 text-xs text-slate-400">{autoResult}</p>}
           </Card>

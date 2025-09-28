@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
-import Spinner from '@/components/Spinner';
 import { fetchPortfolio, PortfolioResponse, fetchSignal, SignalResponse } from '@/services/api';
 import { Link } from 'react-router-dom';
 import MarketWidget from '@/components/MarketWidget';
@@ -11,6 +10,7 @@ import HeatmapMatrix from '@/components/HeatmapMatrix';
 import { useToast } from '@/components/ToastProvider';
 import { useI18n } from '@/context/I18nContext';
 import SubscriptionCallout from '@/components/SubscriptionCallout';
+import Skeleton from '@/components/Skeleton';
 
 const DashboardPage = () => {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
@@ -81,14 +81,62 @@ const DashboardPage = () => {
     trades.forEach((trade) => {
       const direction = trade.side === 'BUY' ? 1 : -1;
       running += direction * trade.qty * trade.price;
-      exposures.push(running);
+      exposures.push(Number.isFinite(running) ? running : 0);
     });
-    const netExposure = running;
+    const netExposure = Number.isFinite(running) ? running : 0;
     const lastTrade = trades.length ? trades[trades.length - 1] : undefined;
     const realised = trades.reduce((acc, trade) => acc + trade.qty * trade.price, 0);
     const avgTradeValue = tradeCount ? realised / tradeCount : 0;
     return { tradeCount, netExposure, lastTrade, exposures, realised, avgTradeValue };
   }, [portfolio]);
+
+  const metricConfig = useMemo(() => {
+    if (!stats) {
+      return [] as Array<{
+        label: string;
+        value: string | number;
+        accent?: 'emerald' | 'blue' | 'amber' | 'slate';
+        hint?: string;
+        deltaLabel?: string;
+        deltaTone?: 'positive' | 'negative' | 'neutral';
+      }>;
+    }
+    const exposureTone: 'positive' | 'negative' | 'neutral' =
+      stats.netExposure > 0 ? 'positive' : stats.netExposure < 0 ? 'negative' : 'neutral';
+    return [
+      {
+        label: 'Total trades',
+        value: stats.tradeCount,
+        accent: 'emerald' as const,
+        hint: stats.tradeCount ? 'Completed executions' : 'No trades yet'
+      },
+      {
+        label: 'Net exposure',
+        value: `${stats.netExposure.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`,
+        accent: 'blue' as const,
+        deltaLabel:
+          exposureTone === 'positive'
+            ? 'Long skew'
+            : exposureTone === 'negative'
+            ? 'Short skew'
+            : 'Flat',
+        deltaTone: exposureTone
+      },
+      {
+        label: 'Avg trade size',
+        value: `${stats.avgTradeValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`,
+        accent: 'amber' as const,
+        hint: stats.tradeCount ? 'Across recent executions' : 'Awaiting executions'
+      },
+      {
+        label: 'Realised turnover',
+        value: `${stats.realised.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`,
+        accent: 'slate' as const
+      }
+    ];
+  }, [stats]);
+
+  const isPortfolioEmpty = !loading && !error && (!stats || stats.tradeCount === 0);
 
   const snapshotSignalMeta = useMemo(() => {
     if (!latestSignal) {
@@ -132,10 +180,13 @@ const DashboardPage = () => {
 
       <Card className="border border-slate-800/70 bg-slate-900/60 p-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+          <div className="w-full lg:w-auto">
             <p className="text-xs uppercase tracking-wide text-slate-500">Latest signal</p>
             {signalLoading ? (
-              <p className="mt-2 text-sm text-slate-500">Loading…</p>
+              <div className="mt-3 flex items-center gap-3">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-10 w-16" />
+              </div>
             ) : latestSignal ? (
               <div className="mt-2 flex items-baseline gap-3">
                 <span
@@ -145,7 +196,7 @@ const DashboardPage = () => {
                 >
                   {latestSignal.symbol} · {snapshotSignalMeta?.label}
                 </span>
-                <span className="text-2xl font-semibold text-accent">
+                <span className="text-3xl font-semibold text-accent">
                   {latestSignal.score.toFixed(2)}
                 </span>
               </div>
@@ -153,9 +204,14 @@ const DashboardPage = () => {
               <p className="mt-2 text-sm text-slate-500">No signal available yet.</p>
             )}
           </div>
-          <div>
+          <div className="w-full lg:w-auto">
             <p className="text-xs uppercase tracking-wide text-slate-500">Most recent trade</p>
-            {stats?.lastTrade ? (
+            {loading ? (
+              <div className="mt-3 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            ) : stats?.lastTrade ? (
               <div className="mt-2 text-sm text-slate-200">
                 <p>
                   {stats.lastTrade.side} · {stats.lastTrade.symbol}
@@ -173,20 +229,21 @@ const DashboardPage = () => {
               <p className="mt-2 text-sm text-slate-500">No trades recorded.</p>
             )}
           </div>
-          <div className="space-y-1 text-xs text-slate-400">
-            <p>Total trades: <span className="font-semibold text-slate-100">{stats?.tradeCount ?? 0}</span></p>
-            <p>
-              Net exposure:{' '}
-              <span className="font-semibold text-slate-100">
-                {(stats?.netExposure ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
-              </span>
-            </p>
-            <p>
-              Average trade size:{' '}
-              <span className="font-semibold text-slate-100">
-                {(stats?.avgTradeValue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
-              </span>
-            </p>
+          <div className="w-full lg:w-auto">
+            <div className="rounded-xl border border-slate-800/70 bg-slate-900/70 p-4 text-xs text-slate-300">
+              <p className="text-[11px] uppercase tracking-wide text-slate-500">Playbook</p>
+              <p className="mt-2 text-sm text-slate-200">
+                Pair live signals with your portfolio to evaluate potential entries, then schedule automated alerts for
+                thresholds you trust.
+              </p>
+              <button
+                type="button"
+                onClick={() => pushToast('Alert automation is coming soon.', 'info')}
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-accent/60 px-3 py-1 text-xs font-semibold text-accent transition hover:border-accent hover:text-white"
+              >
+                Schedule alert
+              </button>
+            </div>
           </div>
         </div>
         <div className="mt-6 flex flex-wrap gap-3">
@@ -202,13 +259,6 @@ const DashboardPage = () => {
           >
             View portfolio
           </Link>
-          <button
-            type="button"
-            onClick={() => pushToast('Alert automation is coming soon.', 'info')}
-            className="rounded-full border border-accent/60 px-4 py-2 text-xs font-semibold text-accent transition hover:border-accent hover:text-white"
-          >
-            Schedule alert
-          </button>
         </div>
       </Card>
 
@@ -239,26 +289,28 @@ const DashboardPage = () => {
                 </Link>
               </div>
             </header>
-            {loading && <Spinner />}
             {error && <p className="text-sm text-red-400">{error}</p>}
+            {loading && !error && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Skeleton key={index} className="h-28 w-full" />
+                ))}
+              </div>
+            )}
             {!loading && !error && stats && (
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <MetricCard label="Total trades" value={stats.tradeCount} accent="emerald" />
-                  <MetricCard
-                    label="Net exposure"
-                    value={`${stats.netExposure.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`}
-                    accent="blue"
-                  />
-                  <MetricCard
-                    label="Avg trade size"
-                    value={`${stats.avgTradeValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`}
-                    accent="amber"
-                  />
-                  <MetricCard
-                    label="Realised turnover"
-                    value={`${stats.realised.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`}
-                  />
+                  {metricConfig.map((metric) => (
+                    <MetricCard
+                      key={metric.label}
+                      label={metric.label}
+                      value={metric.value}
+                      accent={metric.accent}
+                      hint={metric.hint}
+                      deltaLabel={metric.deltaLabel}
+                      deltaTone={metric.deltaTone}
+                    />
+                  ))}
                 </div>
                 <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
                   <Card className="border border-slate-800/70 bg-slate-900/60 p-4">
@@ -282,6 +334,20 @@ const DashboardPage = () => {
                   </Card>
                 </div>
               </>
+            )}
+            {isPortfolioEmpty && (
+              <div className="rounded-xl border border-slate-800/60 bg-slate-900/60 p-5 text-sm text-slate-300">
+                <p className="font-semibold text-slate-100">You are all set.</p>
+                <p className="mt-1 text-slate-400">
+                  Connect your first automated trade from the signal panel to populate portfolio analytics.
+                </p>
+                <Link
+                  to="/signals"
+                  className="mt-4 inline-flex items-center text-xs font-semibold text-primary transition hover:text-primary/80"
+                >
+                  Review live signals →
+                </Link>
+              </div>
             )}
           </div>
         </Card>

@@ -169,7 +169,16 @@ const RegisterPage = () => {
                     id="firstName"
                     type="text"
                     value={firstName}
-                    onChange={(event) => setFirstName(event.target.value)}
+                onChange={(event) => {
+                  setFirstName(event.target.value);
+                  if (fieldErrors.firstName) {
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.firstName;
+                      return next;
+                    });
+                  }
+                }}
                     required
                     className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
                   />
@@ -181,7 +190,16 @@ const RegisterPage = () => {
                     id="lastName"
                     type="text"
                     value={lastName}
-                    onChange={(event) => setLastName(event.target.value)}
+                onChange={(event) => {
+                  setLastName(event.target.value);
+                  if (fieldErrors.lastName) {
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.lastName;
+                      return next;
+                    });
+                  }
+                }}
                     required
                     className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
                   />
@@ -195,7 +213,16 @@ const RegisterPage = () => {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                if (fieldErrors.email) {
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.email;
+                    return next;
+                  });
+                }
+              }}
                   required
                   className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
                 />
@@ -209,7 +236,16 @@ const RegisterPage = () => {
                     id="password"
                     type="password"
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    if (fieldErrors.password) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.password;
+                        return next;
+                      });
+                    }
+                  }}
                     required
                     className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
                   />
@@ -234,7 +270,16 @@ const RegisterPage = () => {
                     id="confirmation"
                     type="password"
                     value={confirmation}
-                    onChange={(event) => setConfirmation(event.target.value)}
+                  onChange={(event) => {
+                    setConfirmation(event.target.value);
+                    if (fieldErrors.confirmation) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.confirmation;
+                        return next;
+                      });
+                    }
+                  }}
                     required
                     className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
                   />
@@ -248,7 +293,16 @@ const RegisterPage = () => {
                   id="phone"
                   type="tel"
                   value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                  if (fieldErrors.phone) {
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.phone;
+                      return next;
+                    });
+                  }
+                }}
                   placeholder="+90 5XX XXX XX XX"
                   className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
                 />
@@ -261,7 +315,16 @@ const RegisterPage = () => {
                     type="checkbox"
                     className="mt-1 h-4 w-4 rounded border border-slate-600 bg-slate-900 text-primary focus:outline-none"
                     checked={kvkkAccepted}
-                    onChange={(event) => setKvkkAccepted(event.target.checked)}
+                    onChange={(event) => {
+                      setKvkkAccepted(event.target.checked);
+                      if (fieldErrors.kvkk) {
+                        setFieldErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.kvkk;
+                          return next;
+                        });
+                      }
+                    }}
                     required
                   />
                   <span>
