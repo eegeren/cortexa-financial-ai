@@ -11,7 +11,7 @@ const tiers = [
   },
   {
     label: 'Premium',
-    price: '$499/mo',
+    price: '$299/mo',
     perks: ['Real-time signal stream', 'Full backtesting suite', 'Priority desk support']
   }
 ];
@@ -65,7 +65,7 @@ const SubscriptionCallout = () => {
           </div>
           <div className="flex flex-wrap gap-3">
             <a
-              href="mailto:desk@cortexa.ai"
+              href="mailto:info@cortexaai.net"
               className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-white transition hover:bg-primary/80"
             >
               Talk to the desk
