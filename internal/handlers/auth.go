@@ -3,11 +3,21 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
-type authReq struct {
+type loginReq struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type registerReq struct {
+	Email        string `json:"email"`
+	Password     string `json:"password"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Phone        string `json:"phone"`
+	KvkkAccepted bool   `json:"kvkk_accepted"`
 }
 
 type authResp struct {
@@ -15,12 +25,32 @@ type authResp struct {
 }
 
 func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
-	var req authReq
+	var req registerReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := h.Auth.Register(r.Context(), req.Email, req.Password); err != nil {
+	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
+		http.Error(w, "email and password required", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.FirstName) == "" || strings.TrimSpace(req.LastName) == "" {
+		http.Error(w, "first and last name required", http.StatusBadRequest)
+		return
+	}
+	if !req.KvkkAccepted {
+		http.Error(w, "kvkk consent required", http.StatusBadRequest)
+		return
+	}
+	if err := h.Auth.Register(
+		r.Context(),
+		strings.TrimSpace(req.Email),
+		req.Password,
+		req.FirstName,
+		req.LastName,
+		req.Phone,
+		req.KvkkAccepted,
+	); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -28,7 +58,7 @@ func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
-	var req authReq
+	var req loginReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

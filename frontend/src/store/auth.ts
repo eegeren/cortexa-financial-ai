@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { setAuthToken } from '@/services/api';
 
+type RegisterPayload = {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  kvkkAccepted: boolean;
+};
+
 type AuthState = {
   token: string | null;
   email: string | null;
@@ -10,7 +19,7 @@ type AuthState = {
   error: string | null;
   hydrate: () => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
   clearError: () => void;
 };
@@ -77,13 +86,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw error;
     }
   },
-  register: async (email, password) => {
+  register: async ({ email, password, firstName, lastName, phone, kvkkAccepted }) => {
     set({ loading: true, error: null });
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'https://cortexa-financial-ai.onrender.com'}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          email,
+          password,
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+          kvkk_accepted: kvkkAccepted
+        })
       });
       if (!res.ok) {
         const text = await res.text();

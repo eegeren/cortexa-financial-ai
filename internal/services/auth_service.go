@@ -25,9 +25,30 @@ func NewAuthService(db *sqlx.DB, cfg config.Config) *AuthService {
 	return &AuthService{db: db, cfg: cfg}
 }
 
-func (s *AuthService) Register(ctx context.Context, email, password string) error {
-	h, _ := bcrypt.GenerateFromPassword([]byte(password), 12)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO users(email,password_hash,role,created_at) VALUES($1,$2,'user',NOW())`, email, string(h))
+func (s *AuthService) Register(ctx context.Context, email, password, firstName, lastName, phone string, kvkkAccepted bool) error {
+	if !kvkkAccepted {
+		return fmt.Errorf("kvkk consent required")
+	}
+	email = strings.TrimSpace(email)
+	firstName = strings.TrimSpace(firstName)
+	lastName = strings.TrimSpace(lastName)
+	if email == "" || firstName == "" || lastName == "" {
+		return fmt.Errorf("missing required fields")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return err
+	}
+	var phonePtr *string
+	trimmedPhone := strings.TrimSpace(phone)
+	if trimmedPhone != "" {
+		phonePtr = &trimmedPhone
+	}
+	_, err = s.db.ExecContext(ctx, `
+	    INSERT INTO users(email,password_hash,role,created_at,first_name,last_name,phone,kvkk_accepted,kvkk_accepted_at)
+	    VALUES($1,$2,'user',NOW(),$3,$4,$5,true,NOW())`,
+		email, string(hash), firstName, lastName, phonePtr,
+	)
 	return err
 }
 
