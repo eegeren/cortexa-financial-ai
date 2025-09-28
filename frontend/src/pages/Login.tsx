@@ -25,6 +25,10 @@ const LoginPage = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -34,6 +38,13 @@ const LoginPage = () => {
 
   useEffect(() => () => clearError(), [clearError]);
 
+  const closeResetModal = () => {
+    setForgotOpen(false);
+    setResetEmail('');
+    setResetError(null);
+    setResetSuccess(false);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
@@ -42,6 +53,20 @@ const LoginPage = () => {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleForgotSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setResetError(null);
+    const trimmed = resetEmail.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setResetError('Please enter a valid email address.');
+      return;
+    }
+    const subject = encodeURIComponent('Cortexa password reset request');
+    const body = encodeURIComponent(`Hello Cortexa team,\n\nPlease help me reset the password for the account associated with ${trimmed}.\n\nThanks.`);
+    window.location.href = `mailto:yusufegeeren@cortexaai.net?subject=${subject}&body=${body}`;
+    setResetSuccess(true);
   };
 
   return (
@@ -123,7 +148,11 @@ const LoginPage = () => {
                   <input type="checkbox" className="size-4 rounded border-slate-700 bg-slate-900" />
                   Remember me
                 </label>
-                <button type="button" className="text-accent hover:underline">
+                <button
+                  type="button"
+                  onClick={() => setForgotOpen(true)}
+                  className="text-accent hover:underline"
+                >
                   Forgot password
                 </button>
               </div>
@@ -144,7 +173,7 @@ const LoginPage = () => {
             </div>
 
             <footer className="mt-8 space-y-3 text-xs text-slate-500">
-              <p>Working with an enterprise team? <span className="text-slate-300">enterprise@cortexa.ai</span></p>
+              <p>Working with an enterprise team? <span className="text-slate-300">yusufegeeren@cortexaai.net</span></p>
               <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-slate-500">
                 <span>© {new Date().getFullYear()} Cortexa Labs</span>
                 <span>•</span>
@@ -156,6 +185,64 @@ const LoginPage = () => {
           </div>
         </section>
       </div>
+
+      {forgotOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-800/70 bg-slate-900 p-6 shadow-2xl">
+            <button
+              type="button"
+              onClick={closeResetModal}
+              className="absolute right-4 top-4 text-sm text-slate-400 transition hover:text-slate-200"
+            >
+              Close
+            </button>
+            <h3 className="text-lg font-semibold text-white">Reset your password</h3>
+            <p className="mt-2 text-sm text-slate-400">
+              Enter the email linked to your Cortexa account. We’ll open a mail draft to{' '}
+              <span className="text-slate-200">yusufegeeren@cortexaai.net</span> so the desk can assist you.
+            </p>
+            <form onSubmit={handleForgotSubmit} className="mt-4 space-y-4">
+              <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="reset-email">
+                Account email
+                <input
+                  id="reset-email"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(event) => setResetEmail(event.target.value)}
+                  required
+                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/80 focus:ring-1 focus:ring-primary/50"
+                />
+              </label>
+              {resetError && <p className="text-xs text-red-400">{resetError}</p>}
+              {resetSuccess && (
+                <p className="rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-xs text-emerald-200">
+                  A mail draft has been opened. If it didn’t appear, you can reach out directly at
+                  {' '}
+                  <a href="mailto:yusufegeeren@cortexaai.net" className="font-semibold text-emerald-100 underline">
+                    yusufegeeren@cortexaai.net
+                  </a>
+                  .
+                </p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/80"
+                >
+                  Contact support
+                </button>
+                <button
+                  type="button"
+                  onClick={closeResetModal}
+                  className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 transition hover:border-primary hover:text-white"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
