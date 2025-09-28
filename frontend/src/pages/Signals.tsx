@@ -139,25 +139,25 @@ const SignalsPage = () => {
     if (role === 'premium') {
       return (
         <Card className="border border-emerald-500/30 bg-emerald-500/5 p-5">
-          <h3 className="text-sm font-semibold text-emerald-200">Premium erişimi aktif</h3>
+          <h3 className="text-sm font-semibold text-emerald-200">Premium access active</h3>
           <p className="mt-2 text-xs text-emerald-100/80">
-            Otomatik işlem ve gelişmiş sinyal analizleri hazır. Genişletilmiş backtest raporları için masa admini ile
-            iletişime geçebilirsin.
+            Automated execution and advanced signal analytics are enabled. Reach out to the desk if you need extended
+            backtest reports or bespoke models.
           </p>
         </Card>
       );
     }
     return (
       <Card className="border border-primary/40 bg-primary/10 p-5">
-        <h3 className="text-sm font-semibold text-primary">Gelişmiş analizler kilitli</h3>
+        <h3 className="text-sm font-semibold text-primary">Advanced analytics locked</h3>
         <p className="mt-2 text-xs text-slate-200">
-          Canlı otomatik işlem ve backtest raporlarına erişebilmek için Cortexa Premium aboneliğine geçmelisin.
+          Upgrade to Cortexa Premium to unlock live auto-trading and full backtest reports.
         </p>
         <Link
           to="/dashboard"
           className="mt-3 inline-flex items-center text-xs font-semibold text-primary transition hover:text-primary/80"
         >
-          Detayları gör →
+          View details →
         </Link>
       </Card>
     );
@@ -533,7 +533,7 @@ const SignalsPage = () => {
               Define trigger conditions for this signal. When the AI confidence exceeds the chosen threshold we will
               execute a market order for the selected quantity.
             </p>
-            {!isPremium && <Banner tone="warning">Bu özellik Cortexa Premium kullanıcılarına açıktır.</Banner>}
+            {!isPremium && <Banner tone="warning">This feature is available to Cortexa Premium members.</Banner>}
             {autoError && <p className="mt-3 text-xs text-red-400">{autoError}</p>}
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <label className="text-xs uppercase tracking-wide text-slate-400">

@@ -7,27 +7,27 @@ type Dictionary = Record<string, Record<Locale, string>>;
 const dictionary: Dictionary = {
   dashboard_overview_title: {
     en: 'Overview',
-    tr: 'Genel Bakış'
+    tr: 'Overview'
   },
   dashboard_overview_description: {
     en: 'Monitor your trading posture and act on the latest AI-backed insights.',
-    tr: 'Ticaret durumunu izle ve son yapay zeka içgörülerine göre aksiyon al.'
+    tr: 'Monitor your trading posture and act on the latest AI-backed insights.'
   },
   view_signals: {
     en: 'View Signals',
-    tr: 'Sinyalleri Gör'
+    tr: 'View Signals'
   },
   manage_portfolio: {
     en: 'Manage Portfolio',
-    tr: 'Portföyü Yönet'
+    tr: 'Manage Portfolio'
   },
   explore_signals: {
     en: 'Explore signals',
-    tr: 'Sinyalleri incele'
+    tr: 'Explore signals'
   },
   review_portfolio: {
     en: 'Review portfolio',
-    tr: 'Portföyü incele'
+    tr: 'Review portfolio'
   }
 };
 

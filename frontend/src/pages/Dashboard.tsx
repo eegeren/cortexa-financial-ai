@@ -50,7 +50,7 @@ const DashboardPage = () => {
         if (!active) {
           return;
         }
-        const message = err instanceof Error ? err.message : 'Sinyal okuması başarısız';
+        const message = err instanceof Error ? err.message : 'Signal fetch failed';
         pushToast(message, 'warning');
       } finally {
         if (active) {
@@ -98,18 +98,18 @@ const DashboardPage = () => {
     if (side === 'BUY') {
       return {
         badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200',
-        label: 'Al sinyali'
+        label: 'Buy bias'
       };
     }
     if (side === 'SELL') {
       return {
         badge: 'bg-rose-500/10 border-rose-500/30 text-rose-200',
-        label: 'Sat sinyali'
+        label: 'Sell bias'
       };
     }
     return {
       badge: 'bg-amber-500/10 border-amber-500/30 text-amber-200',
-      label: 'Nötr'
+      label: 'Neutral'
     };
   }, [latestSignal]);
 
@@ -133,9 +133,9 @@ const DashboardPage = () => {
       <Card className="border border-slate-800/70 bg-slate-900/60 p-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500">Son sinyal</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Latest signal</p>
             {signalLoading ? (
-              <p className="mt-2 text-sm text-slate-500">Yükleniyor…</p>
+              <p className="mt-2 text-sm text-slate-500">Loading…</p>
             ) : latestSignal ? (
               <div className="mt-2 flex items-baseline gap-3">
                 <span
@@ -150,11 +150,11 @@ const DashboardPage = () => {
                 </span>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-slate-500">Henüz sinyal alınamadı.</p>
+              <p className="mt-2 text-sm text-slate-500">No signal available yet.</p>
             )}
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500">Son işlem</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Most recent trade</p>
             {stats?.lastTrade ? (
               <div className="mt-2 text-sm text-slate-200">
                 <p>
@@ -170,19 +170,19 @@ const DashboardPage = () => {
                 )}
               </div>
             ) : (
-              <p className="mt-2 text-sm text-slate-500">Kayıtlı işlem bulunmuyor.</p>
+              <p className="mt-2 text-sm text-slate-500">No trades recorded.</p>
             )}
           </div>
           <div className="space-y-1 text-xs text-slate-400">
-            <p>Toplam işlem: <span className="font-semibold text-slate-100">{stats?.tradeCount ?? 0}</span></p>
+            <p>Total trades: <span className="font-semibold text-slate-100">{stats?.tradeCount ?? 0}</span></p>
             <p>
-              Net pozisyon:{' '}
+              Net exposure:{' '}
               <span className="font-semibold text-slate-100">
                 {(stats?.netExposure ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
               </span>
             </p>
             <p>
-              Ortalama işlem hacmi:{' '}
+              Average trade size:{' '}
               <span className="font-semibold text-slate-100">
                 {(stats?.avgTradeValue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
               </span>
@@ -194,20 +194,20 @@ const DashboardPage = () => {
             to="/signals"
             className="rounded-full bg-primary/80 px-4 py-2 text-xs font-semibold text-slate-50 transition hover:bg-primary"
           >
-            Sinyallere git
+            Go to signals
           </Link>
           <Link
             to="/portfolio"
             className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-primary hover:text-white"
           >
-            Portföyü görüntüle
+            View portfolio
           </Link>
           <button
             type="button"
-            onClick={() => pushToast('Alarm otomasyonu yakında eklenecek.', 'info')}
+            onClick={() => pushToast('Alert automation is coming soon.', 'info')}
             className="rounded-full border border-accent/60 px-4 py-2 text-xs font-semibold text-accent transition hover:border-accent hover:text-white"
           >
-            Alarm planla
+            Schedule alert
           </button>
         </div>
       </Card>

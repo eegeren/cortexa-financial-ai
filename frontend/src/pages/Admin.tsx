@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import clsx from 'clsx';
 import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
 import Spinner from '@/components/Spinner';
@@ -12,6 +13,7 @@ const AdminPage = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingRoles, setPendingRoles] = useState<Record<number, string>>({});
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,11 +33,34 @@ const AdminPage = () => {
     void load();
   }, [load]);
 
+  const filteredUsers = useMemo(() => {
+    if (!query.trim()) {
+      return users;
+    }
+    const q = query.trim().toLowerCase();
+    return users.filter((user) => user.email.toLowerCase().includes(q));
+  }, [users, query]);
+
+  const metrics = useMemo(() => {
+    const active = filteredUsers.filter((user) => user.status.toLowerCase() === 'active');
+    const monthlyRecurring = active.reduce((acc, user) => acc + (user.monthly_fee ?? 0), 0);
+    const trial = filteredUsers.filter((user) => user.status.toLowerCase() === 'trial').length;
+    const totalVolume = filteredUsers.reduce((acc, user) => acc + (user.volume ?? 0), 0);
+    const premium = filteredUsers.filter((user) => user.role === 'premium').length;
+    return {
+      accounts: filteredUsers.length,
+      monthlyRecurring,
+      trial,
+      totalVolume,
+      premium,
+    };
+  }, [filteredUsers]);
+
   const handleRoleChange = (id: number, nextRole: string) => {
     setPendingRoles((prev) => ({ ...prev, [id]: nextRole }));
   };
 
-  const handleRoleSave = async (id: number) => {
+  const persistRole = async (id: number) => {
     const role = pendingRoles[id];
     if (!role || role.trim() === '') {
       return;
@@ -58,18 +83,10 @@ const AdminPage = () => {
     }
   };
 
-  const metrics = useMemo(() => {
-    const active = users.filter((user) => user.status.toLowerCase() === 'active');
-    const monthlyRecurring = active.reduce((acc, user) => acc + (user.monthly_fee ?? 0), 0);
-    const trial = users.filter((user) => user.status.toLowerCase() === 'trial').length;
-    const totalVolume = users.reduce((acc, user) => acc + (user.volume ?? 0), 0);
-    return {
-      accounts: users.length,
-      monthlyRecurring,
-      trial,
-      totalVolume
-    };
-  }, [users]);
+  const handleQuickRole = async (id: number, role: 'user' | 'premium' | 'admin') => {
+    setPendingRoles((prev) => ({ ...prev, [id]: role }));
+    await persistRole(id);
+  };
 
   return (
     <div className="space-y-8">
@@ -98,17 +115,27 @@ const AdminPage = () => {
               <p className="mt-2 text-2xl font-semibold text-white">{metrics.trial}</p>
             </Card>
             <Card className="bg-slate-900/70">
-              <p className="text-xs uppercase tracking-wide text-slate-400">Trade volume</p>
-              <p className="mt-2 text-2xl font-semibold text-white">${metrics.totalVolume.toFixed(2)}</p>
+              <p className="text-xs uppercase tracking-wide text-slate-400">Premium accounts</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{metrics.premium}</p>
             </Card>
           </div>
 
           <Card className="bg-slate-900/70">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-white">Members</h2>
-              <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">
-                {users.length} accounts · {metrics.trial} trials
-              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-lg font-semibold text-white">Members</h2>
+                <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">
+                  {filteredUsers.length} accounts · {metrics.trial} trials
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search email"
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-primary focus:outline-none"
+                />
+              </div>
             </div>
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-sm">
@@ -126,11 +153,11 @@ const AdminPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                  <tr key={user.id} className="border-t border-slate-800/60">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="border-t border-slate-800/60">
                       <td className="px-3 py-2 text-slate-200">{user.email}</td>
                       <td className="px-3 py-2 text-slate-400">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <select
                             value={pendingRoles[user.id] ?? user.role}
                             onChange={(event) => handleRoleChange(user.id, event.target.value)}
@@ -142,24 +169,41 @@ const AdminPage = () => {
                           </select>
                           <button
                             type="button"
-                            onClick={() => handleRoleSave(user.id)}
+                            onClick={() => persistRole(user.id)}
                             disabled={savingId === user.id || (pendingRoles[user.id] ?? user.role) === user.role}
                             className="rounded bg-primary/80 px-2 py-1 text-xs font-semibold text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:bg-slate-700/60"
                           >
                             {savingId === user.id ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickRole(user.id, 'premium')}
+                            disabled={savingId === user.id || user.role === 'premium'}
+                            className="rounded border border-emerald-500/60 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-200 transition hover:border-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Upgrade to Premium
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickRole(user.id, 'user')}
+                            disabled={savingId === user.id || user.role === 'user'}
+                            className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Revert
                           </button>
                         </div>
                       </td>
                       <td className="px-3 py-2 text-slate-200">{user.plan}</td>
                       <td className="px-3 py-2">
                         <span
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          className={clsx(
+                            'rounded-full px-2 py-1 text-xs font-semibold',
                             user.status.toLowerCase() === 'active'
                               ? 'bg-emerald-500/10 text-emerald-300'
                               : user.status.toLowerCase() === 'trial'
                               ? 'bg-amber-500/10 text-amber-300'
                               : 'bg-slate-700/40 text-slate-300'
-                          }`}
+                          )}
                         >
                           {user.status}
                         </span>

@@ -313,7 +313,7 @@ const PortfolioPage = () => {
               onChange={(event) => setFilters((prev) => ({ ...prev, symbol: event.target.value }))}
               className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
             >
-              <option value="ALL">Tümü</option>
+              <option value="ALL">All</option>
               {availableSymbols.map((symbol) => (
                 <option key={symbol} value={symbol}>
                   {symbol}
@@ -322,19 +322,19 @@ const PortfolioPage = () => {
             </select>
           </label>
           <label className="text-xs uppercase tracking-wide text-slate-400">
-            Yön
+            Side
             <select
               value={filters.side}
               onChange={(event) => setFilters((prev) => ({ ...prev, side: event.target.value }))}
               className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
             >
-              <option value="ALL">Tümü</option>
+              <option value="ALL">All</option>
               <option value="BUY">BUY</option>
               <option value="SELL">SELL</option>
             </select>
           </label>
           <label className="text-xs uppercase tracking-wide text-slate-400">
-            Başlangıç
+            Start
             <input
               type="date"
               value={filters.startDate}
@@ -343,7 +343,7 @@ const PortfolioPage = () => {
             />
           </label>
           <label className="text-xs uppercase tracking-wide text-slate-400">
-            Bitiş
+            End
             <input
               type="date"
               value={filters.endDate}
@@ -354,10 +354,10 @@ const PortfolioPage = () => {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
           <span>
-            Toplam kayıt: <span className="font-semibold text-slate-200">{filteredSummary.count}</span>
+            Total records: <span className="font-semibold text-slate-200">{filteredSummary.count}</span>
           </span>
           <span>
-            Hacim: <span className="font-semibold text-slate-200">{filteredSummary.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+            Volume: <span className="font-semibold text-slate-200">{filteredSummary.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
           </span>
           <span>
             Net: <span className="font-semibold text-slate-200">{filteredSummary.net.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</span>
@@ -369,7 +369,7 @@ const PortfolioPage = () => {
             onClick={() => setFilters({ symbol: 'ALL', side: 'ALL', startDate: '', endDate: '' })}
             className="rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-300 transition hover:border-primary hover:text-white"
           >
-            Filtreleri sıfırla
+            Reset filters
           </button>
           <button
             type="button"
@@ -377,7 +377,7 @@ const PortfolioPage = () => {
             className="rounded-full bg-primary/80 px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary"
             disabled={!filteredSummary.count}
           >
-            CSV indir
+            Download CSV
           </button>
         </div>
       </Card>
@@ -414,7 +414,7 @@ const PortfolioPage = () => {
                     <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                       {(portfolio.trades ?? []).length === 0
                         ? 'You haven’t added any trades yet.'
-                        : 'Filtrelere uygun kayıt bulunamadı.'}
+                        : 'No records match the current filters.'}
                     </td>
                   </tr>
                 )}

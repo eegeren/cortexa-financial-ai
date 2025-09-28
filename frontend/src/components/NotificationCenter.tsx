@@ -22,7 +22,7 @@ const NotificationCenter = () => {
       {open && (
         <div className="absolute right-0 z-50 mt-3 w-80 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-white">Bildirimler</p>
+            <p className="text-sm font-semibold text-white">Notifications</p>
             {history.length > 0 && (
               <button
                 type="button"
@@ -32,13 +32,13 @@ const NotificationCenter = () => {
                 }}
                 className="text-xs text-slate-400 transition hover:text-slate-200"
               >
-                Temizle
+                Clear
               </button>
             )}
           </div>
           <div className="mt-3 max-h-64 overflow-y-auto space-y-3 text-sm text-slate-200">
             {history.length === 0 ? (
-              <p className="text-xs text-slate-500">Henüz kayıtlı bir bildirim yok.</p>
+              <p className="text-xs text-slate-500">You have no notifications yet.</p>
             ) : (
               history.map((toast) => (
                 <div
@@ -60,7 +60,7 @@ const NotificationCenter = () => {
                       onClick={() => dismissToast(toast.id)}
                       className="text-[10px] uppercase tracking-wide text-slate-200 transition hover:text-white"
                     >
-                      Sil
+                      Dismiss
                     </button>
                   </div>
                   <p className="mt-1 text-[10px] text-slate-300">
