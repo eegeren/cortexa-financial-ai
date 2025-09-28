@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/cortexa-labs/cortexa-trade-ai-backend/internal/config"
@@ -22,7 +23,11 @@ func (s *PriceService) GetOHLCV(ctx context.Context, symbol, interval string, li
 	q.Set("interval", interval)
 	q.Set("limit", fmt.Sprintf("%d", limit))
 
-	endpoint := "https://api.binance.com/api/v3/klines?" + q.Encode()
+	base := strings.TrimSuffix(s.cfg.BinanceBaseURL, "/")
+	if base == "" {
+		base = "https://api.binance.com"
+	}
+	endpoint := fmt.Sprintf("%s/api/v3/klines?%s", base, q.Encode())
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	req.Header.Set("User-Agent", "cortexa-trade-ai/1.0")
 	client := &http.Client{Timeout: 10 * time.Second}

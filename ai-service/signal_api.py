@@ -55,9 +55,14 @@ import requests
 import pandas as pd
 import numpy as np
 import ta
+import os
 
 app = FastAPI()
-BINANCE_URL = "https://api.binance.com/api/v3/klines"
+_BINANCE_BASE = os.getenv("BINANCE_BASE_URL", "https://api.binance.com").rstrip('/')
+_BINANCE_KLINES_PATH = os.getenv("BINANCE_KLINES_PATH", "/api/v3/klines")
+if not _BINANCE_KLINES_PATH.startswith('/'):
+    _BINANCE_KLINES_PATH = f"/{_BINANCE_KLINES_PATH}"
+BINANCE_URL = f"{_BINANCE_BASE}{_BINANCE_KLINES_PATH}"
 
 pd.options.mode.use_inf_as_na = True
 
