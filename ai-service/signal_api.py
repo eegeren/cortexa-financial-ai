@@ -158,7 +158,7 @@ def add_indicators(df: pd.DataFrame):
     # Bollinger Band width (relative)
     with np.errstate(divide='ignore', invalid='ignore'):
         df["bb_width"] = (df["bb_high"] - df["bb_low"]) / df["bb_mid"]
-        df["bb_width"].replace([np.inf, -np.inf], np.nan, inplace=True)
+        df["bb_width"] = df["bb_width"].replace([np.inf, -np.inf], np.nan)
 
     # Keltner Channel for squeeze detection
     try:
@@ -173,7 +173,7 @@ def add_indicators(df: pd.DataFrame):
     # Distance from mean (BB mid) in ATR units to avoid mean-reversion chop
     with np.errstate(divide='ignore', invalid='ignore'):
         df["dist_from_mid_atr"] = np.abs(df["close"] - df["bb_mid"]) / df["atr"]
-        df["dist_from_mid_atr"].replace([np.inf, -np.inf], np.nan, inplace=True)
+        df["dist_from_mid_atr"] = df["dist_from_mid_atr"].replace([np.inf, -np.inf], np.nan)
 
     return df
 
