@@ -58,8 +58,29 @@ from fastapi import FastAPI, HTTPException
 import pandas as pd
 import numpy as np
 import ta
+import logging
+import traceback
 
 app = FastAPI()
+
+# --- basic logger setup ---
+logger = logging.getLogger("ai-service")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    handler.setFormatter(fmt)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+
+# Lightweight root and health endpoints
+@app.get("/")
+def root():
+    return {"ok": True, "service": "ai-service"}
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
 def _normalize_path(path: str) -> str:
     if not path.startswith('/'):
@@ -693,8 +714,12 @@ def backtest_sweep(
 @app.post("/predict")
 def predict(payload: dict):
     symbol = payload.get("symbol", "BTCUSDT")
-    res = compute_signal(symbol)
-    return json_sanitize(res)  
+    try:
+        res = compute_signal(symbol)
+        return json_sanitize(res)
+    except Exception as exc:
+        logger.error("/predict failed for %s: %s\n%s", symbol, exc, traceback.format_exc())
+        raise HTTPException(500, "internal error while computing signal; check server logs")
 
 
 @app.get("/backtest")
@@ -718,16 +743,20 @@ def backtest(
     if position_size <= 0:
         raise HTTPException(400, "position_size must be positive")
 
-    res = backtest_signals(
-        symbol.upper(),
-        threshold,
-        limit,
-        horizon,
-        commission_bps=commission_bps,
-        slippage_bps=slippage_bps,
-        position_size=position_size,
-    )
-    return json_sanitize(res)
+    try:
+        res = backtest_signals(
+            symbol.upper(),
+            threshold,
+            limit,
+            horizon,
+            commission_bps=commission_bps,
+            slippage_bps=slippage_bps,
+            position_size=position_size,
+        )
+        return json_sanitize(res)
+    except Exception as exc:
+        logger.error("/backtest failed: %s\n%s", exc, traceback.format_exc())
+        raise HTTPException(500, "internal error while backtesting; check server logs")
 
 
 @app.get("/backtest/sweep")
@@ -755,15 +784,20 @@ def backtest_sweep_endpoint(
     if position_size <= 0:
         raise HTTPException(400, "position_size must be positive")
 
-    results = backtest_sweep(
-        symbol.upper(),
-        th_values,
-        hz_values,
-        limit,
-        commission_bps,
-        slippage_bps,
-        position_size,
-    )
+    try:
+        results = backtest_sweep(
+            symbol.upper(),
+            th_values,
+            hz_values,
+            limit,
+            commission_bps,
+            slippage_bps,
+            position_size,
+        )
+    except Exception as exc:
+        logger.error("/backtest/sweep failed: %s\n%s", exc, traceback.format_exc())
+        raise HTTPException(500, "internal error while running sweep; check server logs")
+
     return json_sanitize({
         "symbol": symbol.upper(),
         "thresholds": th_values,
