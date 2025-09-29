@@ -146,18 +146,21 @@ const DashboardPage = () => {
     if (side === 'BUY') {
       return {
         badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200',
-        label: 'Buy bias'
+        label: 'Buy bias',
+        dot: 'bg-emerald-400/80'
       };
     }
     if (side === 'SELL') {
       return {
         badge: 'bg-rose-500/10 border-rose-500/30 text-rose-200',
-        label: 'Sell bias'
+        label: 'Sell bias',
+        dot: 'bg-rose-400/80'
       };
     }
     return {
       badge: 'bg-amber-500/10 border-amber-500/30 text-amber-200',
-      label: 'Neutral'
+      label: 'Neutral',
+      dot: 'bg-amber-400/80'
     };
   }, [latestSignal]);
 
@@ -169,7 +172,7 @@ const DashboardPage = () => {
         actions={
           <Link
             to="/signals"
-            className="rounded-full bg-primary/80 px-4 py-2 text-sm font-medium text-slate-50 shadow hover:bg-primary"
+            className="rounded-full bg-primary/80 px-4 py-2 text-sm font-medium text-slate-50 shadow-md shadow-primary/20 ring-1 ring-primary/50 transition hover:bg-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
           >
             {t('view_signals')}
           </Link>
@@ -178,7 +181,9 @@ const DashboardPage = () => {
 
       <SubscriptionCallout />
 
-      <Card className="border border-slate-800/70 bg-slate-900/60 p-6">
+      <Card className="relative overflow-hidden border border-slate-800/70 bg-slate-900/60 p-6 backdrop-blur-sm hover:border-slate-700/70 transition">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(1200px_400px_at_50%_-100px,rgba(59,130,246,0.06),transparent)]" />
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="w-full lg:w-auto">
             <p className="text-xs uppercase tracking-wide text-slate-500">Latest signal</p>
@@ -190,13 +195,15 @@ const DashboardPage = () => {
             ) : latestSignal ? (
               <div className="mt-2 flex items-baseline gap-3">
                 <span
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
                     snapshotSignalMeta?.badge ?? 'border-slate-700 text-slate-200'
                   }`}
+                  title={latestSignal.symbol}
                 >
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${snapshotSignalMeta?.dot ?? 'bg-slate-400'}`} />
                   {latestSignal.symbol} · {snapshotSignalMeta?.label}
                 </span>
-                <span className="text-3xl font-semibold text-accent">
+                <span className="text-3xl font-semibold tracking-tight text-accent drop-shadow-sm">
                   {latestSignal.score.toFixed(2)}
                 </span>
               </div>
@@ -277,19 +284,22 @@ const DashboardPage = () => {
                 <button
                   type="button"
                   onClick={() => pushToast('Auto rebalance coming soon', 'info')}
-                  className="rounded-full border border-primary/60 px-4 py-2 text-xs text-primary transition hover:border-primary hover:text-slate-50"
+                  className="inline-flex items-center gap-2 rounded-full border border-primary/60 px-4 py-2 text-xs text-primary transition hover:border-primary hover:text-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
+                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" className="opacity-80"><path d="M4 12a8 8 0 1 1 8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M4 12h4M4 12V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   Smart Rebalance
                 </button>
                 <Link
                   to="/signals"
-                  className="rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-300 transition hover:border-primary hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-300 transition hover:border-primary hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   {t('view_signals')}
                 </Link>
               </div>
             </header>
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && (
+              <p className="text-sm text-red-400" role="status" aria-live="polite">{error}</p>
+            )}
             {loading && !error && (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -301,23 +311,24 @@ const DashboardPage = () => {
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   {metricConfig.map((metric) => (
-                    <MetricCard
-                      key={metric.label}
-                      label={metric.label}
-                      value={metric.value}
-                      accent={metric.accent}
-                      hint={metric.hint}
-                      deltaLabel={metric.deltaLabel}
-                      deltaTone={metric.deltaTone}
-                    />
+                    <div key={metric.label} className="transition hover:-translate-y-0.5">
+                      <MetricCard
+                        label={metric.label}
+                        value={metric.value}
+                        accent={metric.accent}
+                        hint={metric.hint}
+                        deltaLabel={metric.deltaLabel}
+                        deltaTone={metric.deltaTone}
+                      />
+                    </div>
                   ))}
                 </div>
                 <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                  <Card className="border border-slate-800/70 bg-slate-900/60 p-4">
+                  <Card className="border border-slate-800/70 bg-slate-900/60 p-4 backdrop-blur-sm hover:border-slate-700/70 transition">
                     <p className="text-xs uppercase tracking-wide text-slate-400">Exposure trend</p>
                     <TrendChart values={stats.exposures.length ? stats.exposures : [0]} height={80} />
                   </Card>
-                  <Card className="border border-slate-800/70 bg-slate-900/60 p-4">
+                  <Card className="border border-slate-800/70 bg-slate-900/60 p-4 backdrop-blur-sm hover:border-slate-700/70 transition">
                     <p className="text-xs uppercase tracking-wide text-slate-400">Last trade</p>
                     {stats.lastTrade ? (
                       <div className="mt-2 text-sm text-slate-200">
@@ -325,7 +336,7 @@ const DashboardPage = () => {
                           {stats.lastTrade.side} {stats.lastTrade.qty} {stats.lastTrade.symbol}
                         </p>
                         <p className="text-[11px] text-slate-400">
-                          @{stats.lastTrade.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          @<span className="font-mono tabular-nums">{stats.lastTrade.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                         </p>
                       </div>
                     ) : (
@@ -385,7 +396,7 @@ const DashboardPage = () => {
       </Card>
 
       <div className="relative z-10 grid gap-6 lg:grid-cols-3">
-        <Card className="bg-slate-900/70 p-5">
+        <Card className="bg-slate-900/70 p-5 transition hover:-translate-y-0.5 hover:border-slate-700/70">
           <h3 className="text-lg font-semibold text-white">Signal Engine</h3>
           <p className="mt-2 text-sm text-slate-400">
             Signals are generated from multi-timeframe trend and momentum reads. Visit the signal panel to pull the
@@ -395,7 +406,7 @@ const DashboardPage = () => {
             {t('explore_signals')} →
           </Link>
         </Card>
-        <Card className="bg-slate-900/70 p-5">
+        <Card className="bg-slate-900/70 p-5 transition hover:-translate-y-0.5 hover:border-slate-700/70">
           <h3 className="text-lg font-semibold text-white">Auto Trade</h3>
           <p className="mt-2 text-sm text-slate-400">
             Configure quick automations per symbol using the threshold and quantity inputs. Trades execute instantly via
@@ -405,7 +416,7 @@ const DashboardPage = () => {
             {t('review_portfolio')} →
           </Link>
         </Card>
-        <Card className="bg-slate-900/70 p-5">
+        <Card className="bg-slate-900/70 p-5 transition hover:-translate-y-0.5 hover:border-slate-700/70">
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white">Alerts & Actions</h3>
             <p className="text-sm text-slate-400">
