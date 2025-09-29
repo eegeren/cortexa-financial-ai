@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
 import { fetchPortfolio, PortfolioResponse, fetchSignal, SignalResponse } from '@/services/api';
 import { Link } from 'react-router-dom';
-import MarketWidget from '@/components/MarketWidget';
 import MetricCard from '@/components/MetricCard';
 import TrendChart from '@/components/TrendChart';
-import HeatmapMatrix from '@/components/HeatmapMatrix';
 import { useToast } from '@/components/ToastProvider';
 import { useI18n } from '@/context/I18nContext';
 import SubscriptionCallout from '@/components/SubscriptionCallout';
 import Skeleton from '@/components/Skeleton';
+
+const MarketWidget = lazy(() => import('@/components/MarketWidget'));
+const HeatmapMatrix = lazy(() => import('@/components/HeatmapMatrix'));
 
 const DashboardPage = () => {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
@@ -364,34 +365,38 @@ const DashboardPage = () => {
         </Card>
 
         <div className="relative z-0 space-y-6">
-          <MarketWidget />
+          <Suspense fallback={<Skeleton className="h-[420px] w-full" />}>
+            <MarketWidget />
+          </Suspense>
         </div>
       </div>
 
       <Card className="relative z-10 border border-slate-800/70 bg-slate-900/60 p-5">
         <p className="text-xs uppercase tracking-wide text-slate-400">Regime heatmap</p>
         <div className="mt-4">
-          <HeatmapMatrix
-            rows={['Low Vol', 'Mid Vol', 'High Vol']}
-            cols={['Bull', 'Neutral', 'Bear']}
-            data={{
-              'Low Vol': {
-                Bull: { label: '+1.4%', value: 0.14 },
-                Neutral: { label: '+0.8%', value: 0.08 },
-                Bear: { label: '-0.5%', value: -0.05 }
-              },
-              'Mid Vol': {
-                Bull: { label: '+2.3%', value: 0.23 },
-                Neutral: { label: '+1.1%', value: 0.11 },
-                Bear: { label: '-1.0%', value: -0.1 }
-              },
-              'High Vol': {
-                Bull: { label: '+3.8%', value: 0.38 },
-                Neutral: { label: '+0.5%', value: 0.05 },
-                Bear: { label: '-2.4%', value: -0.24 }
-              }
-            }}
-          />
+          <Suspense fallback={<Skeleton className="h-[260px] w-full" />}>
+            <HeatmapMatrix
+              rows={['Low Vol', 'Mid Vol', 'High Vol']}
+              cols={['Bull', 'Neutral', 'Bear']}
+              data={{
+                'Low Vol': {
+                  Bull: { label: '+1.4%', value: 0.14 },
+                  Neutral: { label: '+0.8%', value: 0.08 },
+                  Bear: { label: '-0.5%', value: -0.05 }
+                },
+                'Mid Vol': {
+                  Bull: { label: '+2.3%', value: 0.23 },
+                  Neutral: { label: '+1.1%', value: 0.11 },
+                  Bear: { label: '-1.0%', value: -0.1 }
+                },
+                'High Vol': {
+                  Bull: { label: '+3.8%', value: 0.38 },
+                  Neutral: { label: '+0.5%', value: 0.05 },
+                  Bear: { label: '-2.4%', value: -0.24 }
+                }
+              }}
+            />
+          </Suspense>
         </div>
       </Card>
 
