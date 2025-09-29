@@ -154,7 +154,7 @@ def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
         # Basic sanity: drop fully empty rows and ensure enough bars for indicators
         df = df.dropna(subset=["open","high","low","close"]).copy()
         if len(df) < 60:  # need enough for EMA26/BB20/ADX14 + margins
-            errors.append(f"{base}{path}: insufficient rows ({len[df] if isinstance(len, dict) else len(df)})")
+            errors.append(f"{base}{path}: insufficient rows ({len(df)})")
             continue
 
         return df
