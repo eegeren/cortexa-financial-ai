@@ -153,7 +153,7 @@ def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
 
         # Basic sanity: drop fully empty rows and ensure enough bars for indicators
         df = df.dropna(subset=["open","high","low","close"]).copy()
-        if len(df) < 60:  # need enough for EMA26/BB20/ADX14 + margins
+        if len(df) < 50:  # need enough for EMA26/BB20/ADX14 + margins
             errors.append(f"{base}{path}: insufficient rows ({len(df)})")
             continue
 
@@ -243,8 +243,9 @@ def mtf_context(symbol: str):
     base = add_indicators(fetch_ohlcv(symbol, "15m", 300))
     h1   = add_indicators(fetch_ohlcv(symbol, "1h",  300))
     h4   = add_indicators(fetch_ohlcv(symbol, "4h",  300))
+    logger.info("mtf lengths: base=%s h1=%s h4=%s", len(base), len(h1), len(h4))
     for frame, name in ((base, "15m"), (h1, "1h"), (h4, "4h")):
-        if len(frame) < 60:
+        if len(frame) < 50:
             raise HTTPException(503, f"not enough data for indicators on {name}")
     return base, h1, h4
 
@@ -724,6 +725,20 @@ def backtest_sweep(
             )
             results.append(res)
     return results
+
+
+# --- Lightweight debug endpoint for diagnostics ---
+@app.get("/debug/predict")
+def debug_predict(symbol: str = "BTCUSDT"):
+    try:
+        res = compute_signal(symbol)
+        return {"ok": True, "data": json_sanitize(res)}
+    except HTTPException as he:
+        # Return details with 200 for debugging purposes
+        return {"ok": False, "status": he.status_code, "error": str(he.detail)}
+    except Exception as exc:
+        return {"ok": False, "status": 500, "error": str(exc)}
+
 
 @app.post("/predict")
 def predict(payload: dict):

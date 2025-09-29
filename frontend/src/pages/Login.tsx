@@ -318,7 +318,7 @@ const LoginPage = () => {
                 <p className="rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-xs text-emerald-200">
                   A mail draft has been opened. If it didn’t appear, you can reach out directly at
                   {' '}
-                  <a href="mailto:yusufegeeren@cortexaai.net" className="font-semibold text-emerald-100 underline">
+                  <a href="mailto:info@cortexaai.net" className="font-semibold text-emerald-100 underline">
                     yusufegeeren@cortexaai.net
                   </a>
                   .
