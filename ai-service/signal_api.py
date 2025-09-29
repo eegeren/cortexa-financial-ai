@@ -150,6 +150,13 @@ def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
             df[col] = pd.to_numeric(df[col], errors="coerce")
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
         df["symbol"] = symbol
+
+        # Basic sanity: drop fully empty rows and ensure enough bars for indicators
+        df = df.dropna(subset=["open","high","low","close"]).copy()
+        if len(df) < 60:  # need enough for EMA26/BB20/ADX14 + margins
+            errors.append(f"{base}{path}: insufficient rows ({len[df] if isinstance(len, dict) else len(df)})")
+            continue
+
         return df
 
     raise HTTPException(502, "all data providers failed: " + " | ".join(errors))
@@ -166,6 +173,7 @@ def add_indicators(df: pd.DataFrame):
     df["adx"] = adx.adx()
     bb = ta.volatility.BollingerBands(df["close"], window=20, window_dev=2)
     df["bb_high"], df["bb_low"], df["bb_mid"] = bb.bollinger_hband(), bb.bollinger_lband(), bb.bollinger_mavg()
+    df.loc[df["bb_mid"] == 0, "bb_mid"] = np.nan
     atr = ta.volatility.AverageTrueRange(df["high"], df["low"], df["close"], window=14)
     df["atr"] = atr.average_true_range()
     # ATR yüzdesi (fiyat göreli volatilite)
@@ -193,7 +201,8 @@ def add_indicators(df: pd.DataFrame):
 
     # Distance from mean (BB mid) in ATR units to avoid mean-reversion chop
     with np.errstate(divide='ignore', invalid='ignore'):
-        df["dist_from_mid_atr"] = np.abs(df["close"] - df["bb_mid"]) / df["atr"]
+        atr_safe = df["atr"].replace(0, np.nan)
+        df["dist_from_mid_atr"] = np.abs(df["close"] - df["bb_mid"]) / atr_safe
         df["dist_from_mid_atr"] = df["dist_from_mid_atr"].replace([np.inf, -np.inf], np.nan)
 
     return df
@@ -234,6 +243,9 @@ def mtf_context(symbol: str):
     base = add_indicators(fetch_ohlcv(symbol, "15m", 300))
     h1   = add_indicators(fetch_ohlcv(symbol, "1h",  300))
     h4   = add_indicators(fetch_ohlcv(symbol, "4h",  300))
+    for frame, name in ((base, "15m"), (h1, "1h"), (h4, "4h")):
+        if len(frame) < 60:
+            raise HTTPException(503, f"not enough data for indicators on {name}")
     return base, h1, h4
 
 def regime_filters(row):
@@ -263,7 +275,7 @@ def regime_filters(row):
         if bbw < 0.01 or bbw > 0.25:
             vol_ok = False
 
-    return adx_ok, vol_ok
+    return bool(adx_ok), bool(vol_ok)
 
 def directional_vote(row):
     """Yön sinyali: EMA, MACD, RSI, BB pozisyonu—basit oy sistemi."""
@@ -366,6 +378,8 @@ def adaptive_sl_tp(price, atr, side, adx, atr_pct):
 
 def compute_signal(symbol="BTCUSDT"):
     base, h1, h4 = mtf_context(symbol)
+    if base.empty or h1.empty or h4.empty:
+        raise HTTPException(503, "empty indicator frames")
     b, b1, b4 = base.iloc[-1], h1.iloc[-1], h4.iloc[-1]
 
     side, score = compute_signal_row(b, b1, b4)

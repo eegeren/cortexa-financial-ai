@@ -80,6 +80,88 @@ const LoginPage = () => {
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-950">
       <div className="pointer-events-none absolute inset-0">
+        {/* --- Dynamic background: subtle trading video + animated charts --- */}
+       <video
+        className="absolute inset-0 h-full w-full object-cover opacity-10"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        src="/videoplayback.mp4"
+        aria-hidden
+        />
+
+        <svg
+          className="absolute inset-0 h-full w-full opacity-25"
+          viewBox="0 0 1200 600"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <defs>
+            <linearGradient id="gradBull" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.0" />
+              <stop offset="25%" stopColor="#22c55e" stopOpacity="0.35" />
+              <stop offset="75%" stopColor="#22c55e" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.0" />
+            </linearGradient>
+            <linearGradient id="gradAcc" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.0" />
+              <stop offset="25%" stopColor="#3b82f6" stopOpacity="0.25" />
+              <stop offset="75%" stopColor="#3b82f6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            </linearGradient>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Rising primary line */}
+          <polyline
+            points="0,520 80,500 160,480 240,490 320,460 400,430 480,445 560,410 640,390 720,360 800,372 880,340 960,320 1040,300 1120,280 1200,260"
+            fill="none"
+            stroke="url(#gradBull)"
+            strokeWidth="3"
+            filter="url(#glow)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ strokeDasharray: 1600, strokeDashoffset: 1600, animation: 'dash 8s ease-in-out infinite' }}
+          />
+
+          {/* Acceleration overlay */}
+          <polyline
+            points="0,560 100,555 200,545 300,540 400,525 500,515 600,505 700,490 800,470 900,455 1000,440 1100,430 1200,420"
+            fill="none"
+            stroke="url(#gradAcc)"
+            strokeWidth="2"
+            style={{ strokeDasharray: 1400, strokeDashoffset: 1400, animation: 'dash 10s ease-in-out infinite 0.6s' }}
+          />
+
+          {/* Subtle grid */}
+          <g stroke="#0f172a" strokeOpacity="0.6" strokeWidth="1">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <line key={`v${i}`} x1={i * 100} y1={0} x2={i * 100} y2={600} />
+            ))}
+            {Array.from({ length: 10 }).map((_, i) => (
+              <line key={`h${i}`} x1={0} y1={i * 60} x2={1200} y2={i * 60} />
+            ))}
+          </g>
+
+          <style>
+            {`
+              @keyframes dash {
+                0% { stroke-dashoffset: 1600; opacity: .0; }
+                10% { opacity: .75; }
+                60% { stroke-dashoffset: 0; opacity: .85; }
+                100% { stroke-dashoffset: 0; opacity: .2; }
+              }
+            `}
+          </style>
+        </svg>
         <div className="absolute -top-40 right-[-20%] h-[520px] w-[520px] rounded-full bg-primary/30 blur-3xl"></div>
         <div className="absolute left-[-10%] bottom-[-20%] h-[420px] w-[420px] rounded-full bg-accent/20 blur-3xl"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.08),_transparent_60%)]"></div>
