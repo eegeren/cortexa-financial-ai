@@ -731,6 +731,9 @@ def predict(payload: dict):
     try:
         res = compute_signal(symbol)
         return json_sanitize(res)
+    except HTTPException as he:
+        # propagate FastAPI HTTP errors (e.g., 502/503) as-is
+        raise he
     except Exception as exc:
         logger.error("/predict failed for %s: %s\n%s", symbol, exc, traceback.format_exc())
         raise HTTPException(500, "internal error while computing signal; check server logs")
@@ -768,6 +771,8 @@ def backtest(
             position_size=position_size,
         )
         return json_sanitize(res)
+    except HTTPException as he:
+        raise he
     except Exception as exc:
         logger.error("/backtest failed: %s\n%s", exc, traceback.format_exc())
         raise HTTPException(500, "internal error while backtesting; check server logs")
@@ -808,6 +813,8 @@ def backtest_sweep_endpoint(
             slippage_bps,
             position_size,
         )
+    except HTTPException as he:
+        raise he
     except Exception as exc:
         logger.error("/backtest/sweep failed: %s\n%s", exc, traceback.format_exc())
         raise HTTPException(500, "internal error while running sweep; check server logs")
