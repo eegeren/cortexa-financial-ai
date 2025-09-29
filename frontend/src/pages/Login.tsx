@@ -73,7 +73,7 @@ const LoginPage = () => {
     }
     const subject = encodeURIComponent('Cortexa password reset request');
     const body = encodeURIComponent(`Hello Cortexa team,\n\nPlease help me reset the password for the account associated with ${trimmed}.\n\nThanks.`);
-    window.location.href = `mailto:yusufegeeren@cortexaai.net?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:info@cortexaai.net?subject=${subject}&body=${body}`;
     setResetSuccess(true);
   };
 
@@ -273,7 +273,7 @@ const LoginPage = () => {
             </div>
 
             <footer className="mt-8 space-y-3 text-xs text-slate-500">
-              <p>Working with an enterprise team? <span className="text-slate-300">yusufegeeren@cortexaai.net</span></p>
+              <p>Working with an enterprise team? <span className="text-slate-300">info@cortexaai.net</span></p>
               <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-slate-500">
                 <span>© {new Date().getFullYear()} Cortexa Labs</span>
                 <span>•</span>
@@ -299,7 +299,7 @@ const LoginPage = () => {
             <h3 className="text-lg font-semibold text-white">Reset your password</h3>
             <p className="mt-2 text-sm text-slate-400">
               Enter the email linked to your Cortexa account. We’ll open a mail draft to{' '}
-              <span className="text-slate-200">yusufegeeren@cortexaai.net</span> so the desk can assist you.
+              <span className="text-slate-200">info@cortexaai.net</span> so the desk can assist you.
             </p>
             <form onSubmit={handleForgotSubmit} className="mt-4 space-y-4">
               <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="reset-email">
@@ -319,7 +319,7 @@ const LoginPage = () => {
                   A mail draft has been opened. If it didn’t appear, you can reach out directly at
                   {' '}
                   <a href="mailto:info@cortexaai.net" className="font-semibold text-emerald-100 underline">
-                    yusufegeeren@cortexaai.net
+                    info@cortexaai.net
                   </a>
                   .
                 </p>
