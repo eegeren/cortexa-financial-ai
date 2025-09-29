@@ -53,6 +53,22 @@ const LoginPage = () => {
     }
   }, [forgotOpen]);
 
+  const mapAuthError = (err: string | null): string | null => {
+    if (!err) return null;
+    const e = err.toLowerCase();
+    if (e.includes('no rows in result set')) {
+      return 'No account was found for that email address.';
+    }
+    // Common alternatives
+    if (e.includes('user not found')) {
+      return 'No account was found for that email address.';
+    }
+    if (e.includes('invalid credentials') || e.includes('wrong password')) {
+      return 'Incorrect email or password.';
+    }
+    return 'We couldn’t sign you in. Please try again.';
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
@@ -208,7 +224,11 @@ const LoginPage = () => {
               </p>
             </header>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {error && <p className="rounded border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-300">{error}</p>}
+              {mapAuthError(error) && (
+                <p className="rounded border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-300">
+                  {mapAuthError(error)}
+                </p>
+              )}
               <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="email">
                 Email address
                 <input
