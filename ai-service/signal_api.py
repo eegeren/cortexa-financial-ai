@@ -48,6 +48,13 @@ from typing import Iterable, Tuple, Optional, Dict, Any
 
 import requests
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from requests.adapters import HTTPAdapter
+try:
+    from urllib3.util.retry import Retry  # urllib3 v2
+except Exception:  # pragma: no cover
+    from requests.packages.urllib3.util.retry import Retry  # type: ignore (older fallback)
 import pandas as pd
 import numpy as np
 import ta
@@ -55,6 +62,23 @@ import logging
 import traceback
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        os.getenv("FRONTEND_ORIGIN", "https://www.cortexaai.net"),
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.exception_handler(Exception)
+async def _unhandled_error(_, exc: Exception):
+    logger.error("unhandled: %s", exc)
+    return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
 
 # --- basic logger setup ---
 logger = logging.getLogger("ai-service")
@@ -64,6 +88,24 @@ if not logger.handlers:
     handler.setFormatter(fmt)
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
+
+# --- resilient HTTP session with retries/backoff ---
+_SESSION = requests.Session()
+_retry = Retry(
+    total=3,
+    connect=3,
+    read=3,
+    backoff_factor=0.4,
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=("GET",),
+    raise_on_status=False,
+)
+_SESSION.headers.update({
+    "User-Agent": "cortexa-ai-service/1.0 (+https://www.cortexaai.net)",
+    "Accept": "application/json",
+})
+_SESSION.mount("https://", HTTPAdapter(max_retries=_retry))
+_SESSION.mount("http://", HTTPAdapter(max_retries=_retry))
 
 
 # Lightweight root and health endpoints
@@ -129,7 +171,7 @@ def safe_num(x, ndigits=None):
 
 def _request_klines(base: str, path: str, *, symbol: str, interval: str, limit: int) -> requests.Response:
     url = f"{base}{path}?symbol={symbol}&interval={interval}&limit={limit}"
-    return requests.get(url, timeout=10)
+    return _SESSION.get(url, timeout=10)
 
 
 def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
@@ -138,43 +180,71 @@ def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
     if cached is not None:
         return cached
     for base, path in DATA_SOURCES:
-        try:
-            resp = _request_klines(base, path, symbol=symbol, interval=interval, limit=limit)
-        except requests.RequestException as exc:
-            errors.append(f"{base}{path}: request failed ({exc})")
-            continue
+        for attempt in range(3):
+            try:
+                resp = _request_klines(base, path, symbol=symbol, interval=interval, limit=limit)
+            except requests.RequestException as exc:
+                errors.append(f"{base}{path}: request failed ({exc}) [try {attempt+1}/3]")
+                time.sleep(0.2 * (2 ** attempt))
+                continue
 
-        if resp.status_code != 200:
-            errors.append(f"{base}{path}: status {resp.status_code} {resp.text[:120]}")
-            continue
+            if resp.status_code != 200:
+                errors.append(f"{base}{path}: status {resp.status_code} {resp.text[:120]} [try {attempt+1}/3]")
+                time.sleep(0.2 * (2 ** attempt))
+                continue
 
-        try:
-            data = resp.json()
-        except ValueError as exc:
-            errors.append(f"{base}{path}: invalid json ({exc})")
-            continue
+            try:
+                data = resp.json()
+            except ValueError as exc:
+                errors.append(f"{base}{path}: invalid json ({exc}) [try {attempt+1}/3]")
+                time.sleep(0.2 * (2 ** attempt))
+                continue
 
-        if not data:
-            errors.append(f"{base}{path}: empty klines")
-            continue
+            if not data:
+                errors.append(f"{base}{path}: empty klines [try {attempt+1}/3]")
+                time.sleep(0.2 * (2 ** attempt))
+                continue
 
-        cols = ["time","open","high","low","close","volume","ct","qv","n","tb","tq","ig"]
-        df = pd.DataFrame(data, columns=cols)
-        for col in ["open","high","low","close","volume"]:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-        df.replace([np.inf, -np.inf], np.nan, inplace=True)
-        df["symbol"] = symbol
+            cols = ["time","open","high","low","close","volume","ct","qv","n","tb","tq","ig"]
+            df = pd.DataFrame(data, columns=cols)
+            for col in ["open","high","low","close","volume"]:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+            df.replace([np.inf, -np.inf], np.nan, inplace=True)
+            df["symbol"] = symbol
 
-        # Basic sanity: drop fully empty rows and ensure enough bars for indicators
-        df = df.dropna(subset=["open","high","low","close"]).copy()
-        if len(df) < 50:  # need enough for EMA26/BB20/ADX14 + margins
-            errors.append(f"{base}{path}: insufficient rows ({len(df)})")
-            continue
+            df = df.dropna(subset=["open","high","low","close"]).copy()
+            if len(df) < 50:
+                errors.append(f"{base}{path}: insufficient rows ({len(df)}) [try {attempt+1}/3]")
+                time.sleep(0.2 * (2 ** attempt))
+                continue
 
-        _cache_put(symbol, interval, limit, df)
-        return df
+            _cache_put(symbol, interval, limit, df)
+            return df
 
     raise HTTPException(502, "all data providers failed: " + " | ".join(errors))
+# --- optimizer suggestion cache (to stabilize hit-rate near target) ---
+_OPT_CACHE: Dict[str, tuple[float, dict]] = {}
+_OPT_TTL_SEC = int(os.getenv("OPT_TTL_SEC", "300"))  # 5 minutes
+
+def _get_optimizer_suggestion(symbol: str) -> Optional[dict]:
+    key = symbol.upper()
+    now = time.time()
+    rec = _OPT_CACHE.get(key)
+    if rec and (now - rec[0]) <= _OPT_TTL_SEC:
+        return rec[1]
+    try:
+        ths = [0.4, 0.5, 0.6, 0.7, 0.8]
+        hzs = [2, 4, 6]
+        best = optimize_params(
+            key, thresholds=ths, horizons=hzs, limit=300,
+            commission_bps=4.0, slippage_bps=1.0, position_size=1.0,
+            target_hit=0.64, min_trades=20,
+        )
+        _OPT_CACHE[key] = (now, best)
+        return best
+    except Exception as exc:
+        logger.warning("optimizer failed for %s: %s", key, exc)
+        return None
 
 def add_indicators(df: pd.DataFrame):
     """Tek timeframe indikatörleri (EMA, MACD, RSI, ADX, BB, ATR)."""
@@ -399,6 +469,12 @@ def compute_signal(symbol="BTCUSDT"):
     b, b1, b4 = base.iloc[-1], h1.iloc[-1], h4.iloc[-1]
 
     side, score = compute_signal_row(b, b1, b4)
+    # Enforce threshold suggested by optimizer (aim ~64% hit rate)
+    opt = _get_optimizer_suggestion(symbol)
+    if isinstance(opt, dict):
+        th = float(opt.get("threshold", 0.6))
+        if score < th:
+            side = "HOLD"
     adx_ok, vol_ok = regime_filters(b)
     v_base = directional_vote(b)
     v_h1 = directional_vote(b1)
@@ -426,6 +502,10 @@ def compute_signal(symbol="BTCUSDT"):
         "mtf": {
             "votes": {"base15m": v_base, "h1": v_h1, "h4": v_h4},
             "filters": {"adx_ok": adx_ok, "vol_ok": vol_ok}
+        },
+        "optimizer": {
+            "target_hit": 0.64,
+            "suggestion": opt if isinstance(opt, dict) else None
         }
     }
 
@@ -976,3 +1056,14 @@ def backtest_sweep_endpoint(
         "position_size": position_size,
         "results": results,
     })
+
+
+# --- Readiness endpoint for data-path health ---
+@app.get("/readiness")
+def readiness(symbol: str = "BTCUSDT"):
+    try:
+        df = fetch_ohlcv(symbol, "15m", 60)
+        ok = bool(df is not None and len(df) >= 50)
+        return {"ok": ok, "rows": 0 if df is None else int(len(df))}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
