@@ -18,6 +18,7 @@ const Layout = () => {
             <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=3" />
             <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
             <title>Cortexa Trade | Make Better Signals, Trade Smarter</title>
+            <meta name="description" content="Cortexa Trade AI platform — smarter trading with signals, portfolio tools, and a new Forum community." />
           </Helmet>
             <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-50 transition-[background-color] duration-300 dark:bg-slate-950">
             <div className="pointer-events-none absolute inset-0">
