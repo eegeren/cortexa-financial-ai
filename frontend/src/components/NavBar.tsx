@@ -14,7 +14,8 @@ const NavBar = () => {
     () => [
       { to: '/dashboard', label: 'Dashboard' },
       { to: '/signals', label: 'Signals' },
-      { to: '/portfolio', label: 'Portfolio' }
+      { to: '/portfolio', label: 'Portfolio' },
+      { to: '/forum', label: 'Forum' }
     ],
     []
   );
