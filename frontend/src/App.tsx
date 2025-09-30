@@ -1,44 +1,76 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { HelmetProvider } from 'react-helmet-async';
-
-import Layout from '@/components/Layout';
+import { useEffect } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import Layout from './components/Layout';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import LoginPage from '@/pages/Login';
+import RegisterPage from '@/pages/Register';
+import DashboardPage from '@/pages/Dashboard';
+import SignalsPage from '@/pages/Signals';
+import PortfolioPage from '@/pages/Portfolio';
+import AdminPage from '@/pages/Admin';
+import Spinner from '@/components/Spinner';
+import { useAuthStore } from '@/store/auth';
 
-// Public pages
-import Login from '@/pages/Login';
-import Register from '@/pages/Register';
+const AuthBootstrap = () => {
+  const hydrate = useAuthStore((state) => state.hydrate);
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+  return null;
+};
 
-// Protected pages
-import Dashboard from '@/pages/Dashboard';
-import Signals from '@/pages/Signals';
-import Portfolio from '@/pages/Portfolio';
-import Forum from '@/pages/Forum';
+const PublicOnlyRoute = ({ children }: { children: JSX.Element }) => {
+  const token = useAuthStore((state) => state.token);
+  const hydrated = useAuthStore((state) => state.hydrated);
+  if (!hydrated) {
+    return <Spinner />;
+  }
+  if (token) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
 
-export default function App() {
+const App = () => {
   return (
-    <HelmetProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+    <>
+      <AuthBootstrap />
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicOnlyRoute>
+              <LoginPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnlyRoute>
+              <RegisterPage />
+            </PublicOnlyRoute>
+          }
+        />
 
-          {/* Protected routes inside layout */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="signals" element={<Signals />} />
-              <Route path="portfolio" element={<Portfolio />} />
-              <Route path="forum" element={<Forum />} />
-            </Route>
-          </Route>
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/signals" element={<SignalsPage />} />
+          <Route path="/portfolio" element={<PortfolioPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Route>
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </HelmetProvider>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </>
   );
-} 
+};
+
+export default App;
