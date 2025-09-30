@@ -1,17 +1,41 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuthStore } from '@/store/auth';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-function InlineSpinner() {
-  return <div style={{ padding: 24, color: '#94a3b8' }}>Loading…</div>;
-}
+import Layout from '@/components/Layout';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function ProtectedRoute() {
-  const location = useLocation();
-  // Be tolerant to different store shapes
-  const token = useAuthStore((s: any) => s.token ?? s.accessToken ?? null);
-  const initializing = useAuthStore((s: any) => (s.initializing ?? s.loading ?? false));
+// Public pages
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
 
-  if (initializing) return <InlineSpinner />;
-  if (!token) return <Navigate to="/login" state={{ from: location }} replace />;
-  return <Outlet />;
+// Protected pages
+import Dashboard from '@/pages/Dashboard';
+import Signals from '@/pages/Signals';
+import Portfolio from '@/pages/Portfolio';
+import Forum from '@/pages/Forum';
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Protected → Layout → Outlet */}
+        <Route element={<ProtectedRoute />}> 
+          <Route element={<Layout />}> 
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/signals" element={<Signals />} />
+            <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/forum" element={<Forum />} />
+          </Route>
+        </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
