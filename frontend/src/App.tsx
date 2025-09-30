@@ -13,7 +13,8 @@ import Register from '@/pages/Register';
 import Dashboard from '@/pages/Dashboard';
 import Signals from '@/pages/Signals';
 import Portfolio from '@/pages/Portfolio';
-import Forum from '@/pages/Forum';
+import * as ForumMod from '@/pages/Forum';
+const Forum = (ForumMod as any).default ?? (ForumMod as any).Forum;
 
 function App() {
   return (
