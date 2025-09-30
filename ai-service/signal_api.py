@@ -951,13 +951,36 @@ def debug_predict(symbol: str = "BTCUSDT"):
     except Exception as exc:
         return {"ok": False, "status": 500, "error": str(exc)}
 
+# --- Compatibility GET endpoints for services expecting GET ---
+@app.get("/signals")
+def get_signals(symbol: str = "BTCUSDT"):
+    try:
+        res = compute_signal(symbol)
+        return {"ok": True, "data": json_sanitize(res)}
+    except HTTPException as he:
+        return JSONResponse(status_code=he.status_code, content={"ok": False, "error": str(he.detail)})
+    except Exception as exc:
+        logger.error("/signals failed for %s: %s", symbol, exc)
+        return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
+
+@app.get("/predict")
+def predict_get(symbol: str = "BTCUSDT"):
+    try:
+        res = compute_signal(symbol)
+        return {"ok": True, "data": json_sanitize(res)}
+    except HTTPException as he:
+        return JSONResponse(status_code=he.status_code, content={"ok": False, "error": str(he.detail)})
+    except Exception as exc:
+        logger.error("GET /predict failed for %s: %s", symbol, exc)
+        return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
+
 
 @app.post("/predict")
 def predict(payload: dict):
     symbol = payload.get("symbol", "BTCUSDT")
     try:
         res = compute_signal(symbol)
-        return json_sanitize(res)
+        return {"ok": True, "data": json_sanitize(res)}
     except HTTPException as he:
         # propagate FastAPI HTTP errors (e.g., 502/503) as-is
         raise he
