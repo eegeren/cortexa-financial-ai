@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -10,8 +10,7 @@ import PortfolioPage from '@/pages/Portfolio';
 import AdminPage from '@/pages/Admin';
 import Spinner from '@/components/Spinner';
 import { useAuthStore } from '@/store/auth';
-
-const ForumPage = lazy(() => import('@/pages/Forum'));
+import ForumPage from '@/pages/Forum';
 
 const AuthBootstrap = () => {
   const hydrate = useAuthStore((state) => state.hydrate);
@@ -69,9 +68,7 @@ const App = () => {
           <Route
             path="/forum"
             element={
-              <Suspense fallback={<Spinner />}>
-                <ForumPage />
-              </Suspense>
+              <ForumPage />
             }
           />
           <Route path="/admin" element={<AdminPage />} />
