@@ -3,14 +3,6 @@ from __future__ import annotations
 
 import math
 
-def safe_num(x, ndigits=None):
-    try:
-        v = float(x)
-    except Exception:
-        return None
-    if not math.isfinite(v):
-        return None
-    return round(v, ndigits) if ndigits is not None else v
 
 def json_sanitize(x):
     if isinstance(x, dict):
@@ -51,7 +43,8 @@ def parse_int_list(value: str) -> list[int]:
         raise HTTPException(400, "invalid int list") from exc
 
 import os
-from typing import Iterable, Tuple
+import time
+from typing import Iterable, Tuple, Optional, Dict, Any
 
 import requests
 from fastapi import FastAPI, HTTPException
@@ -107,6 +100,24 @@ def _build_sources() -> Iterable[Tuple[str, str]]:
 
 DATA_SOURCES = tuple(_build_sources()) or (("https://data-api.binance.vision", "/api/v3/klines"),)
 
+# --- lightweight in-memory cache for OHLCV to reduce provider load/flakiness ---
+_OHLCV_CACHE: Dict[tuple[str,str,int], tuple[float, pd.DataFrame]] = {}
+_OHLCV_TTL_SEC = int(os.getenv("OHLCV_TTL_SEC", "20"))  # default 20s
+
+def _cache_get(symbol: str, interval: str, limit: int) -> Optional[pd.DataFrame]:
+    key = (symbol.upper(), interval, int(limit))
+    rec = _OHLCV_CACHE.get(key)
+    if not rec:
+        return None
+    ts, df = rec
+    if (time.time() - ts) <= _OHLCV_TTL_SEC and isinstance(df, pd.DataFrame) and not df.empty:
+        return df
+    return None
+
+def _cache_put(symbol: str, interval: str, limit: int, df: pd.DataFrame) -> None:
+    key = (symbol.upper(), interval, int(limit))
+    _OHLCV_CACHE[key] = (time.time(), df.copy())
+
 def safe_num(x, ndigits=None):
     try:
         v = float(x)
@@ -123,6 +134,9 @@ def _request_klines(base: str, path: str, *, symbol: str, interval: str, limit: 
 
 def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
     errors = []
+    cached = _cache_get(symbol, interval, limit)
+    if cached is not None:
+        return cached
     for base, path in DATA_SOURCES:
         try:
             resp = _request_klines(base, path, symbol=symbol, interval=interval, limit=limit)
@@ -157,6 +171,7 @@ def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
             errors.append(f"{base}{path}: insufficient rows ({len(df)})")
             continue
 
+        _cache_put(symbol, interval, limit, df)
         return df
 
     raise HTTPException(502, "all data providers failed: " + " | ".join(errors))
@@ -725,6 +740,123 @@ def backtest_sweep(
             )
             results.append(res)
     return results
+
+# --- param optimizer utility ---
+def optimize_params(
+    symbol: str,
+    thresholds: list[float],
+    horizons: list[int],
+    limit: int,
+    commission_bps: float,
+    slippage_bps: float,
+    position_size: float,
+    target_hit: float = 0.64,
+    min_trades: int = 25,
+) -> dict[str, Any]:
+    # Precompute once to keep results consistent and fast
+    signals = generate_signal_history(symbol, limit)
+    best: dict[str, Any] | None = None
+    closest: dict[str, Any] | None = None
+    best_hit_gap = 1.0
+
+    for hz in horizons:
+        for th in thresholds:
+            res = backtest_signals(
+                symbol,
+                threshold=th,
+                limit=limit,
+                horizon=hz,
+                commission_bps=commission_bps,
+                slippage_bps=slippage_bps,
+                position_size=position_size,
+                signals=signals.copy(),
+            )
+            trades = int(res.get("trades", 0))
+            hit    = float(res.get("hit_rate", 0.0))
+            net    = float(res.get("net_return_sum", 0.0))
+
+            # Track closest to target regardless of side
+            gap = abs(hit - target_hit)
+            cand = {
+                "threshold": th,
+                "horizon": hz,
+                "trades": trades,
+                "hit_rate": hit,
+                "net_return_sum": net,
+            }
+
+            if closest is None or gap < best_hit_gap or (abs(gap - best_hit_gap) < 1e-9 and net > closest["net_return_sum"]):
+                closest = cand
+                best_hit_gap = gap
+
+            # Prefer candidates meeting target hit and min trades, then maximize net_return
+            if hit >= target_hit and trades >= min_trades:
+                if best is None or net > best["net_return_sum"]:
+                    best = cand
+
+    # If none meet target, fall back to the closest hit-rate; otherwise return best
+    return best or (closest or {
+        "threshold": thresholds[0],
+        "horizon": horizons[0],
+        "trades": 0,
+        "hit_rate": 0.0,
+        "net_return_sum": 0.0,
+    })
+
+
+# --- Optimizer endpoint ---
+@app.get("/optimize")
+def optimize_endpoint(
+    symbol: str = "BTCUSDT",
+    thresholds: str = "0.4,0.5,0.6,0.7,0.8",
+    horizons: str = "2,4,6,8",
+    limit: int = 400,
+    commission_bps: float = 4.0,
+    slippage_bps: float = 1.0,
+    position_size: float = 1.0,
+    target_hit: float = 0.64,
+    min_trades: int = 25,
+):
+    th_values = parse_float_list(thresholds)
+    hz_values = parse_int_list(horizons)
+    if not th_values or not hz_values:
+        raise HTTPException(400, "thresholds and horizons must be non-empty")
+    if any(not (0 < t < 1) for t in th_values):
+        raise HTTPException(400, "threshold values must be between 0 and 1")
+    if any(h < 1 or h > 50 for h in hz_values):
+        raise HTTPException(400, "horizon values must be between 1 and 50")
+    if limit < 100 or limit > 1000:
+        raise HTTPException(400, "limit must be between 100 and 1000")
+    if commission_bps < 0 or slippage_bps < 0:
+        raise HTTPException(400, "commission/slippage cannot be negative")
+    if position_size <= 0:
+        raise HTTPException(400, "position_size must be positive")
+    if not (0.5 <= target_hit <= 0.9):
+        raise HTTPException(400, "target_hit must be between 0.5 and 0.9")
+
+    try:
+        best = optimize_params(
+            symbol.upper(),
+            th_values,
+            hz_values,
+            limit,
+            commission_bps,
+            slippage_bps,
+            position_size,
+            target_hit=target_hit,
+            min_trades=min_trades,
+        )
+        return json_sanitize({
+            "symbol": symbol.upper(),
+            "target_hit": target_hit,
+            "min_trades": min_trades,
+            "suggestion": best,
+        })
+    except HTTPException as he:
+        raise he
+    except Exception as exc:
+        logger.error("/optimize failed: %s\n%s", exc, traceback.format_exc())
+        raise HTTPException(500, "internal error while optimizing; check server logs")
 
 
 # --- Lightweight debug endpoint for diagnostics ---
