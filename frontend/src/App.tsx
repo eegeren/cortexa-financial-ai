@@ -13,7 +13,7 @@ import Register from '@/pages/Register';
 import Dashboard from '@/pages/Dashboard';
 import Signals from '@/pages/Signals';
 import Portfolio from '@/pages/Portfolio';
-import * as ForumMod from '@/pages/Forum';
+import Forum, * as ForumMod from '@/pages/Forum';
 
 function App() {
   return (
