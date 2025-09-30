@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 
 import Layout from '@/components/Layout';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -16,26 +17,28 @@ import Forum from '@/pages/Forum';
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+    <HelmetProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        {/* Protected → Layout → Outlet */}
-        <Route element={<ProtectedRoute />}> 
-          <Route element={<Layout />}> 
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/signals" element={<Signals />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/forum" element={<Forum />} />
+          {/* Protected routes inside layout */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="signals" element={<Signals />} />
+              <Route path="portfolio" element={<Portfolio />} />
+              <Route path="forum" element={<Forum />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </HelmetProvider>
   );
-}
+} 
