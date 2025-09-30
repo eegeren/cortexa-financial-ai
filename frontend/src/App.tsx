@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-import Spinner from '@/components/Spinner';
 import Layout from '@/components/Layout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
@@ -9,34 +8,40 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 
-// App pages (protected)
+// Protected pages
 import Dashboard from '@/pages/Dashboard';
 import Signals from '@/pages/Signals';
 import Portfolio from '@/pages/Portfolio';
-import Forum, * as ForumMod from '@/pages/Forum';
+
+// ⛑ Forum importunu her iki export şekline dayanıklı yap
+import * as ForumMod from '@/pages/Forum';
+const Forum = (ForumMod as any).default ?? (ForumMod as any).Forum;
 
 function App() {
   return (
     <BrowserRouter>
-      <React.Suspense fallback={<Spinner />}> {/* global suspense fallback */}
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-          {/* Protected application with shared Layout (Navbar, etc.) */}
-          <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        {/* Protected alan:
+            1) ProtectedRoute → Outlet (auth kontrolü burada)
+            2) Layout → Outlet (Navbar + içerik burada)
+        */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/signals" element={<Signals />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/forum" element={<Forum />} />
           </Route>
+        </Route>
 
-          {/* Fallback to dashboard */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </React.Suspense>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }

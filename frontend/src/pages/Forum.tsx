@@ -1,4 +1,3 @@
-// frontend/src/pages/Forum.tsx
 import { useMemo, useState } from "react";
 import { Helmet } from "react-helmet";
 import { Link } from "react-router-dom";
@@ -76,7 +75,7 @@ export default function Forum() {
         ))}
       </div>
 
-      {/* composer (şimdilik pasif – backend bağlayınca aktif edeceğiz) */}
+      {/* composer (şimdilik pasif) */}
       <div className="mb-6 rounded-xl border border-slate-800/70 bg-slate-900/60 p-4 backdrop-blur-sm">
         <p className="mb-2 text-sm text-slate-400">Start a new thread</p>
         <textarea
