@@ -1,44 +1,17 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 
-import Spinner from '@/components/Spinner';
-import Layout from '@/components/Layout';
-import ProtectedRoute from '@/components/ProtectedRoute';
-
-// Public pages
-import Login from '@/pages/Login';
-import Register from '@/pages/Register';
-
-// App pages
-import Dashboard from '@/pages/Dashboard';
-import Signals from '@/pages/Signals';
-import Portfolio from '@/pages/Portfolio';
-import Forum from '@/pages/Forum';
-
-function App() {
+function Forum() {
   return (
-    <BrowserRouter>
-      <React.Suspense fallback={<Spinner />}> {/* global suspense fallback */}
-        <Routes>
-          {/* Public */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          {/* Protected area with shared layout (Navbar, etc.) */}
-          <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/signals" element={<Signals />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/forum" element={<Forum />} />
-          </Route>
-
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </React.Suspense>
-    </BrowserRouter>
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      <Helmet>
+        <title>Forum • Cortexa Trade</title>
+      </Helmet>
+      <h1 className="mb-4 text-2xl font-semibold tracking-tight text-slate-100">Forum</h1>
+      <div className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-6 text-slate-300">
+        Coming soon. You’ll be able to discuss strategies, signals and markets here.
+      </div>
+    </div>
   );
 }
 
-export default App;
+export default Forum;
