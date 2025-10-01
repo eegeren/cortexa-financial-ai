@@ -493,44 +493,6 @@ const SignalsPage = () => {
             Load signal
           </button>
         </form>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {topSymbols.map((sym) => (
-            <button
-              key={sym}
-              type="button"
-              onClick={() => {
-                setSymbol(sym);
-                void loadSignal(sym);
-              }}
-              className={`rounded-full border px-3 py-1 text-xs transition ${
-                symbol === sym ? 'border-primary bg-primary/20 text-primary' : 'border-slate-700 text-slate-300 hover:border-primary/60 hover:text-primary'
-              }`}
-            >
-              {symbolLabels[sym] ?? sym}
-            </button>
-          ))}
-        </div>
-        <div className="mt-3 -mb-1 overflow-x-auto">
-          <div className="flex min-w-max items-center gap-2 pb-1">
-            {extraSymbols.map((sym) => (
-              <button
-                key={sym}
-                type="button"
-                onClick={() => {
-                  setSymbol(sym);
-                  void loadSignal(sym);
-                }}
-                className={`whitespace-nowrap rounded-full border px-3 py-1 text-xs transition ${
-                  symbol === sym
-                    ? 'border-primary bg-primary/20 text-primary'
-                    : 'border-slate-700 text-slate-300 hover:border-primary/60 hover:text-primary'
-                }`}
-              >
-                {symbolLabels[sym] ?? sym}
-              </button>
-            ))}
-          </div>
-        </div>
       </PageHeader>
 
       {error && <Banner tone="error">{error}</Banner>}

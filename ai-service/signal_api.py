@@ -199,6 +199,23 @@ DATA_SOURCES = tuple(_build_sources()) or (("https://data-api.binance.vision", "
 _OHLCV_CACHE: Dict[tuple[str,str,int], tuple[float, pd.DataFrame]] = {}
 _OHLCV_TTL_SEC = int(os.getenv("OHLCV_TTL_SEC", "20"))  # default 20s
 
+# --- lightweight in-memory cache for computed signals to avoid timeouts on flakey network ---
+_SIG_CACHE: Dict[str, tuple[float, dict]] = {}
+_SIG_TTL_SEC = int(os.getenv("SIG_TTL_SEC", "60"))  # serve last good result up to 60s
+
+def _sig_cache_get(symbol: str) -> Optional[dict]:
+    key = symbol.upper()
+    rec = _SIG_CACHE.get(key)
+    if not rec:
+        return None
+    ts, data = rec
+    if (time.time() - ts) <= _SIG_TTL_SEC and isinstance(data, dict):
+        return data.copy()
+    return None
+
+def _sig_cache_put(symbol: str, data: dict) -> None:
+    _SIG_CACHE[symbol.upper()] = (time.time(), data.copy())
+
 def _cache_get(symbol: str, interval: str, limit: int) -> Optional[pd.DataFrame]:
     key = (symbol.upper(), interval, int(limit))
     rec = _OHLCV_CACHE.get(key)
@@ -224,7 +241,7 @@ def safe_num(x, ndigits=None):
 
 def _request_klines(base: str, path: str, *, symbol: str, interval: str, limit: int) -> requests.Response:
     url = f"{base}{path}?symbol={symbol}&interval={interval}&limit={limit}"
-    return _SESSION.get(url, timeout=10)
+    return _SESSION.get(url, timeout=15)
 
 
 def fetch_ohlcv(symbol="BTCUSDT", interval="15m", limit=300):
@@ -733,7 +750,7 @@ def compute_signal(symbol="BTCUSDT"):
     # SL/TP
     sl, tp = adaptive_sl_tp(price, atr, side, adx, atrp)
 
-    return {
+    result = {
         "symbol": symbol,
         "side": side,
         "score": float(round(score, 2)),
@@ -749,6 +766,12 @@ def compute_signal(symbol="BTCUSDT"):
             "suggestion": opt if isinstance(opt, dict) else None
         }
     }
+    # cache last good signal
+    try:
+        _sig_cache_put(symbol, json_sanitize(result))
+    except Exception:
+        pass
+    return result
 
 
 def backtest_signals(
@@ -1324,22 +1347,34 @@ def debug_predict(symbol: str = "BTCUSDT"):
 def get_signals(symbol: str = "BTCUSDT"):
     try:
         res = compute_signal(symbol)
-        return {"ok": True, "data": json_sanitize(res)}
+        return {"ok": True, "data": json_sanitize(res), "stale": False}
     except HTTPException as he:
+        cached = _sig_cache_get(symbol)
+        if cached is not None:
+            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
         return JSONResponse(status_code=he.status_code, content={"ok": False, "error": str(he.detail)})
     except Exception as exc:
         logger.error("/signals failed for %s: %s", symbol, exc)
+        cached = _sig_cache_get(symbol)
+        if cached is not None:
+            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
         return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
 
 @app.get("/predict")
 def predict_get(symbol: str = "BTCUSDT"):
     try:
         res = compute_signal(symbol)
-        return {"ok": True, "data": json_sanitize(res)}
+        return {"ok": True, "data": json_sanitize(res), "stale": False}
     except HTTPException as he:
+        cached = _sig_cache_get(symbol)
+        if cached is not None:
+            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
         return JSONResponse(status_code=he.status_code, content={"ok": False, "error": str(he.detail)})
     except Exception as exc:
         logger.error("GET /predict failed for %s: %s", symbol, exc)
+        cached = _sig_cache_get(symbol)
+        if cached is not None:
+            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
         return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
 
 
@@ -1348,12 +1383,18 @@ def predict(payload: dict):
     symbol = payload.get("symbol", "BTCUSDT")
     try:
         res = compute_signal(symbol)
-        return {"ok": True, "data": json_sanitize(res)}
+        return {"ok": True, "data": json_sanitize(res), "stale": False}
     except HTTPException as he:
+        cached = _sig_cache_get(symbol)
+        if cached is not None:
+            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
         # propagate FastAPI HTTP errors (e.g., 502/503) as-is
         raise he
     except Exception as exc:
         logger.error("/predict failed for %s: %s\n%s", symbol, exc, traceback.format_exc())
+        cached = _sig_cache_get(symbol)
+        if cached is not None:
+            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
         raise HTTPException(500, "internal error while computing signal; check server logs")
 
 
@@ -1464,12 +1505,12 @@ def market_summary(
 ):
     """Return 24h stats for many coins plus optional indicator snapshot.
     - If `symbols` is provided (comma-separated), fetch just those symbols.
-    - Else, fetch all and return `top_n` by quoteVolume (default 0 => all; cap to 50).
+    - Else, fetch all and return `top_n` by quoteVolume (default 0 => all; cap to 200).
     """
     try:
         syms: Optional[list[str]] = parse_symbol_list(symbols) if symbols else None
         if not syms and top_n > 0:
-            top_n = min(top_n, 50)
+            top_n = min(top_n, 200)
         tickers = fetch_24h_tickers(syms, top_n if (not syms) else None)
         out = []
         for t in tickers:
@@ -1491,10 +1532,16 @@ def market_summary(
             out.append(item)
         return {"ok": True, "count": len(out), "data": json_sanitize(out)}
     except HTTPException as he:
-        raise he
+        # Soft-fail for UI: do not surface 5xx here; return ok:false with code so the page doesn't show a global error
+        logger.warning("/market/summary soft error: %s", he.detail)
+        return JSONResponse(status_code=200, content={
+            "ok": False,
+            "error": str(he.detail),
+            "code": he.status_code,
+        })
     except Exception as exc:
         logger.error("/market/summary failed: %s", exc)
-        return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
+        return JSONResponse(status_code=200, content={"ok": False, "error": "ai-service-internal"})
 
 
 @app.get("/signals/batch")
