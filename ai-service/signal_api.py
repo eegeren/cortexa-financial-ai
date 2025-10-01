@@ -1,4 +1,3 @@
-# signal_api.py
 from __future__ import annotations
 
 import math
@@ -42,6 +41,16 @@ def parse_int_list(value: str) -> list[int]:
     except Exception as exc:
         raise HTTPException(400, "invalid int list") from exc
 
+
+# --- symbol list parser ---
+def parse_symbol_list(value: str) -> list[str]:
+    try:
+        items = [v.strip().upper() for v in value.split(",") if v.strip()]
+        # basic validation: Binance symbols are alnum and usually end with USDT/BUSD/FDUSD etc.
+        return [s for s in items if s.isalnum() and 4 <= len(s) <= 20]
+    except Exception as exc:
+        raise HTTPException(400, "invalid symbols list") from exc
+
 import os
 import time
 from typing import Iterable, Tuple, Optional, Dict, Any
@@ -60,6 +69,7 @@ import numpy as np
 import ta
 import logging
 import traceback
+from ta.momentum import StochRSIIndicator
 
 app = FastAPI()
 
@@ -104,8 +114,51 @@ _SESSION.headers.update({
     "User-Agent": "cortexa-ai-service/1.0 (+https://www.cortexaai.net)",
     "Accept": "application/json",
 })
+
 _SESSION.mount("https://", HTTPAdapter(max_retries=_retry))
 _SESSION.mount("http://", HTTPAdapter(max_retries=_retry))
+
+
+# --- lightweight 24h ticker fetch (Binance) ---
+_BINANCE_TICKER_URL = "https://api.binance.com/api/v3/ticker/24hr"
+
+
+def fetch_24h_tickers(symbols: Optional[list[str]] = None, top_n: Optional[int] = None) -> list[dict]:
+    """Fetch 24h ticker stats. If `symbols` is None, fetches all and optionally returns top_n by quoteVolume.
+    Returns a list of dicts with at least: symbol, lastPrice, priceChangePercent, volume, quoteVolume, highPrice, lowPrice.
+    """
+    try:
+        if symbols:
+            out = []
+            for sym in symbols:
+                resp = _SESSION.get(_BINANCE_TICKER_URL, params={"symbol": sym}, timeout=8)
+                if resp.status_code == 200:
+                    out.append(resp.json())
+                else:
+                    logger.warning("24h ticker failed for %s: %s %s", sym, resp.status_code, resp.text[:120])
+            return out
+        # else: fetch all then optionally trim
+        resp = _SESSION.get(_BINANCE_TICKER_URL, timeout=12)
+        if resp.status_code != 200:
+            raise HTTPException(502, f"ticker list failed: {resp.status_code}")
+        data = resp.json()
+        if not isinstance(data, list):
+            raise HTTPException(502, "unexpected ticker payload")
+        if top_n and top_n > 0:
+            # sort by quoteVolume desc (as float)
+            def _qv(d):
+                try:
+                    return float(d.get("quoteVolume", 0))
+                except Exception:
+                    return 0.0
+            data.sort(key=_qv, reverse=True)
+            data = data[:top_n]
+        return data
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("fetch_24h_tickers error: %s", exc)
+        raise HTTPException(502, "failed to fetch 24h tickers")
 
 
 # Lightweight root and health endpoints
@@ -246,6 +299,25 @@ def _get_optimizer_suggestion(symbol: str) -> Optional[dict]:
         logger.warning("optimizer failed for %s: %s", key, exc)
         return None
 
+ # --- custom utility: Choppiness Index (not available in ta) ---
+def choppiness_index(high: pd.Series, low: pd.Series, close: pd.Series, window: int = 14) -> pd.Series:
+    """Choppiness Index: high values => choppy (range-bound); low => trending.
+    Returns a pandas Series aligned to `close` index.
+    """
+    # True Range components
+    prev_close = close.shift(1)
+    tr1 = (high - low).abs()
+    tr2 = (high - prev_close).abs()
+    tr3 = (low - prev_close).abs()
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+    tr_sum = tr.rolling(window).sum()
+    hh = high.rolling(window).max()
+    ll = low.rolling(window).min()
+    denom = (hh - ll).replace(0, np.nan)
+    ci = 100 * np.log10(tr_sum / denom) / np.log10(window)
+    return ci
+
 def add_indicators(df: pd.DataFrame):
     """Tek timeframe indikatörleri (EMA, MACD, RSI, ADX, BB, ATR)."""
     df = df.copy()
@@ -290,6 +362,75 @@ def add_indicators(df: pd.DataFrame):
         df["dist_from_mid_atr"] = np.abs(df["close"] - df["bb_mid"]) / atr_safe
         df["dist_from_mid_atr"] = df["dist_from_mid_atr"].replace([np.inf, -np.inf], np.nan)
 
+    # === Volume-based confirmations ===
+    try:
+        df["mfi"] = ta.volume.MFIIndicator(
+            high=df["high"], low=df["low"], close=df["close"], volume=df["volume"], window=14
+        ).money_flow_index()
+    except Exception:
+        df["mfi"] = np.nan
+    try:
+        df["obv"] = ta.volume.OnBalanceVolumeIndicator(
+            close=df["close"], volume=df["volume"]
+        ).on_balance_volume()
+    except Exception:
+        df["obv"] = np.nan
+    try:
+        df["cmf"] = ta.volume.ChaikinMoneyFlowIndicator(
+            high=df["high"], low=df["low"], close=df["close"], volume=df["volume"], window=20
+        ).chaikin_money_flow()
+    except Exception:
+        df["cmf"] = np.nan
+
+    # === Stochastic RSI (timing) ===
+    try:
+        stoch_rsi = StochRSIIndicator(close=df["close"], window=14, smooth1=3, smooth2=3)
+        df["stoch_rsi"] = stoch_rsi.stochrsi()
+        df["stoch_rsi_k"] = stoch_rsi.stochrsi_k()
+        df["stoch_rsi_d"] = stoch_rsi.stochrsi_d()
+    except Exception:
+        df["stoch_rsi"], df["stoch_rsi_k"], df["stoch_rsi_d"] = np.nan, np.nan, np.nan
+
+    # === VWAP (fair price) ===
+    try:
+        typ = (df["high"] + df["low"] + df["close"]) / 3.0
+        vol = df["volume"].replace(0, np.nan)
+        df["vwap"] = (typ * vol).cumsum() / vol.cumsum()
+        df["above_vwap"] = (df["close"] > df["vwap"]).astype(int)
+    except Exception:
+        df["vwap"], df["above_vwap"] = np.nan, 0
+
+    # === Donchian Channel (breakout) ===
+    try:
+        dc = ta.volatility.DonchianChannel(high=df["high"], low=df["low"], close=df["close"], window=20)
+        df["donchian_h"] = dc.donchian_channel_hband()
+        df["donchian_l"] = dc.donchian_channel_lband()
+        df["donchian_mid"] = dc.donchian_channel_mband()
+        df["donchian_break_up"] = (df["close"] > df["donchian_h"]).astype(int)
+        df["donchian_break_dn"] = (df["close"] < df["donchian_l"]).astype(int)
+    except Exception:
+        df["donchian_h"], df["donchian_l"], df["donchian_mid"] = np.nan, np.nan, np.nan
+        df["donchian_break_up"], df["donchian_break_dn"] = 0, 0
+
+    # === Choppiness Index (range vs trend) ===
+    try:
+        df["chop"] = choppiness_index(df["high"], df["low"], df["close"], window=14)
+    except Exception:
+        df["chop"] = np.nan
+
+    # === Secondary features for finer decisions ===
+    try:
+        df["obv_slope"] = df["obv"].diff(5)
+    except Exception:
+        df["obv_slope"] = np.nan
+    try:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            atr_safe2 = df["atr"].replace(0, np.nan)
+            df["vwap_dev_atr"] = (df["close"] - df["vwap"]) / atr_safe2
+            df["vwap_dev_atr"] = df["vwap_dev_atr"].replace([np.inf, -np.inf], np.nan)
+    except Exception:
+        df["vwap_dev_atr"] = np.nan
+
     return df
 
 
@@ -300,6 +441,41 @@ def prepare_frame(df: pd.DataFrame) -> pd.DataFrame:
         result[col] = pd.to_numeric(result[col], errors="coerce")
     result = result.set_index("open_time").sort_index()
     return add_indicators(result)
+
+
+# --- indicator snapshot helper ---
+def last_indicators_snapshot(symbol: str) -> dict:
+    """Return a compact indicator snapshot for a symbol from 15m timeframe.
+    Includes price, atr_pct, adx, rsi, vwap bias, and optional side/score via compute_signal.
+    """
+    try:
+        df = prepare_frame(fetch_ohlcv(symbol, "15m", 200))
+        if df.empty:
+            raise HTTPException(503, "no data")
+        row = df.iloc[-1]
+        snap = {
+            "price": safe_num(row.get("close"), 4),
+            "atr_pct": safe_num(row.get("atr_pct"), 5),
+            "adx": safe_num(row.get("adx"), 2),
+            "rsi": safe_num(row.get("rsi"), 2),
+            "above_vwap": bool(row.get("above_vwap", 0)),
+            "chop": safe_num(row.get("chop"), 2),
+        }
+        try:
+            sig = compute_signal(symbol)
+            snap.update({
+                "side": sig.get("side"),
+                "score": sig.get("score"),
+            })
+        except Exception:
+            # non-fatal: if compute_signal fails, return snapshot only
+            pass
+        return json_sanitize(snap)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("last_indicators_snapshot failed for %s: %s", symbol, exc)
+        raise HTTPException(503, "indicator snapshot failed")
 
 
 def generate_signal_history(symbol: str, limit: int = 400) -> pd.DataFrame:
@@ -361,6 +537,18 @@ def regime_filters(row):
         if bbw < 0.01 or bbw > 0.25:
             vol_ok = False
 
+    # Volume flow gate (weak flow => avoid new trades)
+    mfi = safe_num(row.get("mfi"))
+    cmf = safe_num(row.get("cmf"))
+    if mfi is not None and cmf is not None:
+        if (mfi < 35 and cmf < 0):
+            vol_ok = False
+
+    # Choppiness gate (too choppy => avoid)
+    chop = safe_num(row.get("chop"))
+    if chop is not None and chop > 61:
+        vol_ok = False
+
     return bool(adx_ok), bool(vol_ok)
 
 def directional_vote(row):
@@ -395,6 +583,43 @@ def directional_vote(row):
     # Bollinger lokasyonu (orta üzeri hafif pozitif)
     if safe_num(row.get("bb_mid")) and safe_num(row.get("close")):
         votes += 0.5 if row["close"] > row["bb_mid"] else -0.5
+    # StochRSI timing contribution
+    st_k = safe_num(row.get("stoch_rsi_k"))
+    st_d = safe_num(row.get("stoch_rsi_d"))
+    if st_k is not None and st_d is not None:
+        if st_k > 0.8 and st_d > 0.8:
+            votes -= 0.5  # overbought
+        elif st_k < 0.2 and st_d < 0.2:
+            votes += 0.5  # oversold
+
+    # VWAP bias (light weight)
+    if safe_num(row.get("vwap")) is not None and safe_num(row.get("close")) is not None:
+        votes += 0.25 if row["close"] > row["vwap"] else -0.25
+
+    # Donchian breakout confirmation (align with break direction)
+    b_up = row.get("donchian_break_up", 0)
+    b_dn = row.get("donchian_break_dn", 0)
+    if b_up == 1:
+        votes += 0.25
+    elif b_dn == 1:
+        votes -= 0.25
+
+    # OBV slope (5-bar) micro-weight
+    obv_sl = safe_num(row.get("obv_slope"))
+    if obv_sl is not None:
+        if obv_sl > 0:
+            votes += 0.2
+        elif obv_sl < 0:
+            votes -= 0.2
+
+    # VWAP deviation in ATR units: extreme stretch tends to mean-revert
+    dev_atr = safe_num(row.get("vwap_dev_atr"))
+    if dev_atr is not None:
+        if dev_atr > 1.5:
+            votes -= 0.25
+        elif dev_atr < -1.5:
+            votes += 0.25
+
     return votes  # ~ [-3, +3] aralığı
 
 
@@ -469,12 +694,28 @@ def compute_signal(symbol="BTCUSDT"):
     b, b1, b4 = base.iloc[-1], h1.iloc[-1], h4.iloc[-1]
 
     side, score = compute_signal_row(b, b1, b4)
-    # Enforce threshold suggested by optimizer (aim ~64% hit rate)
+    # Dynamic threshold: base on optimizer, then adjust by regime and direction bias
     opt = _get_optimizer_suggestion(symbol)
+    base_th = 0.6
     if isinstance(opt, dict):
-        th = float(opt.get("threshold", 0.6))
-        if score < th:
-            side = "HOLD"
+        base_th = float(opt.get("threshold", base_th))
+
+    atrp = safe_num(b.get("atr_pct"))
+    adxv = safe_num(b.get("adx"))
+    # start from optimizer threshold
+    dyn_th = base_th
+    # quiet or uncertain regime => demand stronger score
+    if not regime_filters(b)[0] or (atrp is not None and atrp < 0.0015):
+        dyn_th += 0.05
+    # healthy trend & volatility window => allow slightly lower threshold
+    if (adxv is not None and adxv >= 20) and (atrp is not None and 0.0015 <= atrp <= 0.02):
+        dyn_th -= 0.02
+
+    # asymmetric threshold for shorts (usually daha zordur): +0.02
+    if side == "BUY" and score < dyn_th:
+        side = "HOLD"
+    elif side == "SELL" and score < (dyn_th + 0.02):
+        side = "HOLD"
     adx_ok, vol_ok = regime_filters(b)
     v_base = directional_vote(b)
     v_h1 = directional_vote(b1)
@@ -519,14 +760,74 @@ def backtest_signals(
     slippage_bps: float = 1.0,
     position_size: float = 1.0,
     signals: pd.DataFrame | None = None,
+    mode: str = "horizon",  # "horizon" or "atr_tp_sl"
+    bootstrap: int = 0,      # number of bootstrap resamples for CIs
 ):
     if signals is None:
         signals = generate_signal_history(symbol, limit)
+    base_frame = prepare_frame(fetch_ohlcv(symbol, "15m", limit))
     signals["fwd_return"] = signals["close"].shift(-horizon) / signals["close"] - 1
     active = signals[(signals["side"].isin(["BUY", "SELL"])) & (signals["score"] >= threshold)].copy()
     active = active.dropna(subset=["fwd_return"])
     active["direction"] = active["side"].map({"BUY": 1, "SELL": -1})
-    active["gross_return"] = active["direction"] * active["fwd_return"]
+    if mode == "atr_tp_sl":
+        # event-driven TP/SL: check which hits first within horizon bars
+        highs = base_frame.loc[active.index, "high"]
+        lows = base_frame.loc[active.index, "low"]
+        closes = base_frame.loc[active.index, "close"]
+        atrs = base_frame.loc[active.index, "atr"]
+        adxs = base_frame.loc[active.index, "adx"]
+        atrps = base_frame.loc[active.index, "atr_pct"]
+        gross = []
+        idx_list = list(active.index)
+        for i, ts in enumerate(idx_list):
+            side_i = active.loc[ts, "side"]
+            price_i = safe_num(closes.loc[ts])
+            atr_i = safe_num(atrs.loc[ts])
+            adx_i = safe_num(adxs.loc[ts])
+            atrp_i = safe_num(atrps.loc[ts])
+            sl, tp = adaptive_sl_tp(price_i, atr_i, side_i, adx_i, atrp_i)
+            # iterate forward bars
+            win = None
+            future_idx = base_frame.index
+            try:
+                start_pos = future_idx.get_loc(ts)
+            except Exception:
+                start_pos = None
+            if start_pos is None:
+                gross.append(0.0)
+                continue
+            end_pos = min(start_pos + horizon, len(future_idx) - 1)
+            path = base_frame.iloc[start_pos+1:end_pos+1]
+            if side_i == "BUY" and sl and tp:
+                # check order: did low hit SL before high hit TP?
+                hit_sl = (path["low"] <= sl)
+                hit_tp = (path["high"] >= tp)
+            elif side_i == "SELL" and sl and tp:
+                hit_sl = (path["high"] >= sl)
+                hit_tp = (path["low"] <= tp)
+            else:
+                hit_sl = pd.Series([], dtype=bool)
+                hit_tp = pd.Series([], dtype=bool)
+            first_hit = None
+            if len(path) > 0:
+                # find first index where either hits
+                for j in range(len(path)):
+                    if hit_sl.iloc[j] or hit_tp.iloc[j]:
+                        first_hit = ("TP" if hit_tp.iloc[j] else "SL")
+                        break
+            if first_hit == "TP":
+                ret = (tp - price_i) / price_i if side_i == "BUY" else (price_i - tp) / price_i
+            elif first_hit == "SL":
+                ret = (sl - price_i) / price_i if side_i == "BUY" else (price_i - sl) / price_i
+            else:
+                # fallback to horizon close if neither hit
+                close_h = path["close"].iloc[-1] if len(path) else price_i
+                ret = (close_h - price_i) / price_i if side_i == "BUY" else (price_i - close_h) / price_i
+            gross.append(ret)
+        active["gross_return"] = np.array(gross)
+    else:
+        active["gross_return"] = active["direction"] * active["fwd_return"]
 
     total_cost_bps = (commission_bps * 2.0) + (slippage_bps * 2.0)
     cost_return = total_cost_bps / 10000.0
@@ -758,6 +1059,23 @@ def backtest_signals(
         "ratio": float(exposure_bars / total_bars) if total_bars else 0.0,
     }
 
+    # --- optional bootstrap CIs for hit_rate and expectancy ---
+    boot = {}
+    if bootstrap and trades:
+        rng = np.random.default_rng(42)
+        hr = []
+        ex = []
+        vals = active["net_return"].to_numpy()
+        wins_mask = (active["net_value"].to_numpy() > 0)
+        n = len(vals)
+        for _ in range(int(bootstrap)):
+            idx = rng.integers(0, n, size=n)
+            hr.append(float(wins_mask[idx].mean()))
+            ex.append(float(vals[idx].mean()))
+        hr_ci = (float(np.percentile(hr, 2.5)), float(np.percentile(hr, 97.5)))
+        ex_ci = (float(np.percentile(ex, 2.5)), float(np.percentile(ex, 97.5)))
+        boot = {"hit_rate_ci": hr_ci, "expectancy_ci": ex_ci, "samples": int(bootstrap)}
+
     return {
         "symbol": symbol,
         "threshold": threshold,
@@ -792,6 +1110,7 @@ def backtest_signals(
         "streaks": streaks,
         "exposure": exposure,
         "score_buckets": score_buckets,
+        "bootstrap": boot,
     }
 
 
@@ -832,28 +1151,64 @@ def optimize_params(
     position_size: float,
     target_hit: float = 0.64,
     min_trades: int = 25,
+    mode: str = "horizon",
+    walkforward: bool = False,
+    folds: int = 3,
 ) -> dict[str, Any]:
     # Precompute once to keep results consistent and fast
     signals = generate_signal_history(symbol, limit)
+    idx = signals.index
+    def eval_candidate(th, hz, sig_df):
+        res = backtest_signals(
+            symbol,
+            threshold=th,
+            limit=limit,
+            horizon=hz,
+            commission_bps=commission_bps,
+            slippage_bps=slippage_bps,
+            position_size=position_size,
+            signals=sig_df.copy(),
+            mode=mode,
+        )
+        return res
+
+    if walkforward and isinstance(idx, pd.DatetimeIndex) and len(idx) > folds*50:
+        # build contiguous folds
+        cut_points = np.linspace(0, len(idx), folds+1, dtype=int)
+        fold_ranges = [(idx[cut_points[i]], idx[cut_points[i+1]-1]) for i in range(folds)]
+    else:
+        fold_ranges = None
+
     best: dict[str, Any] | None = None
     closest: dict[str, Any] | None = None
     best_hit_gap = 1.0
 
     for hz in horizons:
         for th in thresholds:
-            res = backtest_signals(
-                symbol,
-                threshold=th,
-                limit=limit,
-                horizon=hz,
-                commission_bps=commission_bps,
-                slippage_bps=slippage_bps,
-                position_size=position_size,
-                signals=signals.copy(),
-            )
-            trades = int(res.get("trades", 0))
-            hit    = float(res.get("hit_rate", 0.0))
-            net    = float(res.get("net_return_sum", 0.0))
+            if fold_ranges:
+                agg_trades = 0
+                agg_net = 0.0
+                hits = []
+                pfs = []
+                for (s_idx, e_idx) in fold_ranges:
+                    sig_df = signals.loc[s_idx:e_idx]
+                    if len(sig_df) < 100:
+                        continue
+                    r = eval_candidate(th, hz, sig_df)
+                    agg_trades += int(r.get("trades", 0))
+                    agg_net += float(r.get("net_return_sum", 0.0))
+                    hits.append(float(r.get("hit_rate", 0.0)))
+                    pfs.append(float(r.get("profit_factor", 0.0)))
+                trades = agg_trades
+                hit = float(np.mean(hits)) if hits else 0.0
+                pf = float(np.mean(pfs)) if pfs else 0.0
+                net = agg_net
+            else:
+                r = eval_candidate(th, hz, signals)
+                trades = int(r.get("trades", 0))
+                hit    = float(r.get("hit_rate", 0.0))
+                pf     = float(r.get("profit_factor", 0.0))
+                net    = float(r.get("net_return_sum", 0.0))
 
             # Track closest to target regardless of side
             gap = abs(hit - target_hit)
@@ -862,6 +1217,7 @@ def optimize_params(
                 "horizon": hz,
                 "trades": trades,
                 "hit_rate": hit,
+                "profit_factor": pf,
                 "net_return_sum": net,
             }
 
@@ -869,8 +1225,8 @@ def optimize_params(
                 closest = cand
                 best_hit_gap = gap
 
-            # Prefer candidates meeting target hit and min trades, then maximize net_return
-            if hit >= target_hit and trades >= min_trades:
+            # Prefer candidates meeting target hit and min trades and PF>=1.3, then maximize net_return
+            if hit >= target_hit and trades >= min_trades and pf >= 1.3:
                 if best is None or net > best["net_return_sum"]:
                     best = cand
 
@@ -880,6 +1236,7 @@ def optimize_params(
         "horizon": horizons[0],
         "trades": 0,
         "hit_rate": 0.0,
+        "profit_factor": 0.0,
         "net_return_sum": 0.0,
     })
 
@@ -896,6 +1253,8 @@ def optimize_endpoint(
     position_size: float = 1.0,
     target_hit: float = 0.64,
     min_trades: int = 25,
+    mode: str = "horizon",
+    walkforward: bool = False,
 ):
     th_values = parse_float_list(thresholds)
     hz_values = parse_int_list(horizons)
@@ -925,11 +1284,15 @@ def optimize_endpoint(
             position_size,
             target_hit=target_hit,
             min_trades=min_trades,
+            mode=mode,
+            walkforward=walkforward,
         )
         return json_sanitize({
             "symbol": symbol.upper(),
             "target_hit": target_hit,
             "min_trades": min_trades,
+            "mode": mode,
+            "walkforward": walkforward,
             "suggestion": best,
         })
     except HTTPException as he:
@@ -998,6 +1361,8 @@ def backtest(
     commission_bps: float = 4.0,
     slippage_bps: float = 1.0,
     position_size: float = 1.0,
+    mode: str = "horizon",
+    bootstrap: int = 0,
 ):
     if not (0 < threshold < 1):
         raise HTTPException(400, "threshold must be between 0 and 1")
@@ -1019,6 +1384,8 @@ def backtest(
             commission_bps=commission_bps,
             slippage_bps=slippage_bps,
             position_size=position_size,
+            mode=mode,
+            bootstrap=bootstrap,
         )
         return json_sanitize(res)
     except HTTPException as he:
@@ -1080,6 +1447,66 @@ def backtest_sweep_endpoint(
         "results": results,
     })
 
+
+# --- Readiness endpoint for data-path health ---
+# --- Readiness endpoint for data-path health ---
+# --- Market overview endpoints ---
+@app.get("/market/summary")
+def market_summary(
+    symbols: Optional[str] = None,
+    top_n: int = 0,
+    with_indicators: bool = True,
+):
+    """Return 24h stats for many coins plus optional indicator snapshot.
+    - If `symbols` is provided (comma-separated), fetch just those symbols.
+    - Else, fetch all and return `top_n` by quoteVolume (default 0 => all; cap to 50).
+    """
+    try:
+        syms: Optional[list[str]] = parse_symbol_list(symbols) if symbols else None
+        if not syms and top_n > 0:
+            top_n = min(top_n, 50)
+        tickers = fetch_24h_tickers(syms, top_n if (not syms) else None)
+        out = []
+        for t in tickers:
+            sym = str(t.get("symbol", "")).upper()
+            item = {
+                "symbol": sym,
+                "lastPrice": safe_num(t.get("lastPrice"), 6),
+                "priceChangePercent": safe_num(t.get("priceChangePercent"), 4),
+                "volume": safe_num(t.get("volume"), 4),
+                "quoteVolume": safe_num(t.get("quoteVolume"), 2),
+                "highPrice": safe_num(t.get("highPrice"), 6),
+                "lowPrice": safe_num(t.get("lowPrice"), 6),
+            }
+            if with_indicators and sym:
+                try:
+                    item["indicators"] = last_indicators_snapshot(sym)
+                except Exception as exc:
+                    item["indicators_error"] = str(exc)
+            out.append(item)
+        return {"ok": True, "count": len(out), "data": json_sanitize(out)}
+    except HTTPException as he:
+        raise he
+    except Exception as exc:
+        logger.error("/market/summary failed: %s", exc)
+        return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
+
+
+@app.get("/signals/batch")
+def signals_batch(symbols: str):
+    """Compute signals for a list of symbols (comma-separated)."""
+    syms = parse_symbol_list(symbols)
+    if not syms:
+        raise HTTPException(400, "symbols must be non-empty")
+    results = []
+    for s in syms[:25]:  # simple guard
+        try:
+            results.append({"symbol": s, "data": compute_signal(s)})
+        except HTTPException as he:
+            results.append({"symbol": s, "error": str(he.detail), "status": he.status_code})
+        except Exception as exc:
+            results.append({"symbol": s, "error": str(exc)})
+    return json_sanitize({"ok": True, "count": len(results), "results": results})
 
 # --- Readiness endpoint for data-path health ---
 @app.get("/readiness")
