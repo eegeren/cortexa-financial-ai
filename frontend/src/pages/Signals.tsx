@@ -19,15 +19,42 @@ import HeatmapMatrix from '@/components/HeatmapMatrix';
 import { useToast } from '@/components/ToastProvider';
 import Skeleton from '@/components/Skeleton';
 
+// Primary quick chips (stay concise)
 const topSymbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'];
+
+// Extended markets we now support on the backend as well
+const extraSymbols = [
+  'BNBUSDT', 'ADAUSDT', 'TONUSDT', 'TRXUSDT', 'LINKUSDT', 'MATICUSDT',
+  'DOTUSDT', 'LTCUSDT', 'OPUSDT', 'ARBUSDT', 'APTUSDT', 'NEARUSDT',
+  'ATOMUSDT', 'SUIUSDT', 'PEPEUSDT', 'SHIBUSDT'
+];
+
 const symbolLabels: Record<string, string> = {
   BTCUSDT: 'Bitcoin',
   ETHUSDT: 'Ethereum',
   SOLUSDT: 'Solana',
   AVAXUSDT: 'Avalanche',
   XRPUSDT: 'XRP',
-  DOGEUSDT: 'Dogecoin'
+  DOGEUSDT: 'Dogecoin',
+  BNBUSDT: 'BNB',
+  ADAUSDT: 'Cardano',
+  TONUSDT: 'TON',
+  TRXUSDT: 'TRON',
+  LINKUSDT: 'Chainlink',
+  MATICUSDT: 'Polygon',
+  DOTUSDT: 'Polkadot',
+  LTCUSDT: 'Litecoin',
+  OPUSDT: 'Optimism',
+  ARBUSDT: 'Arbitrum',
+  APTUSDT: 'Aptos',
+  NEARUSDT: 'NEAR',
+  ATOMUSDT: 'Cosmos',
+  SUIUSDT: 'Sui',
+  PEPEUSDT: 'PEPE',
+  SHIBUSDT: 'Shiba Inu'
 };
+
+const allSymbols: string[] = Array.from(new Set([...topSymbols, ...extraSymbols]));
 
 const defaultSymbol = topSymbols[0];
 
@@ -441,6 +468,7 @@ const SignalsPage = () => {
             <input
               value={symbol}
               onChange={(event) => setSymbol(event.target.value)}
+              list="symbols-list"
               className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
               placeholder="BTCUSDT"
             />
@@ -452,6 +480,11 @@ const SignalsPage = () => {
             Load signal
           </button>
         </form>
+        <datalist id="symbols-list">
+          {allSymbols.map((sym) => (
+            <option key={sym} value={sym} />
+          ))}
+        </datalist>
         <div className="mt-4 flex flex-wrap gap-2">
           {topSymbols.map((sym) => (
             <button
@@ -468,6 +501,27 @@ const SignalsPage = () => {
               {symbolLabels[sym] ?? sym}
             </button>
           ))}
+        </div>
+        <div className="mt-3 -mb-1 overflow-x-auto">
+          <div className="flex min-w-max items-center gap-2 pb-1">
+            {extraSymbols.map((sym) => (
+              <button
+                key={sym}
+                type="button"
+                onClick={() => {
+                  setSymbol(sym);
+                  void loadSignal(sym);
+                }}
+                className={`whitespace-nowrap rounded-full border px-3 py-1 text-xs transition ${
+                  symbol === sym
+                    ? 'border-primary bg-primary/20 text-primary'
+                    : 'border-slate-700 text-slate-300 hover:border-primary/60 hover:text-primary'
+                }`}
+              >
+                {symbolLabels[sym] ?? sym}
+              </button>
+            ))}
+          </div>
         </div>
       </PageHeader>
 
