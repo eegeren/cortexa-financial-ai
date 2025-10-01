@@ -465,13 +465,26 @@ const SignalsPage = () => {
         <form className="mt-4 flex flex-col gap-3 md:flex-row md:items-end" onSubmit={handleSubmit}>
           <label className="text-xs uppercase tracking-wide text-slate-400">
             Symbol
-            <input
+            <select
               value={symbol}
               onChange={(event) => setSymbol(event.target.value)}
-              list="symbols-list"
               className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-              placeholder="BTCUSDT"
-            />
+            >
+              <optgroup label="Top">
+                {topSymbols.map((sym) => (
+                  <option key={sym} value={sym}>
+                    {symbolLabels[sym] ?? sym} ({sym})
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="More">
+                {extraSymbols.map((sym) => (
+                  <option key={sym} value={sym}>
+                    {symbolLabels[sym] ?? sym} ({sym})
+                  </option>
+                ))}
+              </optgroup>
+            </select>
           </label>
           <button
             type="submit"
@@ -480,11 +493,6 @@ const SignalsPage = () => {
             Load signal
           </button>
         </form>
-        <datalist id="symbols-list">
-          {allSymbols.map((sym) => (
-            <option key={sym} value={sym} />
-          ))}
-        </datalist>
         <div className="mt-4 flex flex-wrap gap-2">
           {topSymbols.map((sym) => (
             <button
