@@ -1387,40 +1387,50 @@ def debug_predict(symbol: str = "BTCUSDT"):
 def get_signals(symbol: str = "BTCUSDT"):
     try:
         res = compute_signal(symbol)
-        return {"ok": True, "data": json_sanitize(res), "stale": False}
+        payload = json_sanitize(res)
+        return {"ok": True, "data": payload, "stale": False, **payload}
     except HTTPException as he:
         cached = _sig_cache_get(symbol)
         if cached is not None:
-            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
+            payload = cached
+            return JSONResponse(status_code=200, content={"ok": True, "data": payload, "stale": True, **payload})
         # no cache -> serve fallback HOLD so UI keeps working
         fb = json_sanitize(_fallback_signal(symbol))
-        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
+        payload = fb
+        return JSONResponse(status_code=200, content={"ok": True, "data": payload, "stale": True, **payload})
     except Exception as exc:
         logger.error("/signals failed for %s: %s", symbol, exc)
         cached = _sig_cache_get(symbol)
         if cached is not None:
-            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
+            payload = cached
+            return JSONResponse(status_code=200, content={"ok": True, "data": payload, "stale": True, **payload})
         fb = json_sanitize(_fallback_signal(symbol))
-        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
+        payload = fb
+        return JSONResponse(status_code=200, content={"ok": True, "data": payload, "stale": True, **payload})
 
 @app.get("/predict")
 def predict_get(symbol: str = "BTCUSDT"):
     try:
         res = compute_signal(symbol)
-        return {"ok": True, "data": json_sanitize(res), "stale": False}
+        payload = json_sanitize(res)
+        return {"ok": True, "data": payload, "stale": False, **payload}
     except HTTPException as he:
         cached = _sig_cache_get(symbol)
         if cached is not None:
-            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
+            payload = cached
+            return JSONResponse(status_code=200, content={"ok": True, "data": payload, "stale": True, **payload})
         fb = json_sanitize(_fallback_signal(symbol))
-        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
+        payload = fb
+        return JSONResponse(status_code=200, content={"ok": True, "data": payload, "stale": True, **payload})
     except Exception as exc:
         logger.error("GET /predict failed for %s: %s", symbol, exc)
         cached = _sig_cache_get(symbol)
         if cached is not None:
-            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
+            payload = cached
+            return JSONResponse(status_code=200, content={"ok": True, "data": payload, "stale": True, **payload})
         fb = json_sanitize(_fallback_signal(symbol))
-        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
+        payload = fb
+        return JSONResponse(status_code=200, content={"ok": True, "data": payload, "stale": True, **payload})
 
 
 @app.post("/predict")
@@ -1428,20 +1438,25 @@ def predict(payload: dict):
     symbol = payload.get("symbol", "BTCUSDT")
     try:
         res = compute_signal(symbol)
-        return {"ok": True, "data": json_sanitize(res), "stale": False}
+        payload_result = json_sanitize(res)
+        return {"ok": True, "data": payload_result, "stale": False, **payload_result}
     except HTTPException as he:
         cached = _sig_cache_get(symbol)
         if cached is not None:
-            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
+            payload_result = cached
+            return JSONResponse(status_code=200, content={"ok": True, "data": payload_result, "stale": True, **payload_result})
         fb = json_sanitize(_fallback_signal(symbol))
-        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
+        payload_result = fb
+        return JSONResponse(status_code=200, content={"ok": True, "data": payload_result, "stale": True, **payload_result})
     except Exception as exc:
         logger.error("/predict failed for %s: %s\n%s", symbol, exc, traceback.format_exc())
         cached = _sig_cache_get(symbol)
         if cached is not None:
-            return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
+            payload_result = cached
+            return JSONResponse(status_code=200, content={"ok": True, "data": payload_result, "stale": True, **payload_result})
         fb = json_sanitize(_fallback_signal(symbol))
-        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
+        payload_result = fb
+        return JSONResponse(status_code=200, content={"ok": True, "data": payload_result, "stale": True, **payload_result})
 
 
 @app.get("/backtest")
