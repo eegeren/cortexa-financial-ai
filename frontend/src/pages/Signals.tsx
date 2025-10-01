@@ -191,21 +191,41 @@ const SignalsPage = () => {
   }, [role]);
 
   const loadSignal = useCallback(async (sym: string) => {
-    setLoading(true);
-    setError(null);
-    setAutoResult(null);
-    setAutoError(null);
-    setBacktest(null);
+  setLoading(true);
+  setError(null);
+  setAutoResult(null);
+  setAutoError(null);
+  setBacktest(null);
+  try {
+    const data = await fetchSignal(sym);
+    applySignal(data);
+  } catch (err) {
+    // Soft fallback: 200 + ok:false + data senaryosunu da kabul et
     try {
-      const data = await fetchSignal(sym);
-      applySignal(data);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch signal';
+      const res = await fetch(`${API_BASE}/signals?symbol=${encodeURIComponent(sym)}`, { method: 'GET' });
+      if (res.ok) {
+        const payload = await res.json().catch(() => null) as any;
+        const data = payload?.data as SignalResponse | undefined;
+        if (data) {
+          applySignal(data);
+          setError(null);
+        } else {
+          const message = (payload?.error as string) || (err instanceof Error ? err.message : 'Failed to fetch signal');
+          setError(message);
+        }
+      } else {
+        const text = await res.text().catch(() => '');
+        const message = text || (err instanceof Error ? err.message : 'Failed to fetch signal');
+        setError(message);
+      }
+    } catch (innerErr) {
+      const message = innerErr instanceof Error ? innerErr.message : (err instanceof Error ? err.message : 'Failed to fetch signal');
       setError(message);
-    } finally {
-      setLoading(false);
     }
-  }, [applySignal]);
+  } finally {
+    setLoading(false);
+  }
+}, [applySignal]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -495,7 +515,7 @@ const SignalsPage = () => {
         </form>
       </PageHeader>
 
-      {error && <Banner tone="error">{error}</Banner>}
+      {!signal && error && <Banner tone="error">{error}</Banner>}
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="space-y-6">
