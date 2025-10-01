@@ -1296,7 +1296,12 @@ def optimize_endpoint(
             "suggestion": best,
         })
     except HTTPException as he:
-        raise he
+        # Degrade gracefully for UI: return 200 with ok:false instead of surfacing 5xx
+        return JSONResponse(status_code=200, content={
+            "ok": False,
+            "error": str(he.detail),
+            "code": he.status_code,
+        })
     except Exception as exc:
         logger.error("/optimize failed: %s\n%s", exc, traceback.format_exc())
         raise HTTPException(500, "internal error while optimizing; check server logs")
