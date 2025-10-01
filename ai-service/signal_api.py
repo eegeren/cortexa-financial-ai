@@ -773,6 +773,29 @@ def compute_signal(symbol="BTCUSDT"):
         pass
     return result
 
+# --- fallback signal helper ---
+def _fallback_signal(symbol: str) -> dict:
+    """Return a minimal neutral HOLD signal when live compute fails and cache is empty."""
+    return {
+        "symbol": symbol.upper(),
+        "side": "HOLD",
+        "score": 0.0,
+        "price": None,
+        "rsi": None,
+        "atr": None,
+        "ema_fast": None,
+        "ema_slow": None,
+        "atr_pct": None,
+        "adx": None,
+        "sl": None,
+        "tp": None,
+        "mtf": {
+            "votes": {"base15m": 0.0, "h1": 0.0, "h4": 0.0},
+            "filters": {"adx_ok": False, "vol_ok": False},
+        },
+        "optimizer": {"target_hit": 0.64, "suggestion": None},
+    }
+
 
 def backtest_signals(
     symbol: str,
@@ -1352,13 +1375,16 @@ def get_signals(symbol: str = "BTCUSDT"):
         cached = _sig_cache_get(symbol)
         if cached is not None:
             return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
-        return JSONResponse(status_code=he.status_code, content={"ok": False, "error": str(he.detail)})
+        # no cache -> serve fallback HOLD so UI keeps working
+        fb = json_sanitize(_fallback_signal(symbol))
+        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
     except Exception as exc:
         logger.error("/signals failed for %s: %s", symbol, exc)
         cached = _sig_cache_get(symbol)
         if cached is not None:
             return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
-        return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
+        fb = json_sanitize(_fallback_signal(symbol))
+        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
 
 @app.get("/predict")
 def predict_get(symbol: str = "BTCUSDT"):
@@ -1369,13 +1395,15 @@ def predict_get(symbol: str = "BTCUSDT"):
         cached = _sig_cache_get(symbol)
         if cached is not None:
             return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
-        return JSONResponse(status_code=he.status_code, content={"ok": False, "error": str(he.detail)})
+        fb = json_sanitize(_fallback_signal(symbol))
+        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
     except Exception as exc:
         logger.error("GET /predict failed for %s: %s", symbol, exc)
         cached = _sig_cache_get(symbol)
         if cached is not None:
             return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
-        return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
+        fb = json_sanitize(_fallback_signal(symbol))
+        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
 
 
 @app.post("/predict")
@@ -1388,14 +1416,15 @@ def predict(payload: dict):
         cached = _sig_cache_get(symbol)
         if cached is not None:
             return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
-        # propagate FastAPI HTTP errors (e.g., 502/503) as-is
-        raise he
+        fb = json_sanitize(_fallback_signal(symbol))
+        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
     except Exception as exc:
         logger.error("/predict failed for %s: %s\n%s", symbol, exc, traceback.format_exc())
         cached = _sig_cache_get(symbol)
         if cached is not None:
             return JSONResponse(status_code=200, content={"ok": True, "data": cached, "stale": True})
-        raise HTTPException(500, "internal error while computing signal; check server logs")
+        fb = json_sanitize(_fallback_signal(symbol))
+        return JSONResponse(status_code=200, content={"ok": True, "data": fb, "stale": True})
 
 
 @app.get("/backtest")
