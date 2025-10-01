@@ -56,7 +56,7 @@ import time
 from typing import Iterable, Tuple, Optional, Dict, Any
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from requests.adapters import HTTPAdapter
@@ -86,8 +86,25 @@ app.add_middleware(
 )
 
 @app.exception_handler(Exception)
-async def _unhandled_error(_, exc: Exception):
-    logger.error("unhandled: %s", exc)
+async def _unhandled_error(request: Request, exc: Exception):
+    # Always log full stack for diagnostics
+    logger.error("unhandled: %s", exc, exc_info=True)
+    path = ""
+    try:
+        path = request.url.path or ""
+    except Exception:
+        path = ""
+    # For UI-critical endpoints, degrade gracefully with HTTP 200 so the page doesn't show a hard 500 banner.
+    soft_paths = (
+        "/signals",
+        "/predict",
+        "/optimize",
+        "/market",
+        "/debug/predict",
+    )
+    if any(path.startswith(p) for p in soft_paths):
+        return JSONResponse(status_code=200, content={"ok": False, "error": "ai-service-internal", "path": path})
+    # Otherwise surface as 500
     return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
 
 # --- basic logger setup ---
