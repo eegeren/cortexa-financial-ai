@@ -9,31 +9,72 @@ import clsx from 'clsx';
 
 type BillingInterval = 'monthly' | 'annual';
 
-const formatPrice = (amountCents: number, currency: string, billingInterval: BillingInterval) => {
+const formatPrice = (
+  amountCents: number,
+  currency: string,
+  billingInterval: BillingInterval,
+  monthlyFallback: string,
+  annualFallback?: string | null,
+) => {
+  if (billingInterval === 'annual' && annualFallback) {
+    return annualFallback;
+  }
+
+  if (billingInterval === 'monthly' && monthlyFallback) {
+    return monthlyFallback;
+  }
+
   const amount = amountCents / 100;
-  const yearlyAmount = billingInterval === 'annual' ? amount * 10 : amount; // 2 ay hediye
-  return new Intl.NumberFormat('en-US', {
+  const formatted = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency?.toUpperCase() ?? 'USD',
     minimumFractionDigits: 0,
-  }).format(yearlyAmount);
+  }).format(amount);
+
+  if (billingInterval === 'annual') {
+    return `${formatted} (annual)`;
+  }
+  return formatted;
 };
 
-const planHighlights: Record<string, { tier: string; description: string; extra: string[] }> = {
+const planHighlights: Record<
+  string,
+  {
+    tier: string;
+    description: string;
+    bullets: string[];
+    monthly: string;
+    annual?: string | null;
+    ctaLabel: string;
+    secondaryLabel?: string;
+  }
+> = {
   starter: {
     tier: 'Starter',
-    description: 'Ideal for traders exploring Cortexa insights with core signals and guided chats.',
-    extra: ['50 AI chat messages / month', 'Top 5 market signals', 'Portfolio analytics lite'],
+    description: 'Get started with curated AI signals and guided insights without paying a cent.',
+    bullets: ['50 Cortexa Assistant messages / month', 'Signals for the top 5 markets', 'Portfolio analytics lite'],
+    monthly: '$0',
+    annual: '$0',
+    ctaLabel: 'Use Starter',
+    secondaryLabel: 'Download sample report',
   },
   pro: {
     tier: 'Pro',
-    description: 'Unlock unlimited AI chat, deep signal coverage, and automation workflows.',
-    extra: ['Unlimited AI assistant chats', 'Full market & backtest coverage', 'Priority strategy drops'],
+    description: 'Scale your trading workflow with unlimited assistant chats and advanced automation.',
+    bullets: ['Unlimited AI conversations', 'Full market & backtest coverage', 'Live auto-trading & webhooks'],
+    monthly: '$99',
+    annual: '$990 (save 17%)',
+    ctaLabel: 'Start Pro trial',
+    secondaryLabel: 'View feature matrix',
   },
   enterprise: {
     tier: 'Enterprise',
-    description: 'Custom integrations, dedicated success and advanced compliance tooling.',
-    extra: ['Unlimited seats & workspaces', 'Custom models + private deployments', 'Dedicated success manager'],
+    description: 'Enterprise desks get bespoke data integrations, governance, and dedicated support.',
+    bullets: ['Unlimited seats & workspaces', 'Private models and on-prem options', 'Dedicated success manager & SLAs'],
+    monthly: 'Custom',
+    annual: null,
+    ctaLabel: 'Talk to sales',
+    secondaryLabel: 'Download enterprise brief',
   },
 };
 
@@ -129,58 +170,78 @@ const PricingPage = () => {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            {orderedPlans.map((plan) => {
-              const highlight = planHighlights[plan.code] ?? {
-                tier: plan.name,
-                description: plan.description,
-                extra: plan.features,
-              };
-              const isPopular = plan.code === 'pro';
-              const badge = billingInterval === 'annual' ? 'per year' : 'per month';
-              return (
-                <Card
-                  key={plan.id}
-                  className={`relative border border-slate-800/60 bg-slate-900/70 p-6 transition hover:-translate-y-1 hover:border-primary/40 ${
-                    isPopular ? 'shadow-lg shadow-primary/20' : ''
-                  }`}
-                >
-                  {isPopular && (
-                    <span className="absolute right-4 top-4 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">
-                      Most popular
-                    </span>
-                  )}
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-xl font-semibold text-white">{highlight.tier}</h3>
-                      <p className="mt-1 text-sm text-slate-400">{highlight.description}</p>
-                    </div>
-                    <div>
+          {orderedPlans.map((plan) => {
+            const highlight = planHighlights[plan.code] ?? {
+              tier: plan.name,
+              description: plan.description,
+              bullets: plan.features,
+              monthly: `$${(plan.amount_cents / 100).toFixed(0)}`,
+              annual: null,
+              ctaLabel: 'Choose plan',
+            };
+            const isPopular = plan.code === 'pro';
+            const badge = billingInterval === 'annual' ? 'per year' : 'per month';
+            return (
+              <Card
+                key={plan.id}
+                className={`relative border border-slate-800/60 bg-slate-900/70 p-6 transition hover:-translate-y-1 hover:border-primary/40 ${
+                  isPopular ? 'shadow-lg shadow-primary/20' : ''
+                }`}
+              >
+                {isPopular && (
+                  <span className="absolute right-4 top-4 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">
+                    Most popular
+                  </span>
+                )}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">{highlight.tier}</h3>
+                    <p className="mt-1 text-sm text-slate-400">{highlight.description}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-end gap-3">
                       <span className="text-3xl font-bold text-white">
-                        {formatPrice(plan.amount_cents, plan.currency, billingInterval)}
+                        {formatPrice(plan.amount_cents, plan.currency, billingInterval, highlight.monthly, highlight.annual)}
                       </span>
-                      <span className="ml-2 text-xs uppercase tracking-wide text-slate-500">/{badge}</span>
+                      {highlight.annual && billingInterval === 'annual' && (
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-300">
+                          Annual savings
+                        </span>
+                      )}
                     </div>
-                    <ul className="space-y-2 text-sm text-slate-200">
-                      {highlight.extra.map((item) => (
-                        <li key={item} className="flex items-start gap-2">
-                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <span className="ml-1 text-xs uppercase tracking-wide text-slate-500">/{badge}</span>
+                  </div>
+                  <ul className="space-y-2 text-sm text-slate-200">
+                    {highlight.bullets.map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(plan.code)}
+                    className="mt-6 w-full rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={checkingOut === plan.code}
+                  >
+                    {checkingOut === plan.code ? 'Redirecting…' : 'Choose plan'}
+                  </button>
+                  {highlight.secondaryLabel && (
                     <button
                       type="button"
-                      onClick={() => handleCheckout(plan.code)}
-                      className="mt-6 w-full rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={checkingOut === plan.code}
+                      className="w-full rounded-full border border-slate-700 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-primary hover:text-white"
+                      disabled
+                      title="Replace with your own link"
                     >
-                      {checkingOut === plan.code ? 'Redirecting…' : 'Choose plan'}
+                      {highlight.secondaryLabel}
                     </button>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
         </>
       )}
 
