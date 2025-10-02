@@ -1,23 +1,4 @@
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'https://cortexa-financial-ai.onrender.com',
-  timeout: 10000
-});
-
-let authToken: string | null = null;
-
-export const setAuthToken = (token: string | null) => {
-  authToken = token;
-};
-
-api.interceptors.request.use((config) => {
-  if (authToken) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${authToken}`;
-  }
-  return config;
-});
+import http, { setAuthHeader } from './httpClient';
 
 export interface SignalResponse {
   symbol: string;
@@ -181,46 +162,136 @@ export interface AdminUserSummary {
   next_renewal: string;
 }
 
+export type ChatMessagePayload = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+export interface ChatResponse {
+  ok: boolean;
+  reply: string;
+  status: string;
+  reason?: string;
+}
+
+export interface PlanSummary {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  amount_cents: number;
+  currency: string;
+  billing_interval: string;
+  features: string[];
+}
+
+export interface CheckoutSession {
+  session_id: string;
+  checkout_url: string;
+  provider: string;
+}
+
+export interface SubscriptionWithAccess {
+  subscription: {
+    id: number;
+    user_id: number;
+    plan_id: number;
+    status: string;
+    trial_ends_at?: string | null;
+    current_period_start?: string | null;
+    current_period_end?: string | null;
+    provider_customer_id: string;
+    provider_subscription_id: string;
+    cancel_at_period_end: boolean;
+    created_at: string;
+    updated_at: string;
+    plan_code: string;
+    plan_name: string;
+  } | null;
+  access: {
+    can_access: boolean;
+    trial_days_remaining: number;
+    status: string;
+    plan: string;
+    provider_subscription_id: string;
+    reason?: string;
+  };
+}
+
+export interface BillingProfile {
+  id?: number;
+  user_id?: number;
+  country: string;
+  vat_id: string;
+  company_name: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  postal_code: string;
+}
+
+export interface InvoiceSummary {
+  id: number;
+  subscription_id: number;
+  provider_invoice_id: string;
+  amount_cents: number;
+  currency: string;
+  status: string;
+  hosted_invoice_url: string;
+  pdf_url: string;
+  tax_amount_cents: number;
+  created_at: string;
+  issued_at?: string | null;
+  due_at?: string | null;
+}
+
+export const setAuthToken = setAuthHeader;
+
 export const fetchSignal = async (symbol: string) => {
-  const { data } = await api.get<SignalResponse>(`/api/signals/${symbol}`);
+  const { data } = await http.get<SignalResponse>(`/api/signals/${symbol}`);
   return data;
 };
 
 export const triggerAutoTrade = async (symbol: string, threshold: number, qty: number) => {
-  const { data } = await api.post(`/api/signals/${symbol}/auto-trade`, undefined, {
-    params: { threshold, qty }
+  const { data } = await http.post(`/api/signals/${symbol}/auto-trade`, undefined, {
+    params: { threshold, qty },
   });
   return data as { executed: boolean; note?: string; reason?: string; score: number };
 };
 
 export const fetchPortfolio = async () => {
-  const { data } = await api.get<PortfolioResponse>('/api/portfolio');
+  const { data } = await http.get<PortfolioResponse>('/api/portfolio');
   return data;
 };
 
 export const createTrade = async (payload: { symbol: string; side: 'BUY' | 'SELL'; qty: number; price: number }) => {
-  const { data } = await api.post('/api/portfolio/trade', payload);
+  const { data } = await http.post('/api/portfolio/trade', payload);
   return data as { message: string };
 };
 
 export const fetchAdminUsers = async () => {
-  const { data } = await api.get<AdminUserSummary[]>('/admin/users');
+  const { data } = await http.get<AdminUserSummary[]>('/admin/users');
   return data;
 };
 
 export const updateUserRole = async (id: number, role: string) => {
-  const { data } = await api.patch(`/admin/users/${id}/role`, { role });
+  const { data } = await http.patch(`/admin/users/${id}/role`, { role });
   return data as { id: number; role: string };
 };
 
 export const fetchHealth = async () => {
-  const { data } = await api.get<HealthResponse>('/health');
+  const { data } = await http.get<HealthResponse>('/health');
+  return data;
+};
+
+export const fetchHealthz = async () => {
+  const { data } = await http.get<HealthResponse>('/healthz');
   return data;
 };
 
 export const fetchLatestPrice = async (symbol: string, interval = '1h') => {
-  const { data } = await api.get<PriceResponse>(`/api/prices/${symbol}`, {
-    params: { interval, limit: 1 }
+  const { data } = await http.get<PriceResponse>(`/api/prices/${symbol}`, {
+    params: { interval, limit: 1 },
   });
   const latest = data.ohlcv.length ? data.ohlcv[data.ohlcv.length - 1] : undefined;
   if (!latest) {
@@ -231,7 +302,7 @@ export const fetchLatestPrice = async (symbol: string, interval = '1h') => {
     symbol,
     price: Number(close),
     time: typeof timestamp === 'number' ? new Date(timestamp) : null,
-    interval: data.interval
+    interval: data.interval,
   };
 };
 
@@ -254,8 +325,8 @@ export const fetchBacktest = async (
     slippage_bps = 1,
     position_size = 1,
   } = params;
-  const { data } = await api.get<BacktestResponse>(`/api/signals/${symbol}/backtest`, {
-    params: { threshold, limit, horizon, commission_bps, slippage_bps, position_size }
+  const { data } = await http.get<BacktestResponse>(`/api/signals/${symbol}/backtest`, {
+    params: { threshold, limit, horizon, commission_bps, slippage_bps, position_size },
   });
   return data;
 };
@@ -291,10 +362,57 @@ export const fetchBacktestSweep = async (
   if (horizons && horizons.length) {
     query.horizons = horizons.join(',');
   }
-  const { data } = await api.get<BacktestSweepResponse>(`/api/signals/${symbol}/backtest/sweep`, {
+  const { data } = await http.get<BacktestSweepResponse>(`/api/signals/${symbol}/backtest/sweep`, {
     params: query,
   });
   return data;
 };
 
-export default api;
+export const sendChat = async (messages: ChatMessagePayload[], model?: string) => {
+  const { data } = await http.post<ChatResponse>('/api/chat', {
+    messages,
+    model,
+  });
+  return data;
+};
+
+export const fetchPlans = async () => {
+  const { data } = await http.get<{ plans: PlanSummary[] }>('/api/billing/plans');
+  return data.plans;
+};
+
+export const createCheckoutSession = async (payload: {
+  plan_code: string;
+  success_url?: string;
+  cancel_url?: string;
+}) => {
+  const { data } = await http.post<CheckoutSession>('/api/billing/checkout', payload);
+  return data;
+};
+
+export const fetchSubscription = async () => {
+  const { data } = await http.get<SubscriptionWithAccess>('/api/billing/subscription');
+  return data;
+};
+
+export const fetchPortalUrl = async () => {
+  const { data } = await http.get<{ portal_url: string }>('/api/billing/portal');
+  return data.portal_url;
+};
+
+export const fetchInvoices = async () => {
+  const { data } = await http.get<{ invoices: InvoiceSummary[] }>('/api/billing/invoices');
+  return data.invoices;
+};
+
+export const fetchBillingProfile = async () => {
+  const { data } = await http.get<BillingProfile>('/api/billing/profile');
+  return data;
+};
+
+export const updateBillingProfile = async (profile: BillingProfile) => {
+  const { data } = await http.put<{ status: string }>('/api/billing/profile', profile);
+  return data.status === 'updated';
+};
+
+export default http;

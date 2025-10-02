@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -42,7 +43,7 @@ func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "kvkk consent required", http.StatusBadRequest)
 		return
 	}
-	if err := h.Auth.Register(
+	userID, err := h.Auth.Register(
 		r.Context(),
 		strings.TrimSpace(req.Email),
 		req.Password,
@@ -50,9 +51,16 @@ func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 		req.LastName,
 		req.Phone,
 		req.KvkkAccepted,
-	); err != nil {
+	)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+	if h.Billing != nil && userID > 0 {
+		if err := h.Billing.EnsureTrialSubscription(r.Context(), userID); err != nil {
+			// Fail softly — log but don't block registration
+			log.Printf("billing trial setup failed: %v", err)
+		}
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"message": "registered"})
 }

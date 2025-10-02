@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { setAuthToken } from '@/services/api';
+import api, { setAuthToken } from '@/services/api';
 
 type RegisterPayload = {
   email: string;
@@ -58,6 +58,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (get().hydrated) {
       return;
     }
+    if (typeof window === 'undefined') {
+      set({ hydrated: true });
+      return;
+    }
     const token = window.localStorage.getItem(TOKEN_KEY);
     const email = window.localStorage.getItem(EMAIL_KEY);
     setAuthToken(token);
@@ -66,18 +70,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'https://cortexa-financial-ai.onrender.com'}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Login failed');
+      const { data } = await api.post<{ token: string }>('/auth/login', { email, password });
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(TOKEN_KEY, data.token);
+        window.localStorage.setItem(EMAIL_KEY, email);
       }
-      const data: { token: string } = await res.json();
-      window.localStorage.setItem(TOKEN_KEY, data.token);
-      window.localStorage.setItem(EMAIL_KEY, email);
       setAuthToken(data.token);
       set({ token: data.token, email, role: decodeRole(data.token), loading: false });
     } catch (error) {
@@ -89,22 +86,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async ({ email, password, firstName, lastName, phone, kvkkAccepted }) => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'https://cortexa-financial-ai.onrender.com'}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          first_name: firstName,
-          last_name: lastName,
-          phone,
-          kvkk_accepted: kvkkAccepted
-        })
+      await api.post('/auth/register', {
+        email,
+        password,
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        kvkk_accepted: kvkkAccepted,
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Registration failed');
-      }
       set({ loading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Registration failed';
@@ -113,8 +102,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   logout: () => {
-    window.localStorage.removeItem(TOKEN_KEY);
-    window.localStorage.removeItem(EMAIL_KEY);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(TOKEN_KEY);
+      window.localStorage.removeItem(EMAIL_KEY);
+    }
     setAuthToken(null);
     set({ token: null, email: null, role: null });
   },

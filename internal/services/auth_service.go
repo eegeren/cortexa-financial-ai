@@ -26,38 +26,41 @@ func NewAuthService(db *sqlx.DB, cfg config.Config) *AuthService {
 	return &AuthService{db: db, cfg: cfg}
 }
 
-func (s *AuthService) Register(ctx context.Context, email, password, firstName, lastName, phone string, kvkkAccepted bool) error {
+func (s *AuthService) Register(ctx context.Context, email, password, firstName, lastName, phone string, kvkkAccepted bool) (int64, error) {
 	if !kvkkAccepted {
-		return fmt.Errorf("kvkk consent required")
+		return 0, fmt.Errorf("kvkk consent required")
 	}
 	email = strings.TrimSpace(email)
 	firstName = strings.TrimSpace(firstName)
 	lastName = strings.TrimSpace(lastName)
 	if email == "" || firstName == "" || lastName == "" {
-		return fmt.Errorf("missing required fields")
+		return 0, fmt.Errorf("missing required fields")
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	var phonePtr *string
 	trimmedPhone := strings.TrimSpace(phone)
 	if trimmedPhone != "" {
 		phonePtr = &trimmedPhone
 	}
-	_, err = s.db.ExecContext(ctx, `
+	var userID int64
+	err = s.db.QueryRowContext(ctx, `
 	    INSERT INTO users(email,password_hash,role,created_at,first_name,last_name,phone,kvkk_accepted,kvkk_accepted_at)
-	    VALUES($1,$2,'user',NOW(),$3,$4,$5,true,NOW())`,
+	    VALUES($1,$2,'user',NOW(),$3,$4,$5,true,NOW())
+	    RETURNING id
+	`,
 		email, string(hash), firstName, lastName, phonePtr,
-	)
+	).Scan(&userID)
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return fmt.Errorf("an account with this email already exists")
+			return 0, fmt.Errorf("an account with this email already exists")
 		}
-		return err
+		return 0, err
 	}
-	return nil
+	return userID, nil
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password string) (models.User, error) {

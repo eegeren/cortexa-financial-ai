@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
-import { useMemo } from 'react';
 import NotificationCenter from '@/components/NotificationCenter';
+import useSubscriptionAccess from '@/hooks/useSubscriptionAccess';
 
 const NavBar = () => {
   const { token, email, logout } = useAuthStore((state) => ({
@@ -10,15 +10,18 @@ const NavBar = () => {
     logout: state.logout
   }));
   const navigate = useNavigate();
-  const links = useMemo(
-    () => [
-      { to: '/dashboard', label: 'Dashboard' },
-      { to: '/signals', label: 'Signals' },
-      { to: '/portfolio', label: 'Portfolio' },
-      { to: '/forum', label: 'Forum' }
-    ],
-    []
-  );
+  const { access, plan, canAccess, initialized } = useSubscriptionAccess();
+  const links = token
+    ? [
+        { to: '/dashboard', label: 'Dashboard' },
+        { to: '/signals', label: 'Signals' },
+        { to: '/assistant', label: 'Assistant' },
+        { to: '/portfolio', label: 'Portfolio' },
+        { to: '/forum', label: 'Forum' },
+        { to: '/pricing', label: 'Pricing' },
+        { to: '/billing', label: 'Billing' }
+      ]
+    : [{ to: '/pricing', label: 'Pricing' }];
 
   const handleLogout = () => {
     logout();
@@ -57,6 +60,13 @@ const NavBar = () => {
                 {link.label}
               </NavLink>
             ))}
+            <div className="hidden border-l border-slate-800/50 pl-4 text-xs text-slate-400 md:flex md:flex-col">
+              <span className="uppercase tracking-wide text-slate-500">Plan</span>
+              <span className="font-semibold text-slate-200">{initialized ? plan.toUpperCase() : '—'}</span>
+              {!canAccess && access?.status === 'past_due' && (
+                <span className="text-[11px] text-amber-400">Payment past due</span>
+              )}
+            </div>
             <NotificationCenter />
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span>{email}</span>
@@ -71,6 +81,9 @@ const NavBar = () => {
           </nav>
         ) : (
           <nav className="flex items-center gap-4 text-sm text-slate-300">
+            <NavLink to="/pricing" className="hover:text-white">
+              Pricing
+            </NavLink>
             <NavLink to="/login" className="hover:text-white">
               Login
             </NavLink>

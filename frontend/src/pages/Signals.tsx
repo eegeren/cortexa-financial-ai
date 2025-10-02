@@ -18,6 +18,7 @@ import MetricCard from '@/components/MetricCard';
 import HeatmapMatrix from '@/components/HeatmapMatrix';
 import { useToast } from '@/components/ToastProvider';
 import Skeleton from '@/components/Skeleton';
+import useSubscriptionAccess from '@/hooks/useSubscriptionAccess';
 
 // Primary quick chips (stay concise)
 const topSymbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'];
@@ -74,8 +75,10 @@ const SignalsPage = () => {
   const [symbol, setSymbol] = useState(defaultSymbol);
   const role = useAuthStore((state) => state.role);
   const token = useAuthStore((state) => state.token);
+  const subscriptionAccess = useSubscriptionAccess();
   const canRunBacktest = role === 'admin';
-  const isPremium = role === 'admin' || role === 'premium';
+  const premiumAccess = subscriptionAccess.initialized ? subscriptionAccess.canAccess : true;
+  const isPremium = role === 'admin' || premiumAccess;
   const [signal, setSignal] = useState<SignalResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -191,41 +194,41 @@ const SignalsPage = () => {
   }, [role]);
 
   const loadSignal = useCallback(async (sym: string) => {
-  setLoading(true);
-  setError(null);
-  setAutoResult(null);
-  setAutoError(null);
-  setBacktest(null);
-  try {
-    const data = await fetchSignal(sym);
-    applySignal(data);
-  } catch (err) {
-    // Soft fallback: 200 + ok:false + data senaryosunu da kabul et
+    setLoading(true);
+    setError(null);
+    setAutoResult(null);
+    setAutoError(null);
+    setBacktest(null);
     try {
-      const res = await fetch(`${API_BASE}/signals?symbol=${encodeURIComponent(sym)}`, { method: 'GET' });
-      if (res.ok) {
-        const payload = await res.json().catch(() => null) as any;
-        const data = payload?.data as SignalResponse | undefined;
-        if (data) {
-          applySignal(data);
-          setError(null);
+      const data = await fetchSignal(sym);
+      applySignal(data);
+    } catch (err) {
+      // Soft fallback: 200 + ok:false + data senaryosunu da kabul et
+      try {
+        const res = await fetch(`${API_BASE}/signals?symbol=${encodeURIComponent(sym)}`, { method: 'GET' });
+        if (res.ok) {
+          const payload = (await res.json().catch(() => null)) as any;
+          const data = payload?.data as SignalResponse | undefined;
+          if (data) {
+            applySignal(data);
+            setError(null);
+          } else {
+            const message = (payload?.error as string) || (err instanceof Error ? err.message : 'Failed to fetch signal');
+            setError(message);
+          }
         } else {
-          const message = (payload?.error as string) || (err instanceof Error ? err.message : 'Failed to fetch signal');
+          const text = await res.text().catch(() => '');
+          const message = text || (err instanceof Error ? err.message : 'Failed to fetch signal');
           setError(message);
         }
-      } else {
-        const text = await res.text().catch(() => '');
-        const message = text || (err instanceof Error ? err.message : 'Failed to fetch signal');
+      } catch (innerErr) {
+        const message = innerErr instanceof Error ? innerErr.message : (err instanceof Error ? err.message : 'Failed to fetch signal');
         setError(message);
       }
-    } catch (innerErr) {
-      const message = innerErr instanceof Error ? innerErr.message : (err instanceof Error ? err.message : 'Failed to fetch signal');
-      setError(message);
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-}, [applySignal]);
+  }, [applySignal]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -314,7 +317,7 @@ const SignalsPage = () => {
     };
   }, [backtest]);
 
-  const autoTradeDisabled = !isPremium;
+  const autoTradeDisabled = subscriptionAccess.initialized ? !subscriptionAccess.canAccess && role !== 'admin' : false;
   const showSignalSkeleton = loading && !signal;
 
   useEffect(() => {

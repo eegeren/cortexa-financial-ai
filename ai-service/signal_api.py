@@ -42,6 +42,7 @@ def parse_int_list(value: str) -> list[int]:
         raise HTTPException(400, "invalid int list") from exc
 
 
+
 # --- symbol list parser ---
 def parse_symbol_list(value: str) -> list[str]:
     try:
@@ -50,6 +51,22 @@ def parse_symbol_list(value: str) -> list[str]:
         return [s for s in items if s.isalnum() and 4 <= len(s) <= 20]
     except Exception as exc:
         raise HTTPException(400, "invalid symbols list") from exc
+
+# --- curated symbol universe for dropdown /symbols endpoint ---
+SUPPORTED_SYMBOLS = [
+    # Mega-cap
+    "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "USDTTRY",
+    # Large-cap
+    "ADAUSDT", "DOGEUSDT", "TRXUSDT", "MATICUSDT", "TONUSDT", "LINKUSDT",
+    "DOTUSDT", "LTCUSDT", "AVAXUSDT", "ATOMUSDT", "NEARUSDT", "APTUSDT",
+    "OPUSDT", "ARBUSDT", "SUIUSDT", "INJUSDT", "AAVEUSDT", "FTMUSDT",
+    # Trendy/meme
+    "SHIBUSDT", "PEPEUSDT", "WIFUSDT",
+    # Infra/L2
+    "SEIUSDT", "TIAUSDT", "PYTHUSDT", "JTOUSDT", "JUPUSDT",
+    # Oracles/defi
+    "CRVUSDT", "SNXUSDT", "UNIUSDT", "CAKEUSDT",
+]
 
 import os
 import time
@@ -186,6 +203,33 @@ def root():
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
+# --- symbols endpoint for dropdown ---
+@app.get("/symbols")
+def get_symbols(top_n: int = 0, only_usdt: bool = True):
+    """Return a list of tradable symbols for the UI dropdown.
+    - If top_n>0, we try to augment the curated list with the top_n highest quoteVolume USDT pairs from Binance 24h tickers.
+    - `only_usdt` limits the dynamic suggestions to symbols ending with USDT.
+    The endpoint never errors with 5xx; it returns {ok: False} on soft failures to keep the UI clean.
+    """
+    try:
+        symbols = list(dict.fromkeys(SUPPORTED_SYMBOLS))  # preserve order, unique
+        if top_n and top_n > 0:
+            try:
+                tickers = fetch_24h_tickers(None, top_n=top_n)
+                for t in tickers:
+                    sym = str(t.get("symbol", "")).upper()
+                    if only_usdt and not sym.endswith("USDT"):
+                        continue
+                    symbols.append(sym)
+                # de-dup while preserving order
+                symbols = list(dict.fromkeys(symbols))
+            except Exception:
+                pass  # ignore dynamic enrichment issues
+        return {"ok": True, "symbols": symbols}
+    except Exception as exc:
+        logger.warning("/symbols failed: %s", exc)
+        return JSONResponse(status_code=200, content={"ok": False, "symbols": list(dict.fromkeys(SUPPORTED_SYMBOLS))})
 
 def _normalize_path(path: str) -> str:
     if not path.startswith('/'):

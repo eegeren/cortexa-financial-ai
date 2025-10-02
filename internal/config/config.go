@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -19,6 +20,26 @@ type Config struct {
 	BinanceFallbackURL        string
 	BinanceFallbackKlinesPath string
 	OwnerEmail                string
+
+	// AI assistant
+	OpenAIAPIKey  string
+	OpenAIBaseURL string
+	OpenAIModel   string
+
+	// Billing / payments
+	PaymentProvider           string
+	StripeSecretKey           string
+	StripeWebhookSecret       string
+	PaddleAPIKey              string
+	PaddleEnvironment         string
+	PaddleWebhookSecret       string
+	LemonSqueezyAPIKey        string
+	LemonSqueezyWebhookSecret string
+	LemonSqueezyStoreID       string
+	IyzicoAPIKey              string
+	IyzicoSecretKey           string
+	IyzicoWebhookSecret       string
+	DefaultTrialDays          int
 }
 
 func getenv(k, def string) string {
@@ -28,35 +49,50 @@ func getenv(k, def string) string {
 	return def
 }
 
+func getenvInt(k string, def int) int {
+	if v := os.Getenv(k); v != "" {
+		if parsed, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			return parsed
+		}
+	}
+	return def
+}
+
 func Load() Config {
 	cfg := Config{
-		HTTPAddr:                  getenv("HTTP_ADDR", ":8080"),
-		DBURL:                     getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/cta?sslmode=disable"),
-		RedisURL:                  getenv("REDIS_URL", ""),
-		JWTSecret:                 getenv("JWT_SECRET", "dev_secret_change_me"),
-		AIServiceURL:              getenv("AI_SERVICE_URL", "http://localhost:8001/predict"),
-		BinanceAPIKey:             getenv("BINANCE_API_KEY", ""),
-		BinanceSecret:             getenv("BINANCE_API_SECRET", ""),
-		BinanceBaseURL:            getenv("BINANCE_BASE_URL", "https://api.binance.com"),
-		BinanceKlinesPath:         getenv("BINANCE_KLINES_PATH", "/api/v3/klines"),
-		BinanceFallbackURL:        getenv("BINANCE_FALLBACK_URL", "https://data-api.binance.vision"),
-		BinanceFallbackKlinesPath: getenv("BINANCE_FALLBACK_KLINES_PATH", "/api/v3/klines"),
-		OwnerEmail:                getenv("OWNER_EMAIL", "yusufegeeren@cortexaai.net"),
+		HTTPAddr:                  strings.TrimSpace(getenv("HTTP_ADDR", ":8080")),
+		DBURL:                     strings.TrimSpace(getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/cta?sslmode=disable")),
+		RedisURL:                  strings.TrimSpace(getenv("REDIS_URL", "")),
+		JWTSecret:                 strings.TrimSpace(getenv("JWT_SECRET", "dev_secret_change_me")),
+		AIServiceURL:              strings.TrimSpace(getenv("AI_SERVICE_URL", "http://localhost:8001/predict")),
+		BinanceAPIKey:             strings.TrimSpace(getenv("BINANCE_API_KEY", "")),
+		BinanceSecret:             strings.TrimSpace(getenv("BINANCE_API_SECRET", "")),
+		BinanceBaseURL:            strings.TrimSpace(getenv("BINANCE_BASE_URL", "https://api.binance.com")),
+		BinanceKlinesPath:         strings.TrimSpace(getenv("BINANCE_KLINES_PATH", "/api/v3/klines")),
+		BinanceFallbackURL:        strings.TrimSpace(getenv("BINANCE_FALLBACK_URL", "https://data-api.binance.vision")),
+		BinanceFallbackKlinesPath: strings.TrimSpace(getenv("BINANCE_FALLBACK_KLINES_PATH", "/api/v3/klines")),
+		OwnerEmail:                strings.TrimSpace(getenv("OWNER_EMAIL", "yusufegeeren@cortexaai.net")),
+		OpenAIAPIKey:              strings.TrimSpace(getenv("OPENAI_API_KEY", "")),
+		OpenAIBaseURL:             strings.TrimSpace(getenv("OPENAI_BASE_URL", "https://api.openai.com")),
+		OpenAIModel:               strings.TrimSpace(getenv("OPENAI_MODEL", "gpt-4o-mini")),
+		PaymentProvider:           strings.TrimSpace(strings.ToLower(getenv("PAYMENT_PROVIDER", "stripe"))),
+		StripeSecretKey:           strings.TrimSpace(getenv("STRIPE_SECRET_KEY", "")),
+		StripeWebhookSecret:       strings.TrimSpace(getenv("STRIPE_WEBHOOK_SECRET", "")),
+		PaddleAPIKey:              strings.TrimSpace(getenv("PADDLE_API_KEY", "")),
+		PaddleEnvironment:         strings.TrimSpace(strings.ToLower(getenv("PADDLE_ENV", "sandbox"))),
+		PaddleWebhookSecret:       strings.TrimSpace(getenv("PADDLE_WEBHOOK_SECRET", "")),
+		LemonSqueezyAPIKey:        strings.TrimSpace(getenv("LEMONSQUEEZY_API_KEY", "")),
+		LemonSqueezyWebhookSecret: strings.TrimSpace(getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")),
+		LemonSqueezyStoreID:       strings.TrimSpace(getenv("LEMONSQUEEZY_STORE_ID", "")),
+		IyzicoAPIKey:              strings.TrimSpace(getenv("IYZICO_API_KEY", "")),
+		IyzicoSecretKey:           strings.TrimSpace(getenv("IYZICO_SECRET_KEY", "")),
+		IyzicoWebhookSecret:       strings.TrimSpace(getenv("IYZICO_WEBHOOK_SECRET", "")),
+		DefaultTrialDays:          getenvInt("TRIAL_DAYS", 7),
 	}
-	cfg.AIServiceURL = strings.TrimSpace(cfg.AIServiceURL)
-	cfg.HTTPAddr = strings.TrimSpace(cfg.HTTPAddr)
-	cfg.DBURL = strings.TrimSpace(cfg.DBURL)
-	cfg.RedisURL = strings.TrimSpace(cfg.RedisURL)
-	cfg.JWTSecret = strings.TrimSpace(cfg.JWTSecret)
-	cfg.BinanceAPIKey = strings.TrimSpace(cfg.BinanceAPIKey)
-	cfg.BinanceSecret = strings.TrimSpace(cfg.BinanceSecret)
-	cfg.BinanceBaseURL = strings.TrimSpace(cfg.BinanceBaseURL)
-	cfg.BinanceKlinesPath = strings.TrimSpace(cfg.BinanceKlinesPath)
-	cfg.BinanceFallbackURL = strings.TrimSpace(cfg.BinanceFallbackURL)
-	cfg.BinanceFallbackKlinesPath = strings.TrimSpace(cfg.BinanceFallbackKlinesPath)
-	cfg.OwnerEmail = strings.TrimSpace(cfg.OwnerEmail)
+
 	if cfg.JWTSecret == "dev_secret_change_me" {
 		log.Println("[WARN] using default JWT secret. Set JWT_SECRET in production.")
 	}
+
 	return cfg
 }
