@@ -161,6 +161,24 @@ func (s *BillingService) GetSubscriptionForUser(ctx context.Context, userID int6
 }
 
 func (s *BillingService) CanAccessAssistant(ctx context.Context, userID int64) (bool, *models.SubscriptionWithPlan, error) {
+	if s.cfg.PremiumDisabled {
+		now := time.Now()
+		placeholder := &models.SubscriptionWithPlan{
+			Subscription: models.Subscription{
+				UserID:                 userID,
+				PlanID:                 0,
+				Status:                 "active",
+				ProviderCustomerID:     fmt.Sprintf("disabled-%d", userID),
+				ProviderSubscriptionID: fmt.Sprintf("disabled-sub-%d", userID),
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			PlanCode: "testing-disabled",
+			PlanName: "Premium Disabled",
+		}
+		return true, placeholder, nil
+	}
+
 	sub, err := s.GetSubscriptionForUser(ctx, userID)
 	if err != nil {
 		if errors.Is(err, ErrSubscriptionNotFound) {

@@ -21,6 +21,7 @@ type Config struct {
 	BinanceFallbackKlinesPath string
 	OwnerEmail                string
 	OwnerEmails               []string
+	PremiumDisabled           bool
 
 	// AI assistant
 	OpenAIAPIKey  string
@@ -59,6 +60,19 @@ func getenvInt(k string, def int) int {
 	return def
 }
 
+func getenvBool(k string, def bool) bool {
+	if v := os.Getenv(k); v != "" {
+		trimmed := strings.TrimSpace(strings.ToLower(v))
+		if trimmed == "1" || trimmed == "true" || trimmed == "yes" || trimmed == "on" {
+			return true
+		}
+		if trimmed == "0" || trimmed == "false" || trimmed == "no" || trimmed == "off" {
+			return false
+		}
+	}
+	return def
+}
+
 func Load() Config {
 	cfg := Config{
 		HTTPAddr:                  strings.TrimSpace(getenv("HTTP_ADDR", ":8080")),
@@ -89,6 +103,7 @@ func Load() Config {
 		IyzicoSecretKey:           strings.TrimSpace(getenv("IYZICO_SECRET_KEY", "")),
 		IyzicoWebhookSecret:       strings.TrimSpace(getenv("IYZICO_WEBHOOK_SECRET", "")),
 		DefaultTrialDays:          getenvInt("TRIAL_DAYS", 7),
+		PremiumDisabled:           getenvBool("PREMIUM_DISABLED", false),
 	}
 
 	ownerList := []string{}
