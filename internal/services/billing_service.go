@@ -76,19 +76,49 @@ func (s *BillingService) EnsureTrialSubscription(ctx context.Context, userID int
 		return fmt.Errorf("invalid user id")
 	}
 
-	plan, err := s.getPlanByCode(ctx, "starter")
+	email, err := s.lookupUserEmail(ctx, userID)
 	if err != nil {
 		return err
 	}
 
+	planCode := "starter"
+	status := "trialing"
 	trialDuration := time.Duration(s.cfg.DefaultTrialDays) * 24 * time.Hour
 	trialEnds := time.Now().Add(trialDuration)
+	periodEnd := trialEnds
+	providerID := fmt.Sprintf("trial-%d", userID)
+
+	if s.cfg.IsOwnerEmail(email) {
+		planCode = "enterprise"
+		status = "active"
+		trialEnds = time.Time{}
+		periodEnd = time.Now().Add(30 * 24 * time.Hour)
+		providerID = fmt.Sprintf("owner-%d", userID)
+	}
+
+	plan, err := s.getPlanByCode(ctx, planCode)
+	if err != nil {
+		return err
+	}
+
+	var trialPtr *time.Time
+	if !trialEnds.IsZero() {
+		trialPtr = &trialEnds
+	}
 
 	_, err = s.db.ExecContext(ctx, `
         INSERT INTO subscriptions (user_id, plan_id, status, trial_ends_at, current_period_start, current_period_end, provider_customer_id, provider_subscription_id)
-        VALUES ($1, $2, 'trialing', $3, NOW(), $3, $4, $5)
-        ON CONFLICT (user_id) DO NOTHING
-    `, userID, plan.ID, trialEnds, fmt.Sprintf("trial-%d", userID), fmt.Sprintf("trial-%d", userID))
+        VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)
+        ON CONFLICT (user_id) DO UPDATE SET
+            plan_id = EXCLUDED.plan_id,
+            status = EXCLUDED.status,
+            trial_ends_at = EXCLUDED.trial_ends_at,
+            current_period_start = EXCLUDED.current_period_start,
+            current_period_end = EXCLUDED.current_period_end,
+            provider_customer_id = EXCLUDED.provider_customer_id,
+            provider_subscription_id = EXCLUDED.provider_subscription_id,
+            updated_at = NOW()
+    `, userID, plan.ID, status, trialPtr, periodEnd, fmt.Sprintf("cust-%d", userID), providerID)
 	return err
 }
 
@@ -134,9 +164,55 @@ func (s *BillingService) CanAccessAssistant(ctx context.Context, userID int64) (
 	sub, err := s.GetSubscriptionForUser(ctx, userID)
 	if err != nil {
 		if errors.Is(err, ErrSubscriptionNotFound) {
+			email, emailErr := s.lookupUserEmail(ctx, userID)
+			if emailErr == nil && s.cfg.IsOwnerEmail(email) {
+				planCode := "enterprise"
+				planName := "Enterprise"
+				var planID int64
+				if plan, planErr := s.getPlanByCode(ctx, planCode); planErr == nil {
+					planID = plan.ID
+					planCode = plan.Code
+					planName = plan.Name
+				}
+				placeholder := models.SubscriptionWithPlan{
+					Subscription: models.Subscription{
+						UserID:             userID,
+						PlanID:             planID,
+						Status:             "active",
+						ProviderCustomerID: fmt.Sprintf("cust-%d", userID),
+						CreatedAt:          time.Now(),
+						UpdatedAt:          time.Now(),
+					},
+					PlanCode: planCode,
+					PlanName: planName,
+				}
+				return true, &placeholder, nil
+			}
 			return false, nil, nil
 		}
 		return false, nil, err
+	}
+
+	email, emailErr := s.lookupUserEmail(ctx, userID)
+	if emailErr == nil && s.cfg.IsOwnerEmail(email) {
+		if sub.PlanCode != "enterprise" {
+			if plan, planErr := s.getPlanByCode(ctx, "enterprise"); planErr == nil {
+				_, _ = s.db.ExecContext(ctx, `
+					UPDATE subscriptions
+					SET plan_id=$1,
+					    status='active',
+					    trial_ends_at=NULL,
+					    current_period_end=NOW() + INTERVAL '30 days',
+					    updated_at=NOW()
+					WHERE id=$2
+				`, plan.ID, sub.ID)
+				sub.PlanID = plan.ID
+				sub.PlanCode = plan.Code
+				sub.PlanName = plan.Name
+			}
+		}
+		sub.Status = "active"
+		return true, &sub, nil
 	}
 
 	now := time.Now()
@@ -528,4 +604,12 @@ func (s *BillingService) GetBillingProfile(ctx context.Context, userID int64) (m
 		return profile, err
 	}
 	return profile, nil
+}
+
+func (s *BillingService) lookupUserEmail(ctx context.Context, userID int64) (string, error) {
+	var email string
+	if err := s.db.GetContext(ctx, &email, `SELECT email FROM users WHERE id=$1`, userID); err != nil {
+		return "", err
+	}
+	return email, nil
 }
