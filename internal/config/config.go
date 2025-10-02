@@ -103,7 +103,7 @@ func Load() Config {
 		IyzicoSecretKey:           strings.TrimSpace(getenv("IYZICO_SECRET_KEY", "")),
 		IyzicoWebhookSecret:       strings.TrimSpace(getenv("IYZICO_WEBHOOK_SECRET", "")),
 		DefaultTrialDays:          getenvInt("TRIAL_DAYS", 7),
-		PremiumDisabled:           getenvBool("PREMIUM_DISABLED", false),
+		PremiumDisabled:           getenvBool("PREMIUM_DISABLED", true),
 	}
 
 	ownerList := []string{}

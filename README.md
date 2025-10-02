@@ -48,7 +48,7 @@ Backend `.env` dosyasında bulunması gereken temel anahtarlar:
 - `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`
 - `IYZICO_API_KEY`, `IYZICO_SECRET_KEY`, `IYZICO_WEBHOOK_SECRET`
 - `TRIAL_DAYS` (varsayılan 7)
-- `PREMIUM_DISABLED` – `true` yapıldığında premium erişim kontrollerini test amaçlı kapatır
+- `PREMIUM_DISABLED` – varsayılanı `true`; `false` yaptığında premium erişim kontrolleri yeniden devreye girer
 
 Frontend `.env` örneği:
 
