@@ -3,14 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 
 const FEATURE_BULLETS = [
-  'AI-powered multi-timeframe signals tuned to market volatility',
-  'Automated execution with granular risk guardrails',
-  'Instant backtesting to validate every idea in seconds'
-];
-
-const STAT_CARDS = [
-  { label: 'Avg. win rate', value: '64%', description: '12-month walk-forward tests' },
-  { label: 'Integrations', value: 'Binance', description: 'Spot & futures connectivity' }
+  'AI-tuned signals mapped across every horizon you trade',
+  'Automation guardrails that execute with discipline',
+  'Backtests, assistant, and portfolio analytics in one pane'
 ];
 
 const LoginPage = () => {
@@ -94,138 +89,58 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-950">
-      <div className="pointer-events-none absolute inset-0">
-        {/* --- Dynamic background: subtle trading video + animated charts --- */}
-       <video
-        className="absolute inset-0 h-full w-full object-cover opacity-10"
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        src="/videoplayback.mp4"
-        aria-hidden
-        />
-
-        <svg
-          className="absolute inset-0 h-full w-full opacity-25"
-          viewBox="0 0 1200 600"
-          preserveAspectRatio="none"
-          aria-hidden
-        >
-          <defs>
-            <linearGradient id="gradBull" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.0" />
-              <stop offset="25%" stopColor="#22c55e" stopOpacity="0.35" />
-              <stop offset="75%" stopColor="#22c55e" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#22c55e" stopOpacity="0.0" />
-            </linearGradient>
-            <linearGradient id="gradAcc" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.0" />
-              <stop offset="25%" stopColor="#3b82f6" stopOpacity="0.25" />
-              <stop offset="75%" stopColor="#3b82f6" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-            </linearGradient>
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-              <feMerge>
-                <feMergeNode in="coloredBlur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-
-          {/* Rising primary line */}
-          <polyline
-            points="0,520 80,500 160,480 240,490 320,460 400,430 480,445 560,410 640,390 720,360 800,372 880,340 960,320 1040,300 1120,280 1200,260"
-            fill="none"
-            stroke="url(#gradBull)"
-            strokeWidth="3"
-            filter="url(#glow)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ strokeDasharray: 1600, strokeDashoffset: 1600, animation: 'dash 8s ease-in-out infinite' }}
-          />
-
-          {/* Acceleration overlay */}
-          <polyline
-            points="0,560 100,555 200,545 300,540 400,525 500,515 600,505 700,490 800,470 900,455 1000,440 1100,430 1200,420"
-            fill="none"
-            stroke="url(#gradAcc)"
-            strokeWidth="2"
-            style={{ strokeDasharray: 1400, strokeDashoffset: 1400, animation: 'dash 10s ease-in-out infinite 0.6s' }}
-          />
-
-          {/* Subtle grid */}
-          <g stroke="#0f172a" strokeOpacity="0.6" strokeWidth="1">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <line key={`v${i}`} x1={i * 100} y1={0} x2={i * 100} y2={600} />
-            ))}
-            {Array.from({ length: 10 }).map((_, i) => (
-              <line key={`h${i}`} x1={0} y1={i * 60} x2={1200} y2={i * 60} />
-            ))}
-          </g>
-
-          <style>
-            {`
-              @keyframes dash {
-                0% { stroke-dashoffset: 1600; opacity: .0; }
-                10% { opacity: .75; }
-                60% { stroke-dashoffset: 0; opacity: .85; }
-                100% { stroke-dashoffset: 0; opacity: .2; }
-              }
-            `}
-          </style>
-        </svg>
-        <div className="absolute -top-40 right-[-20%] h-[520px] w-[520px] rounded-full bg-primary/30 blur-3xl"></div>
-        <div className="absolute left-[-10%] bottom-[-20%] h-[420px] w-[420px] rounded-full bg-accent/20 blur-3xl"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.08),_transparent_60%)]"></div>
-      </div>
-
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 py-16 lg:flex-row lg:items-center lg:gap-20">
-        <section className="w-full text-center lg:w-1/2 lg:text-left">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-primary/80">
-            Cortexa Trade AI
-          </div>
+    <div className="min-h-screen bg-canvas text-ink">
+      <div className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-12 sm:px-6">
+        <div className="mb-14 text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-outline/50 bg-surface px-4 py-2 text-xs uppercase tracking-[0.4em] text-slate-400">
+            Cortexa Trade
+          </span>
           <h1 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl">
-            Trust your crypto strategy in seconds with AI-calibrated signals.
+            Sign in and stay ahead of the market curve.
           </h1>
-          <p className="mt-4 max-w-xl text-base text-slate-300">
-            Cortexa scans across multiple timeframes and volatility regimes to deliver high-confidence trade ideas. Validate every signal via auto-trade and the built-in backtesting engine.
+          <p className="mt-3 text-sm text-slate-400">
+            Your workspace for signals, automation, and the Cortexa assistant.
           </p>
+        </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {FEATURE_BULLETS.map((item) => (
-              <div key={item} className="flex items-start gap-3 rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
-                <span className="mt-1 inline-flex size-6 items-center justify-center rounded-full bg-primary/20 text-sm text-primary">◆</span>
-                <p className="text-sm text-slate-200">{item}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-4 text-sm text-slate-400">
-            {STAT_CARDS.map((stat) => (
-              <div key={stat.label} className="rounded-full border border-slate-800/60 bg-slate-900/40 px-5 py-2">
-                <span className="font-semibold text-slate-200">{stat.value}</span>
-                <span className="ml-2 text-slate-400">{stat.label}</span>
-                <span className="ml-2 text-xs text-slate-500">{stat.description}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="w-full lg:w-5/12">
-          <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-8 shadow-2xl shadow-primary/10 backdrop-blur">
-            <header className="mb-6 space-y-2 text-center lg:text-left">
-              <h2 className="text-2xl font-semibold text-white">Sign in to your workspace</h2>
-              <p className="text-sm text-slate-400">
-                Access the Cortexa control center to monitor signals and orchestrate automated trades.
+        <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr]">
+          <section className="space-y-8">
+            <div className="space-y-4 text-slate-300">
+              <p className="text-base text-slate-200">
+                Cortexa keeps your desk synced with AI-calibrated signals, execution guardrails, and instant research support.
               </p>
+              <ul className="space-y-3 text-sm">
+                {FEATURE_BULLETS.map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] text-primary">
+                      ●
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="grid gap-4 text-xs text-slate-500 sm:grid-cols-2">
+              <div className="rounded-2xl border border-outline/40 bg-surface px-4 py-3">
+                <p className="text-sm font-semibold text-white">Healthy automation</p>
+                <p className="mt-1">Latency monitoring, webhook status, and auto-trade audit trail.</p>
+              </div>
+              <div className="rounded-2xl border border-outline/40 bg-surface px-4 py-3">
+                <p className="text-sm font-semibold text-white">Assistant insights</p>
+                <p className="mt-1">Summaries, prompts, and backtests delivered in seconds.</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-outline/40 bg-surface p-8 shadow-elevation-soft">
+            <header className="mb-6 space-y-2 text-left">
+              <h2 className="text-2xl font-semibold text-white">Welcome back</h2>
+              <p className="text-sm text-slate-400">Use your workspace credentials to continue.</p>
             </header>
             <form onSubmit={handleSubmit} className="space-y-4">
               {mapAuthError(error) && (
-                <p className="rounded border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-300">
+                <p className="rounded border border-rose-500/40 bg-rose-500/10 p-2 text-sm text-rose-300">
                   {mapAuthError(error)}
                 </p>
               )}
@@ -243,7 +158,7 @@ const LoginPage = () => {
                   }}
                   required
                   autoComplete="email"
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/80 focus:ring-1 focus:ring-primary/50"
+                  className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-3 text-sm text-ink outline-none transition focus:border-outline focus:ring-1 focus:ring-primary"
                 />
               </label>
               <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="password">
@@ -260,12 +175,12 @@ const LoginPage = () => {
                   }}
                   required
                   autoComplete="current-password"
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/80 focus:ring-1 focus:ring-primary/50"
+                  className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-3 text-sm text-ink outline-none transition focus:border-outline focus:ring-1 focus:ring-primary"
                 />
               </label>
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <label className="inline-flex items-center gap-2">
-                  <input type="checkbox" className="size-4 rounded border-slate-700 bg-slate-900" />
+                  <input type="checkbox" className="size-4 rounded border-outline/40 bg-canvas" />
                   Remember me
                 </label>
                 <button
@@ -279,7 +194,7 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
@@ -292,33 +207,38 @@ const LoginPage = () => {
               </Link>
             </div>
 
-            <footer className="mt-8 space-y-3 text-xs text-slate-500">
-              <p>Working with an enterprise team? <span className="text-slate-300">info@cortexaai.net</span></p>
-              <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-slate-500">
+            <footer className="mt-8 space-y-2 text-xs text-slate-500">
+              <p>
+                Working with an enterprise desk?{' '}
+                <a href="mailto:info@cortexaai.net" className="text-slate-300 hover:text-white">
+                  info@cortexaai.net
+                </a>
+              </p>
+              <div className="flex flex-wrap items-center gap-3 text-[11px]">
                 <span>© {new Date().getFullYear()} Cortexa Labs</span>
                 <span>•</span>
-                <button type="button" className="hover:text-slate-300">Terms</button>
+                <button type="button" className="hover:text-white">Terms</button>
                 <span>•</span>
-                <button type="button" className="hover:text-slate-300">Privacy</button>
+                <button type="button" className="hover:text-white">Privacy</button>
               </div>
             </footer>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
 
       {forgotOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-800/70 bg-slate-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
+          <div className="relative w-full max-w-md rounded-2xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
             <button
               type="button"
               onClick={closeResetModal}
-              className="absolute right-4 top-4 text-sm text-slate-400 transition hover:text-slate-200"
+              className="absolute right-4 top-4 text-sm text-slate-400 transition hover:text-white"
             >
               Close
             </button>
             <h3 className="text-lg font-semibold text-white">Reset your password</h3>
             <p className="mt-2 text-sm text-slate-400">
-              Enter the email linked to your Cortexa account. We’ll open a mail draft to{' '}
+              Enter the email linked to your Cortexa account. We’ll open a draft to{' '}
               <span className="text-slate-200">info@cortexaai.net</span> so the desk can assist you.
             </p>
             <form onSubmit={handleForgotSubmit} className="mt-4 space-y-4">
@@ -330,15 +250,14 @@ const LoginPage = () => {
                   value={resetEmail}
                   onChange={(event) => setResetEmail(event.target.value)}
                   required
-                  className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/80 focus:ring-1 focus:ring-primary/50"
+                  className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-3 text-sm text-ink outline-none transition focus:border-outline focus:ring-1 focus:ring-primary"
                 />
               </label>
               {resetError && <p className="text-xs text-red-400">{resetError}</p>}
               {resetSuccess && (
-                <p className="rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-xs text-emerald-200">
-                  A mail draft has been opened. If it didn’t appear, you can reach out directly at
-                  {' '}
-                  <a href="mailto:info@cortexaai.net" className="font-semibold text-emerald-100 underline">
+                <p className="rounded border border-primary/40 bg-primary/20 p-2 text-xs text-primary">
+                  A mail draft has been opened. If it didn’t appear, you can reach out directly at{' '}
+                  <a href="mailto:info@cortexaai.net" className="font-semibold text-white underline">
                     info@cortexaai.net
                   </a>
                   .
@@ -347,14 +266,14 @@ const LoginPage = () => {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/80"
+                  className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
                 >
                   Contact support
                 </button>
                 <button
                   type="button"
                   onClick={closeResetModal}
-                  className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 transition hover:border-primary hover:text-white"
+                  className="rounded-xl border border-outline/50 px-4 py-3 text-sm text-slate-300 transition hover:border-outline hover:text-white"
                 >
                   Cancel
                 </button>
