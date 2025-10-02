@@ -20,16 +20,16 @@ const Layout = () => {
             <title>Cortexa Trade | Make Better Signals, Trade Smarter</title>
             <meta name="description" content="Cortexa Trade AI platform — smarter trading with signals, portfolio tools, and a new Forum community." />
           </Helmet>
-            <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-50 transition-[background-color] duration-300 dark:bg-slate-950">
+            <div className="relative min-h-screen overflow-hidden bg-canvas text-ink transition-[background-color] duration-500">
             <div className="pointer-events-none absolute inset-0">
-              <div className="absolute left-1/2 top-[-20%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-              <div className="absolute right-[-10%] bottom-[-25%] h-[380px] w-[380px] rounded-full bg-accent/10 blur-3xl" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.2),_transparent_60%)]" />
-              <div className="absolute inset-0 bg-[linear-gradient(135deg,_rgba(15,23,42,0.4)_0%,_transparent_40%)]" />
+              <div className="absolute left-[-10%] top-[-20%] h-[420px] w-[420px] rounded-full bg-primary/25 blur-3xl opacity-60" />
+              <div className="absolute right-[-15%] top-[20%] h-[360px] w-[360px] rounded-full bg-accent/20 blur-[120px] opacity-70" />
+              <div className="absolute inset-x-0 top-1/3 h-[280px] bg-glow-band opacity-80 blur-[110px]" />
+              <div className="absolute inset-0 bg-grid-glow opacity-80" />
             </div>
             <div className="relative z-10">
               <NavBar />
-              <main className="mx-auto w-full max-w-7xl px-4 py-8">
+              <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-10 sm:px-6">
                 <Outlet />
               </main>
               <OnboardingTour />
