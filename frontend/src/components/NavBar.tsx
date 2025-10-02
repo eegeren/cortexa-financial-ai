@@ -58,7 +58,7 @@ const NavBar = () => {
   const accountLabel = email ?? 'Account';
 
   return (
-    <header className="border-b border-outline/40 bg-canvas/70 backdrop-blur">
+    <header className="border-b border-outline/40 bg-canvas">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 md:py-4">
         <button
           type="button"
@@ -95,7 +95,7 @@ const NavBar = () => {
               <button
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 rounded-full border border-outline/60 bg-surface/70 px-3 py-1.5 text-sm text-ink transition hover:border-outline hover:text-white"
+                className="inline-flex items-center gap-2 rounded-full border border-outline/60 bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-outline hover:text-white"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
               >
@@ -114,7 +114,7 @@ const NavBar = () => {
               {menuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 z-50 mt-2 w-52 rounded-xl border border-outline/60 bg-surface/95 p-2 text-sm text-ink shadow-elevation-soft"
+                  className="absolute right-0 z-50 mt-2 w-52 rounded-xl border border-outline/60 bg-surface p-2 text-sm text-ink shadow-elevation-soft"
                 >
                   <button
                     type="button"

@@ -9,23 +9,23 @@ export default {
         display: ['"Inter"', 'system-ui', 'sans-serif']
       },
       colors: {
-        canvas: '#0E1117',
-        surface: '#111827',
-        muted: '#1F2933',
-        outline: 'rgba(148, 163, 184, 0.35)',
-        primary: '#7C3AED',
-        accent: '#22D3EE',
-        highlight: '#6366F1',
-        ink: '#E2E8F0'
+        canvas: '#0D0D0D',
+        surface: '#151515',
+        muted: '#1E1E1E',
+        outline: 'rgba(255, 255, 255, 0.08)',
+        primary: '#10A37F',
+        accent: '#2B7CFF',
+        highlight: '#1F7A68',
+        ink: '#F4F4F5'
       },
       boxShadow: {
-        elevation: '0 32px 60px rgba(8, 12, 20, 0.45)',
-        'elevation-soft': '0 18px 40px rgba(12, 18, 28, 0.35)',
-        'inner-glow': 'inset 0 1px 0 rgba(255, 255, 255, 0.06)'
+        elevation: '0 28px 48px rgba(0, 0, 0, 0.5)',
+        'elevation-soft': '0 16px 32px rgba(0, 0, 0, 0.4)',
+        'inner-glow': 'inset 0 1px 0 rgba(255, 255, 255, 0.04)'
       },
       backgroundImage: {
-        'grid-glow': 'radial-gradient(circle at 20% 20%, rgba(88, 28, 135, 0.18), transparent 55%), radial-gradient(circle at 80% 30%, rgba(14, 165, 233, 0.15), transparent 60%)',
-        'glow-band': 'linear-gradient(135deg, rgba(124, 58, 237, 0.25) 0%, rgba(125, 211, 252, 0.25) 35%, transparent 70%)'
+        'grid-glow': 'radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.06), transparent 60%)',
+        'glow-band': 'linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, transparent 60%)'
       }
     }
   },
