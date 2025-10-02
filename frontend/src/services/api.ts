@@ -4,6 +4,12 @@ export interface SignalResponse {
   symbol: string;
   side: 'BUY' | 'SELL' | 'HOLD';
   score: number;
+  confidence?: number;
+  horizon?: string;
+  suggested_allocation?: string;
+  entry_price?: number;
+  take_profit?: number;
+  stop_loss?: number;
   price?: number;
   rsi?: number;
   atr?: number;
@@ -29,9 +35,20 @@ export interface Trade {
   created_at?: string;
 }
 
+export interface PortfolioAutomation {
+  active_bots?: number;
+  scheduled_runs?: number;
+  status?: string;
+}
+
 export interface PortfolioResponse {
   user_id: number;
   trades: Trade[];
+  total_value?: number;
+  automation?: PortfolioAutomation | null;
+  alerts?: Array<Record<string, unknown>> | null;
+  assistant_threads?: number;
+  webhooks?: Array<Record<string, unknown>> | null;
 }
 
 export interface HealthResponse {
