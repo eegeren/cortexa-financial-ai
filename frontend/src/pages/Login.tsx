@@ -117,7 +117,7 @@ const LoginPage = () => {
       />
       <div className="pointer-events-none fixed inset-0 bg-black/30" />
       <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-12 sm:px-6">
-        <div className="mb-14 text-center">
+        <div className="relative mb-14 overflow-hidden rounded-3xl border border-outline/40 bg-surface/70 p-12 text-center shadow-elevation-soft">
           <span className="inline-flex items-center gap-2 rounded-full border border-outline/50 bg-surface px-4 py-2 text-xs uppercase tracking-[0.4em] text-slate-400">
             Cortexa Trade
           </span>
@@ -127,6 +127,11 @@ const LoginPage = () => {
           <p className="mt-3 text-sm text-slate-400">
             Your workspace for signals, automation, and the Cortexa assistant.
           </p>
+
+          <span className="orb-float pointer-events-none" style={{ background: 'rgba(38, 132, 255, 0.5)', left: '-120px', top: '-160px' }} />
+          <span className="orb-float pointer-events-none" data-delay="1" style={{ background: 'rgba(16, 163, 127, 0.45)', right: '-140px', top: '-100px' }} />
+          <span className="orb-float pointer-events-none" data-delay="2" style={{ background: 'rgba(255, 255, 255, 0.2)', left: '20%', bottom: '-200px' }} />
+          <div className="scan-line pointer-events-none absolute left-0 top-0 h-full w-1/3 opacity-40" />
         </div>
 
         <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr]">
