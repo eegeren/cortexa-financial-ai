@@ -8,6 +8,21 @@ const FEATURE_BULLETS = [
   'Backtests, assistant, and portfolio analytics in one pane'
 ];
 
+const INFO_POINTS = [
+  {
+    title: 'What you need',
+    description: 'A Cortexa workspace with API credentials already provisioned. New desks are onboarded in under 24 hours.'
+  },
+  {
+    title: 'Data coverage',
+    description: 'Live crypto spot and futures markets, fx majors, and the macro calendar feed are available out of the box.'
+  },
+  {
+    title: 'Support',
+    description: 'Need help? Email support@cortexaai.net or use the #desk-support Slack channel if you are on Enterprise.'
+  }
+];
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const { login, loading, token, error, clearError } = useAuthStore((state) => ({
@@ -141,6 +156,15 @@ const LoginPage = () => {
                 <p className="text-sm font-semibold text-white">Assistant insights</p>
                 <p className="mt-1">Summaries, prompts, and backtests delivered in seconds.</p>
               </div>
+            </div>
+
+            <div className="mt-8 grid gap-4 text-left sm:grid-cols-3">
+              {INFO_POINTS.map((item) => (
+                <div key={item.title} className="rounded-2xl border border-outline/40 bg-surface px-4 py-3 text-left text-xs text-slate-400">
+                  <h3 className="text-sm font-semibold text-white">{item.title}</h3>
+                  <p className="mt-2 text-[12px] leading-relaxed">{item.description}</p>
+                </div>
+              ))}
             </div>
           </section>
 
