@@ -13,10 +13,10 @@ type Thread = {
 };
 
 const MOCK: Thread[] = [
-  { id: "t1", title: "BTCUSDT 15m trend tartışması", topic: "Crypto", replies: 18, votes: 42, author: "quantler", lastActivity: new Date().toISOString() },
-  { id: "t2", title: "BIST-30’de volatilite rejimi", topic: "Stocks", replies: 5, votes: 11, author: "alpaka", lastActivity: new Date(Date.now() - 3_600_000).toISOString() },
-  { id: "t3", title: "DXY ve altın korelasyonu", topic: "Macro", replies: 9, votes: 21, author: "mergen", lastActivity: new Date(Date.now() - 7_200_000).toISOString() },
-  { id: "t4", title: "EURUSD NFP sonrası plan", topic: "Forex", replies: 12, votes: 19, author: "fxmike", lastActivity: new Date(Date.now() - 86_400_000).toISOString() },
+  { id: "t1", title: "BTCUSDT 15m trend discussion", topic: "Crypto", replies: 18, votes: 42, author: "quantler", lastActivity: new Date().toISOString() },
+  { id: "t2", title: "Vol regime on BIST-30", topic: "Stocks", replies: 5, votes: 11, author: "alpaka", lastActivity: new Date(Date.now() - 3_600_000).toISOString() },
+  { id: "t3", title: "DXY and gold correlation", topic: "Macro", replies: 9, votes: 21, author: "mergen", lastActivity: new Date(Date.now() - 7_200_000).toISOString() },
+  { id: "t4", title: "EURUSD game plan post-NFP", topic: "Forex", replies: 12, votes: 19, author: "fxmike", lastActivity: new Date(Date.now() - 86_400_000).toISOString() },
 ];
 
 const TOPICS = ["All", "Crypto", "Stocks", "Forex", "Macro"] as const;
@@ -75,7 +75,7 @@ export default function Forum() {
         ))}
       </div>
 
-      {/* composer (şimdilik pasif) */}
+      {/* composer (disabled for now) */}
       <div className="mb-6 rounded-xl border border-slate-800/70 bg-slate-900/60 p-4 backdrop-blur-sm">
         <p className="mb-2 text-sm text-slate-400">Start a new thread</p>
         <textarea

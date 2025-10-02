@@ -203,7 +203,7 @@ const SignalsPage = () => {
       const data = await fetchSignal(sym);
       applySignal(data);
     } catch (err) {
-      // Soft fallback: 200 + ok:false + data senaryosunu da kabul et
+      // Soft fallback: also handle gateways that return 200 with ok:false
       try {
         const res = await fetch(`${API_BASE}/signals?symbol=${encodeURIComponent(sym)}`, { method: 'GET' });
         if (res.ok) {

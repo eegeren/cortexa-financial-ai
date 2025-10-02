@@ -23,7 +23,7 @@ const AssistantPage = () => {
   const [messages, setMessages] = useState<Message[]>([
     createMessage(
       'assistant',
-      'Merhaba! Ben Cortexa Assistant. Piyasa yapısı, strateji fikri ya da güncel AI sinyallerini nasıl yorumlayacağını merak ediyorsan hemen sorabilirsin.'
+      'Hi there! I am Cortexa Assistant. Ask me about market structure, strategy ideas, or how to interpret the latest AI signals.'
     ),
   ]);
   const [input, setInput] = useState('');
@@ -74,10 +74,10 @@ const AssistantPage = () => {
 
   const quickPrompts = useMemo(
     () => [
-      'BTC için bugünkü volatilite rejimi nedir?',
-      'ETH sinyallerinde 4 saatlik trendi özetle.',
-      'Portföyüm için risk yönetimi önerileri ver.',
-      'Son 10 işlemde hit rate ve net getiriyi hesapla.',
+      'What volatility regime is BTC in today?',
+      'Summarise the 4h trend in ETH signals.',
+      'Suggest risk-management tweaks for my portfolio.',
+      'Calculate hit rate and net return over my last 10 trades.',
     ],
     []
   );
@@ -191,7 +191,7 @@ const AssistantPage = () => {
         <aside className="space-y-6">
           <Card className="border border-slate-800/60 bg-slate-900/70 p-5">
             <h3 className="text-sm font-semibold text-white">Quick prompts</h3>
-            <p className="mt-2 text-xs text-slate-400">Tek tıkla sohbete başlayın:</p>
+            <p className="mt-2 text-xs text-slate-400">Kick off a conversation in one click:</p>
             <div className="mt-3 flex flex-col gap-2">
               {quickPrompts.map((prompt) => (
                 <button
@@ -233,13 +233,13 @@ const AssistantPage = () => {
           </Card>
 
           <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-xs text-slate-300">
-            <h3 className="text-sm font-semibold text-white">Doğru yanıtlar için ipuçları</h3>
+            <h3 className="text-sm font-semibold text-white">Tips for precise answers</h3>
             <ul className="mt-3 space-y-2 list-disc pl-4">
-              <li>Net bir varlık ve zaman dilimi belirtmek daha hassas analiz sağlar.</li>
-              <li>Strateji sorularında risk toleransınızı (ör. %2 stop) paylaşın.</li>
-              <li>Belirsiz cevap alırsanız önceki cevabı referans göstererek devam edin.</li>
+              <li>Specify the asset and timeframe you care about for sharper analytics.</li>
+              <li>Share your risk tolerance (e.g. 2% stop) when asking for strategy tweaks.</li>
+              <li>Reference previous replies if you need the assistant to refine its guidance.</li>
             </ul>
-            <p className="mt-3 text-[11px] text-slate-500">Enterprise planı özel veri entegasyonu ve özel model fine-tuning içerir.</p>
+            <p className="mt-3 text-[11px] text-slate-500">Enterprise includes private data integration and custom fine-tuned models.</p>
           </Card>
         </aside>
       </div>

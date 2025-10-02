@@ -224,20 +224,20 @@ const PricingPage = () => {
       </Card>
 
       <Card className="border border-slate-800/60 bg-slate-900/80 p-6 text-sm text-slate-300">
-        <h4 className="text-lg font-semibold text-white">Sık sorulan sorular</h4>
+        <h4 className="text-lg font-semibold text-white">Frequently asked questions</h4>
         <div className="mt-4 space-y-4">
           {[
             {
-              q: 'Ödemeleri hangi sağlayıcı işliyor?',
-              a: 'PAYMENT_PROVIDER değişkenine göre Stripe, Paddle, Lemon Squeezy veya Iyzico üzerinden PCI uyumlu şekilde tahsilat yapılır.',
+              q: 'Which payment provider powers checkout?',
+              a: 'Depending on the PAYMENT_PROVIDER value we route through Stripe, Paddle, Lemon Squeezy, or Iyzico with full PCI compliance.',
             },
             {
-              q: 'Planımı yükseltirsem verilerim korunur mu?',
-              a: 'Evet, tüm portföy ve sinyal geçmişi saklanır. Yeni özellikler otomatik olarak etkinleşir.',
+              q: 'Will upgrading affect my existing data?',
+              a: 'No. Portfolio history, signals, and automations stay intact and new features unlock instantly.',
             },
             {
-              q: 'Kurumsal plan için özel entegrasyon yapıyor musunuz?',
-              a: 'Enterprise müşterileri için özel model, özel veri kaynakları ve çoklu koltuk yönetimi sunuyoruz. finance@cortexaai.net ile iletişime geçin.',
+              q: 'Do you offer bespoke integrations for Enterprise?',
+              a: 'Yes. Enterprise desks get custom models, private data feeds, and seat management. Reach us at finance@cortexaai.net.',
             },
           ].map((item) => (
             <div key={item.q} className="rounded-lg border border-slate-800/70 bg-slate-900/60 p-4">

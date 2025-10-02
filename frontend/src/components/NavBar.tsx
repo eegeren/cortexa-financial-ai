@@ -54,7 +54,7 @@ const NavBar = () => {
     setMenuOpen(false);
   };
 
-  const accountLabel = email ?? 'Hesabım';
+  const accountLabel = email ?? 'Account';
 
   return (
     <header className="border-b border-slate-800 bg-slate-900/40 backdrop-blur">
@@ -135,22 +135,22 @@ const NavBar = () => {
                       onClick={openSettings}
                       className="flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-slate-800/70"
                     >
-                      Ayarlar
-                      <span className="text-xs text-slate-500">yakında</span>
+                      Settings
+                      <span className="text-xs text-slate-500">coming soon</span>
                     </button>
                     <button
                       type="button"
                       onClick={openBilling}
                       className="mt-1 flex w-full items-center rounded-lg px-3 py-2 transition hover:bg-slate-800/70"
                     >
-                      Faturalandırma
+                      Billing
                     </button>
                     <button
                       type="button"
                       onClick={handleLogout}
                       className="mt-1 flex w-full items-center rounded-lg px-3 py-2 text-rose-300 transition hover:bg-rose-500/10"
                     >
-                      Çıkış yap
+                      Sign out
                     </button>
                   </div>
                 )}

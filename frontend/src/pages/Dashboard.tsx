@@ -195,17 +195,17 @@ const DashboardPage = () => {
                 Upgrade to unlock
               </span>
               <h2 className="text-2xl font-semibold text-white sm:text-3xl">
-                Cortexa Pro ile sınırsız assistant, gelişmiş backtest ve otomasyon.
+                Unlock unlimited assistant, deep backtests, and automation with Cortexa Pro.
               </h2>
               <p className="text-sm text-slate-300">
-                Premium katmanda sınırsız GPT sohbeti, tüm piyasa kapsamı, parametre sweep raporları ve otomatik trade tetikleyicileri aktif olur. Enterprise ile özel entegrasyonları devreye alabilirsiniz.
+                Premium users enjoy unlimited GPT conversations, full market coverage, parameter sweep dashboards, and automated trade triggers. Enterprise adds custom integrations and governance tooling.
               </p>
               <div className="grid gap-3 text-xs text-slate-200 sm:grid-cols-2">
                 {[
-                  'Sınırsız Cortexa Assistant sohbeti',
-                  'Tüm marketlerde canlı AI sinyal akışı',
-                  'Gelişmiş backtest & parametrik sweep dashboard’u',
-                  'Webhook tabanlı otomasyon ve API erişimi',
+                  'Unlimited Cortexa Assistant conversations',
+                  'Live AI signal stream across all markets',
+                  'Advanced backtests & parameter sweep dashboards',
+                  'Webhook automations and API access',
                 ].map((benefit) => (
                   <div key={benefit} className="flex items-center gap-2 rounded-lg border border-slate-800/70 bg-slate-900/60 p-3">
                     <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-primary">✓</span>
@@ -218,42 +218,42 @@ const DashboardPage = () => {
                   to="/pricing"
                   className="inline-flex items-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white shadow-primary/30 transition hover:bg-primary/80"
                 >
-                  Planları karşılaştır
+                  Compare plans
                 </Link>
                 <Link
                   to="/billing"
                   className="inline-flex items-center rounded-full border border-slate-700 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-primary hover:text-white"
                 >
-                  Fatura ve portalı aç
+                  Open billing portal
                 </Link>
                 <Link
                   to="/assistant"
                   className="inline-flex items-center rounded-full border border-slate-700 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-primary hover:text-white"
                 >
-                  Assistant demoyu gör
+                  Explore assistant demo
                 </Link>
               </div>
             </div>
             <div className="space-y-4 rounded-2xl border border-primary/40 bg-slate-950/80 p-5 text-sm text-slate-200">
-              <h3 className="text-sm font-semibold text-white">Plan özetleri</h3>
+              <h3 className="text-sm font-semibold text-white">Plan overview</h3>
               <div className="space-y-3 text-xs">
                 <div className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Starter</p>
-                  <p className="mt-1 text-sm font-semibold text-white">Ücretsiz</p>
-                  <p className="mt-1 text-slate-400">Temel sinyaller, limitli chat, manuel trade kaydı</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Free</p>
+                  <p className="mt-1 text-slate-400">Core signals, limited chat, manual trade logging</p>
                 </div>
                 <div className="rounded-xl border border-primary/40 bg-primary/10 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-primary/80">Pro</p>
-                  <p className="mt-1 text-sm font-semibold text-white">$99 / ay*</p>
-                  <p className="mt-1 text-slate-200">Sınırsız assistant, otomasyon, tam piyasa kapsamı</p>
+                  <p className="mt-1 text-sm font-semibold text-white">$99 / month*</p>
+                  <p className="mt-1 text-slate-200">Unlimited assistant, automation, full market coverage</p>
                 </div>
                 <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-amber-300">Enterprise</p>
-                  <p className="mt-1 text-sm font-semibold text-white">Teklif al</p>
-                  <p className="mt-1 text-slate-100">Özel veri, çoklu koltuk, uyumluluk ve SLA</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Talk to sales</p>
+                  <p className="mt-1 text-slate-100">Private data feeds, multi-seat access, compliance & SLAs</p>
                 </div>
               </div>
-              <p className="text-[11px] text-slate-500">* Yıllık ödemede 2 ay ücretsiz. Bağlantıları kendi ödeme sayfan ile güncelleyebilirsin.</p>
+              <p className="text-[11px] text-slate-500">* Annual billing includes two free months. Replace CTAs with your own checkout links when ready.</p>
             </div>
           </div>
         </Card>

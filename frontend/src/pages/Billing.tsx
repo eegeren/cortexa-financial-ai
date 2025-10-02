@@ -117,14 +117,14 @@ const BillingPage = () => {
         <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-sm text-slate-200">
           <p className="text-xs uppercase tracking-wide text-slate-500">Current status</p>
           <p className="mt-2 text-lg font-semibold text-white">{statusCopy}</p>
-          <p className="mt-3 text-xs text-slate-400">Plan changes anında yürürlüğe girer, ek ücret yoktur.</p>
+          <p className="mt-3 text-xs text-slate-400">Plan changes apply instantly and never retro-charge your account.</p>
         </Card>
         <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-sm text-slate-200">
           <p className="text-xs uppercase tracking-wide text-slate-500">Upcoming invoice</p>
           {upcomingInvoice ? (
             <div className="mt-2 space-y-1 text-xs text-slate-300">
               <p>
-                Tutar:{' '}
+                Amount:{' '}
                 <span className="font-semibold text-white">
                   {new Intl.NumberFormat('en-US', {
                     style: 'currency',
@@ -132,21 +132,21 @@ const BillingPage = () => {
                   }).format(upcomingInvoice.amount_cents / 100)}
                 </span>
               </p>
-              <p>Durum: {upcomingInvoice.status}</p>
-              <p>Vade: {upcomingInvoice.due_at ? new Date(upcomingInvoice.due_at).toLocaleDateString() : '—'}</p>
+              <p>Status: {upcomingInvoice.status}</p>
+              <p>Due date: {upcomingInvoice.due_at ? new Date(upcomingInvoice.due_at).toLocaleDateString() : '—'}</p>
             </div>
           ) : (
-            <p className="mt-2 text-xs text-slate-400">Henüz bekleyen bir fatura yok.</p>
+            <p className="mt-2 text-xs text-slate-400">No upcoming invoices yet.</p>
           )}
         </Card>
         <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-sm text-slate-200">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Destek</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Support</p>
           <p className="mt-2 text-xs text-slate-400">
-            Ödeme ile ilgili sorular için{' '}
+            For billing assistance contact{' '}
             <a href="mailto:finance@cortexaai.net" className="text-primary underline">
               finance@cortexaai.net
             </a>{' '}
-            adresine mail gönderin. Enterprise müşterileri için 24/5 Slack hattı aktiftir.
+            . Enterprise customers have access to a dedicated 24/5 Slack channel.
           </p>
         </Card>
       </div>
