@@ -115,7 +115,7 @@ const DashboardPage = () => {
             to="/assistant"
             className="inline-flex items-center gap-2 rounded-full border border-outline/50 px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
           >
-            Assistant hakkında bilgi al ↗
+            Learn about the assistant ↗
           </Link>
         </div>
       </section>
@@ -139,8 +139,8 @@ const DashboardPage = () => {
         <article className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-semibold text-white">Portföy anlık görünümü</h3>
-              <p className="text-sm text-slate-400">Sinyaller ve otomasyon botlarıyla uyumlu portföy verileri.</p>
+          <h3 className="text-lg font-semibold text-white">Portfolio snapshot</h3>
+          <p className="text-sm text-slate-400">Portfolio data kept in lockstep with signals and automation bots.</p>
             </div>
             {portfolioError && (
               <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">
@@ -191,7 +191,7 @@ const DashboardPage = () => {
 
         <aside className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <h3 className="text-lg font-semibold text-white">BTC sinyal özeti</h3>
-          <p className="mt-1 text-sm text-slate-400">Sinyal motorundan alınan son anlık görünüm.</p>
+          <p className="mt-1 text-sm text-slate-400">Latest snapshot straight from the signal engine.</p>
           {signalLoading ? (
             <div className="mt-6 h-40 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse" />
           ) : signal ? (
@@ -223,7 +223,7 @@ const DashboardPage = () => {
               </Link>
             </div>
           ) : (
-            <p className="mt-6 text-xs text-slate-400">Şu an için sinyal alınamadı. Daha sonra tekrar kontrol edin.</p>
+            <p className="mt-6 text-xs text-slate-400">No signal available right now. Check back shortly.</p>
           )}
         </aside>
       </section>

@@ -63,21 +63,21 @@ const PortfolioPage = () => {
     const qty = Number(form.qty);
     const price = Number(form.price);
     if (symbol.length < 3) {
-      setFormError('Sembol en az 3 karakter olmalı.');
+      setFormError('Symbol must be at least 3 characters.');
       return;
     }
     if (Number.isNaN(qty) || qty <= 0) {
-      setFormError('Miktar pozitif olmalı.');
+      setFormError('Quantity must be a positive number.');
       return;
     }
     if (Number.isNaN(price) || price < 0) {
-      setFormError('Fiyat negatif olamaz.');
+      setFormError('Price cannot be negative.');
       return;
     }
 
     try {
       await createTrade({ ...form, symbol, qty, price });
-      setMessage('İşlem kaydedildi.');
+      setMessage('Trade saved.');
       await loadPortfolio();
     } catch (err) {
       const messageText = err instanceof Error ? err.message : 'Failed to create trade';
