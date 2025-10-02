@@ -51,11 +51,11 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2">
+      <div className="pointer-events-none fixed inset-x-4 top-20 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:right-4 sm:items-end">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto min-w-[260px] rounded-lg border px-4 py-2 text-sm shadow-lg transition ${
+            className={`pointer-events-auto w-full max-w-sm rounded-lg border px-4 py-2 text-sm shadow-lg transition ${
               toast.tone === 'success'
                 ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
                 : toast.tone === 'warning'
