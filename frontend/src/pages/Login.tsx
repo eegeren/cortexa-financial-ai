@@ -91,7 +91,7 @@ const LoginPage = () => {
   return (
     <div className="relative min-h-screen bg-canvas text-ink">
       <video
-        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-10"
+        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-40"
         autoPlay
         loop
         muted
@@ -100,7 +100,7 @@ const LoginPage = () => {
         src="/videoplayback.mp4"
         aria-hidden
       />
-      <div className="pointer-events-none fixed inset-0 bg-black/60" />
+      <div className="pointer-events-none fixed inset-0 bg-black/30" />
       <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-12 sm:px-6">
         <div className="mb-14 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-outline/50 bg-surface px-4 py-2 text-xs uppercase tracking-[0.4em] text-slate-400">

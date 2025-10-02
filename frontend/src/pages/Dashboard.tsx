@@ -3,11 +3,16 @@ import { Link } from 'react-router-dom';
 import { fetchPortfolio, fetchSignal, PortfolioResponse, SignalResponse } from '@/services/api';
 import { useToast } from '@/components/ToastProvider';
 
-type Metric = {
-  label: string;
-  hint?: string;
-  value: string;
-};
+const SUGGESTIONS = [
+  'Portföyümdeki risk dağılımını çıkar',
+  'Bu haftaki BTC sinyal eğilimini özetle',
+  'Yeni bir otomasyon planı tasarla',
+  'Son 10 işlemimin performansını değerlendir',
+  'Opsiyonlarla hedge stratejisi öner',
+  'ETH için volatilite rejimini açıkla',
+  'Assistant için bir kontrol listesi hazırla',
+  'Makro takvimde öne çıkanları paylaş'
+];
 
 const DashboardPage = () => {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
@@ -64,257 +69,163 @@ const DashboardPage = () => {
     };
   }, [pushToast]);
 
-  const metrics = useMemo<Metric[]>(() => {
+  const metrics = useMemo(() => {
     if (!portfolio || portfolioLoading) {
-      return [];
+      return null;
     }
 
     const trades = (portfolio.trades ?? []).slice().sort(
       (a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime()
     );
     const tradeCount = trades.length;
-    const realised = trades.reduce((acc, trade) => acc + trade.qty * trade.price, 0);
-    const lastTrade = trades[trades.length - 1];
     const netExposure = trades.reduce((acc, trade) => {
       const direction = trade.side === 'BUY' ? 1 : -1;
       return acc + direction * trade.qty * trade.price;
     }, 0);
+    const realised = trades.reduce((acc, trade) => acc + trade.qty * trade.price, 0);
 
-    const formatCurrency = (amount: number) =>
-      `${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`;
-
-    return [
-      {
-        label: 'Portfolio value',
-        value: formatCurrency((portfolio.total_value ?? 0) + netExposure),
-        hint: 'Mark-to-market with current exposure'
-      },
-      {
-        label: 'Open exposure',
-        value: formatCurrency(netExposure),
-        hint: tradeCount ? 'Net of recent executions' : 'No trades yet'
-      },
-      {
-        label: 'Completed trades',
-        value: tradeCount.toString(),
-        hint: lastTrade ? `Last trade ${new Date(lastTrade.created_at ?? '').toLocaleString()}` : 'Awaiting executions'
-      },
-      {
-        label: 'Realised turnover',
-        value: formatCurrency(realised),
-        hint: 'Cumulative notional volume'
-      }
-    ];
+    return {
+      tradeCount,
+      netExposure,
+      realised,
+      lastTrade: trades[trades.length - 1]
+    };
   }, [portfolio, portfolioLoading]);
 
-  const signalBadge = useMemo(() => {
-    if (!signal) {
-      return { label: 'No data', tone: 'bg-muted text-slate-300 border-outline/50' };
-    }
-    if (signal.side === 'BUY') {
-      return { label: 'Buy bias', tone: 'bg-emerald-500/10 text-emerald-200 border-emerald-500/40' };
-    }
-    if (signal.side === 'SELL') {
-      return { label: 'Sell bias', tone: 'bg-rose-500/10 text-rose-200 border-rose-500/40' };
-    }
-    return { label: 'Neutral', tone: 'bg-amber-500/10 text-amber-200 border-amber-500/40' };
-  }, [signal]);
-
   return (
-    <div className="space-y-14">
-      <section className="rounded-3xl border border-outline/40 bg-surface/70 p-8 shadow-elevation-soft backdrop-blur">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full border border-outline/60 bg-surface/70 px-3 py-1 text-xs uppercase tracking-[0.4em] text-slate-400">
-              Cortexa overview
-            </span>
-            <h1 className="text-3xl font-semibold text-white sm:text-4xl">Steer your trading desk with real-time AI intelligence.</h1>
-            <p className="max-w-2xl text-base text-slate-300">
-              Monitor portfolio posture, review the freshest signals, and deploy automation from a single pane of glass. Everything stays synced with the assistant and signal engine.
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                to="/signals"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white shadow-elevation transition hover:bg-primary/90"
-              >
-                View live signals
-              </Link>
-              <Link
-                to="/assistant"
-                className="inline-flex items-center gap-2 rounded-full border border-outline/50 px-4 py-2 text-sm font-medium text-ink transition hover:border-outline hover:text-white"
-              >
-                Talk to the assistant
-              </Link>
-            </div>
-          </div>
-          <div className="relative w-full max-w-sm self-stretch overflow-hidden rounded-2xl border border-outline/30 bg-surface/80 p-6 shadow-inner-glow">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.25),_transparent_65%)] opacity-70" />
-            <div className="relative space-y-4">
-              <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Desk activity</p>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Active automation</span>
-                  <span className="text-white">{portfolio?.automation?.active_bots ?? 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Alerts armed</span>
-                  <span className="text-white">{portfolio?.alerts?.length ?? 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Assistant threads</span>
-                  <span className="text-white">{portfolio?.assistant_threads ?? 0}</span>
-                </div>
-              </div>
-              <Link
-                to="/forum"
-                className="inline-flex items-center gap-2 text-xs font-medium text-accent transition hover:text-white"
-              >
-                Browse desk playbooks →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-white">Key posture metrics</h2>
-            <p className="text-sm text-slate-400">Live snapshot of exposure, turnover, and execution velocity.</p>
-          </div>
-          {!portfolioLoading && portfolioError && (
-            <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">
-              {portfolioError}
-            </span>
-          )}
+    <div className="space-y-16">
+      <section className="text-center">
+        <header className="space-y-4">
+          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Cortexa Trade</span>
+          <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+            Sinyallere yanıt al. Otomasyonu yönet. Masanı daha üretken kıl.
+          </h1>
+          <p className="mx-auto max-w-2xl text-sm text-slate-400">
+            Kortexa Assistant, sinyal motoru ve otomasyonları tek yerde. Oturum açtığında piyasa panoramasını, bot
+            durumunu ve araştırma akışını anında gör.
+          </p>
         </header>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {portfolioLoading
-            ? Array.from({ length: 4 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="h-32 rounded-2xl border border-outline/30 bg-surface/60 shadow-inner-glow animate-pulse"
-                />
-              ))
-            : metrics.map((metric) => (
-                <div
-                  key={metric.label}
-                  className="flex h-32 flex-col justify-between rounded-2xl border border-outline/30 bg-surface/80 p-5 shadow-inner-glow"
-                >
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.32em] text-slate-400">{metric.label}</p>
-                    <p className="mt-3 text-lg font-semibold text-white">{metric.value}</p>
-                  </div>
-                  {metric.hint && <p className="text-xs text-slate-400">{metric.hint}</p>}
-                </div>
-              ))}
+        <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
+          <Link
+            to="/signals"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-medium text-black shadow-inner-glow transition hover:bg-slate-200"
+          >
+            Şimdi başla
+          </Link>
+          <Link
+            to="/assistant"
+            className="inline-flex items-center gap-2 rounded-full border border-outline/50 px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
+          >
+            Assistant hakkında bilgi al ↗
+          </Link>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <div className="rounded-3xl border border-outline/40 bg-surface/70 p-6 shadow-elevation-soft">
+      <section className="space-y-4">
+        <h2 className="text-left text-xs uppercase tracking-[0.35em] text-slate-500">Ne yapmak istersin?</h2>
+        <div className="flex flex-wrap gap-3">
+          {SUGGESTIONS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              className="min-w-[220px] flex-1 rounded-2xl border border-outline/50 bg-surface px-4 py-3 text-left text-sm text-slate-200 transition hover:border-outline hover:text-white"
+            >
+              {item} ↗
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <article className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-xl font-semibold text-white">Live signal stream</h3>
-              <p className="text-sm text-slate-400">Stay ahead with the freshest opportunities from the signal engine.</p>
+              <h3 className="text-lg font-semibold text-white">Portföy anlık görünümü</h3>
+              <p className="text-sm text-slate-400">Sinyaller ve otomasyon botlarıyla uyumlu portföy verileri.</p>
             </div>
-            <div className="flex items-center gap-2">
-              {['Crypto', 'FX', 'Equities'].map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full border border-outline/40 px-3 py-1 text-xs text-slate-300"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
+            {portfolioError && (
+              <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">
+                {portfolioError}
+              </span>
+            )}
           </header>
-
-          <div className="mt-6 flex flex-col gap-4">
-            {signalLoading ? (
-              <div className="h-36 rounded-2xl border border-outline/30 bg-surface/60 shadow-inner-glow animate-pulse" />
-            ) : signal ? (
-              <article className="rounded-2xl border border-outline/30 bg-surface/80 p-6 shadow-inner-glow">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs ${signalBadge.tone}`}>
-                      {signalBadge.label}
-                    </span>
-                    <p className="text-sm text-slate-400">Confidence {Math.round(signal.confidence * 100)}%</p>
-                  </div>
-                  <Link to="/signals" className="text-xs font-medium text-accent transition hover:text-white">
-                    View full stream →
-                  </Link>
-                </div>
-
-                <div className="mt-6 grid gap-6 md:grid-cols-2">
-                  <div className="space-y-3">
-                    <h4 className="text-lg font-semibold text-white">{signal.symbol}</h4>
-                    <p className="text-sm text-slate-300">Signal horizon: {signal.horizon}</p>
-                    <p className="text-sm text-slate-300">Suggested allocation: {signal.suggested_allocation ?? '—'}</p>
-                  </div>
-                  <div className="space-y-3 text-sm text-slate-300">
-                    <p>Entry: {signal.entry_price?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—'}</p>
-                    <p>Take profit: {signal.take_profit?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—'}</p>
-                    <p>Stop loss: {signal.stop_loss?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—'}</p>
-                  </div>
-                </div>
-              </article>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {portfolioLoading || !metrics ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-28 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse"
+                />
+              ))
             ) : (
-              <div className="rounded-2xl border border-outline/30 bg-surface/70 p-6 text-sm text-slate-300">
-                No signals available right now. Check back shortly or explore archived opportunities in the signals library.
-              </div>
+              <>
+                <div className="rounded-2xl border border-outline/30 bg-muted/60 p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Toplam işlemler</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">{metrics.tradeCount}</p>
+                </div>
+                <div className="rounded-2xl border border-outline/30 bg-muted/60 p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Net pozisyon</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">
+                    {metrics.netExposure.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-outline/30 bg-muted/60 p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Gerçekleşen hacim</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">
+                    {metrics.realised.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-outline/30 bg-muted/60 p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Son işlem</p>
+                  <p className="mt-3 text-sm text-slate-300">
+                    {metrics.lastTrade
+                      ? `${metrics.lastTrade.symbol} • ${metrics.lastTrade.side} • ${new Date(
+                          metrics.lastTrade.created_at ?? ''
+                        ).toLocaleString()}`
+                      : 'Henüz işlem yok'}
+                  </p>
+                </div>
+              </>
             )}
           </div>
-        </div>
+        </article>
 
-        <aside className="flex flex-col gap-6">
-          <div className="rounded-3xl border border-outline/40 bg-surface/70 p-6 shadow-elevation-soft">
-            <h4 className="text-lg font-semibold text-white">Automation snapshot</h4>
-            <p className="mt-2 text-sm text-slate-400">Track the health of backtests, webhooks, and live bots.</p>
-            <div className="mt-5 space-y-4 text-sm text-slate-300">
+        <aside className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+          <h3 className="text-lg font-semibold text-white">BTC sinyal özeti</h3>
+          <p className="mt-1 text-sm text-slate-400">Sinyal motorundan alınan son anlık görünüm.</p>
+          {signalLoading ? (
+            <div className="mt-6 h-40 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse" />
+          ) : signal ? (
+            <div className="mt-6 space-y-4 text-sm text-slate-300">
               <div className="flex items-center justify-between">
-                <span>Backtests scheduled</span>
-                <span className="text-white">{portfolio?.automation?.scheduled_runs ?? 0}</span>
+                <span className="text-xs uppercase tracking-[0.28em] text-slate-500">Yön</span>
+                <span className="rounded-full border border-outline/40 px-3 py-1 text-xs text-white">
+                  {signal.side}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Webhook triggers</span>
-                <span className="text-white">{portfolio?.webhooks?.length ?? 0}</span>
+                <span>Skor</span>
+                <span className="text-white">{signal.score.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Auto-trade status</span>
-                <span className="text-white">{portfolio?.automation?.status ?? 'Idle'}</span>
+                <span>Güven</span>
+                <span className="text-white">
+                  {signal.confidence ? `${Math.round(signal.confidence * 100)}%` : '—'}
+                </span>
               </div>
+              <div className="flex items-center justify-between">
+                <span>Hedefler</span>
+                <span className="text-white">
+                  {signal.take_profit?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—'} / {signal.stop_loss?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—'}
+                </span>
+              </div>
+              <Link to="/signals" className="inline-flex items-center gap-2 text-xs text-accent transition hover:text-white">
+                Sinyalleri görüntüle →
+              </Link>
             </div>
-            <Link
-              to="/signals"
-              className="mt-5 inline-flex items-center gap-2 text-xs font-medium text-accent transition hover:text-white"
-            >
-              Configure automation →
-            </Link>
-          </div>
-
-          <div className="rounded-3xl border border-outline/40 bg-surface/70 p-6 shadow-elevation-soft">
-            <h4 className="text-lg font-semibold text-white">Learning highlights</h4>
-            <p className="mt-2 text-sm text-slate-400">Curated research and forum threads to sharpen your playbooks.</p>
-            <ul className="mt-4 space-y-3 text-sm text-accent">
-              <li>
-                <Link to="/forum" className="transition hover:text-white">
-                  Macro briefing: October volatility regimes →
-                </Link>
-              </li>
-              <li>
-                <Link to="/forum" className="transition hover:text-white">
-                  Community playbook: BTC breakout ladder template →
-                </Link>
-              </li>
-              <li>
-                <Link to="/assistant" className="transition hover:text-white">
-                  Assistant prompt pack: execution checklists →
-                </Link>
-              </li>
-            </ul>
-          </div>
+          ) : (
+            <p className="mt-6 text-xs text-slate-400">Şu an için sinyal alınamadı. Daha sonra tekrar kontrol edin.</p>
+          )}
         </aside>
       </section>
     </div>
