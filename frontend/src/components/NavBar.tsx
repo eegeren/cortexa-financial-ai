@@ -51,7 +51,7 @@ const NavBar = () => {
   };
 
   const openSettings = () => {
-    navigate('/billing?tab=settings');
+    navigate('/settings');
     setMenuOpen(false);
   };
 

@@ -12,6 +12,7 @@ import AdminPage from '@/pages/Admin';
 import AssistantPage from '@/pages/Assistant';
 import PricingPage from '@/pages/Pricing';
 import BillingPage from '@/pages/Billing';
+import SettingsPage from '@/pages/Settings';
 import Spinner from '@/components/Spinner';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
@@ -84,6 +85,7 @@ const App = () => {
           <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
           <Route path="/forum" element={<ProtectedRoute><ForumPage /></ProtectedRoute>} />
           <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         </Route>
 

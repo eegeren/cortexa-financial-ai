@@ -4,14 +4,14 @@ import { fetchPortfolio, fetchSignal, PortfolioResponse, SignalResponse } from '
 import { useToast } from '@/components/ToastProvider';
 
 const SUGGESTIONS = [
-  'Portföyümdeki risk dağılımını çıkar',
-  'Bu haftaki BTC sinyal eğilimini özetle',
-  'Yeni bir otomasyon planı tasarla',
-  'Son 10 işlemimin performansını değerlendir',
-  'Opsiyonlarla hedge stratejisi öner',
-  'ETH için volatilite rejimini açıkla',
-  'Assistant için bir kontrol listesi hazırla',
-  'Makro takvimde öne çıkanları paylaş'
+  { label: 'Review risk allocation across my portfolio', href: '/portfolio' },
+  { label: 'Summarise this week’s BTC signal trend', href: '/signals' },
+  { label: 'Design a new automation playbook', href: '/signals' },
+  { label: 'Evaluate the performance of my last 10 trades', href: '/portfolio' },
+  { label: 'Draft a hedge idea with options', href: '/assistant' },
+  { label: 'Explain the current volatility regime for ETH', href: '/assistant' },
+  { label: 'Build an execution checklist with the assistant', href: '/assistant' },
+  { label: 'Highlight macro events I should watch', href: '/forum' }
 ];
 
 const DashboardPage = () => {
@@ -98,11 +98,10 @@ const DashboardPage = () => {
         <header className="space-y-4">
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Cortexa Trade</span>
           <h1 className="text-4xl font-semibold text-white sm:text-5xl">
-            Sinyallere yanıt al. Otomasyonu yönet. Masanı daha üretken kıl.
+            Act on signals, manage automation, keep your desk sharp.
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-400">
-            Kortexa Assistant, sinyal motoru ve otomasyonları tek yerde. Oturum açtığında piyasa panoramasını, bot
-            durumunu ve araştırma akışını anında gör.
+            Your command center for signals, the automation runway, and rapid research support from the Cortexa assistant.
           </p>
         </header>
         <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
@@ -122,16 +121,16 @@ const DashboardPage = () => {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-left text-xs uppercase tracking-[0.35em] text-slate-500">Ne yapmak istersin?</h2>
+        <h2 className="text-left text-xs uppercase tracking-[0.35em] text-slate-500">What do you want to do?</h2>
         <div className="flex flex-wrap gap-3">
           {SUGGESTIONS.map((item) => (
-            <button
-              key={item}
-              type="button"
+            <Link
+              key={item.label}
+              to={item.href}
               className="min-w-[220px] flex-1 rounded-2xl border border-outline/50 bg-surface px-4 py-3 text-left text-sm text-slate-200 transition hover:border-outline hover:text-white"
             >
-              {item} ↗
-            </button>
+              {item.label} ↗
+            </Link>
           ))}
         </div>
       </section>

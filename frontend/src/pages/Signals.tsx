@@ -51,7 +51,7 @@ const SignalsPage = () => {
       setActiveSymbol(symbol);
       setSearchValue(symbol);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sinyal alınamadı';
+      const message = error instanceof Error ? error.message : 'Unable to load signal';
       setSignal(null);
       setSignalError(message);
     } finally {
@@ -85,7 +85,7 @@ const SignalsPage = () => {
       setAutoStatus(message);
       pushToast(message, 'success');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Otomasyon yapılamadı';
+      const message = error instanceof Error ? error.message : 'Automation failed';
       setAutoStatus(message);
       pushToast(message, 'error');
     } finally {
@@ -107,7 +107,7 @@ const SignalsPage = () => {
       });
       setBacktest(report);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Backtest başarısız';
+      const message = error instanceof Error ? error.message : 'Backtest failed';
       setBacktest(null);
       setBacktestError(message);
       pushToast(message, 'warning');
@@ -121,10 +121,10 @@ const SignalsPage = () => {
       return [];
     }
     return [
-      { label: 'Skor', value: signal.score.toFixed(2) },
-      { label: 'Güven', value: signal.confidence ? `${Math.round(signal.confidence * 100)}%` : '—' },
-      { label: 'Yön', value: signal.side ?? '—' },
-      { label: 'Ufuk', value: signal.horizon ?? '—' }
+      { label: 'Score', value: signal.score.toFixed(2) },
+      { label: 'Confidence', value: signal.confidence ? `${Math.round(signal.confidence * 100)}%` : '—' },
+      { label: 'Bias', value: signal.side ?? '—' },
+      { label: 'Horizon', value: signal.horizon ?? '—' }
     ];
   }, [signal]);
 
@@ -133,11 +133,11 @@ const SignalsPage = () => {
       return [];
     }
     return [
-      { label: 'Fiyat', value: signal.price?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
+      { label: 'Price', value: signal.price?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
       { label: 'RSI', value: signal.rsi?.toFixed(1) ?? '—' },
       { label: 'ATR', value: signal.atr?.toFixed(2) ?? '—' },
       {
-        label: 'EMA hızlı/yavaş',
+        label: 'EMA fast/slow',
         value:
           signal.ema_fast !== undefined && signal.ema_slow !== undefined
             ? `${signal.ema_fast.toFixed(2)} / ${signal.ema_slow.toFixed(2)}`
@@ -151,10 +151,10 @@ const SignalsPage = () => {
       return [];
     }
     return [
-      { label: 'Önerilen allotman', value: signal.suggested_allocation ?? '—' },
-      { label: 'Giriş', value: signal.entry_price?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
-      { label: 'Kar al', value: signal.take_profit?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
-      { label: 'Zarar durdur', value: signal.stop_loss?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' }
+      { label: 'Suggested allocation', value: signal.suggested_allocation ?? '—' },
+      { label: 'Entry', value: signal.entry_price?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
+      { label: 'Take profit', value: signal.take_profit?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
+      { label: 'Stop loss', value: signal.stop_loss?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' }
     ];
   }, [signal]);
 
@@ -163,10 +163,10 @@ const SignalsPage = () => {
       return [];
     }
     return [
-      { label: 'İşlem sayısı', value: backtest.trades?.toString() ?? '—' },
+      { label: 'Trades', value: backtest.trades?.toString() ?? '—' },
       { label: 'Hit rate', value: backtest.hit_rate ? `${(backtest.hit_rate * 100).toFixed(1)}%` : '—' },
-      { label: 'Net getiri', value: backtest.net_return_sum ? `${(backtest.net_return_sum * 100).toFixed(2)}%` : '—' },
-      { label: 'Max DD', value: backtest.max_drawdown ? `${(backtest.max_drawdown * 100).toFixed(1)}%` : '—' }
+      { label: 'Net return', value: backtest.net_return_sum ? `${(backtest.net_return_sum * 100).toFixed(2)}%` : '—' },
+      { label: 'Max drawdown', value: backtest.max_drawdown ? `${(backtest.max_drawdown * 100).toFixed(1)}%` : '—' }
     ];
   }, [backtest]);
 
@@ -174,26 +174,26 @@ const SignalsPage = () => {
     <div className="space-y-16">
       <section className="text-center">
         <header className="space-y-4">
-          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Canlı sinyal stüdyosu</span>
+          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Live signal studio</span>
           <h1 className="text-4xl font-semibold text-white sm:text-5xl">
-            Sinyalleri tarayın, doğrulayın, otomasyona taşıyın.
+            Scan, validate, and route signals into automation.
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-400">
-            Sembol seç, sinyal motoru içgörülerini incele ve otomasyon eşiğini ayarla. Tüm adımlar assistant ile senkron.
+            Pick a market, inspect the AI signal stack, then arm automation thresholds. Every step stays in sync with the assistant.
           </p>
         </header>
         <form onSubmit={handleSearch} className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
           <input
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value.toUpperCase())}
-            placeholder="Sembol ara (BTCUSDT)"
+            placeholder="Search symbol (e.g. BTCUSDT)"
             className="w-full max-w-xs rounded-full border border-outline/50 bg-surface px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
             type="submit"
             className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-medium text-black shadow-inner-glow transition hover:bg-slate-200"
           >
-            Sinyali yükle
+            Load signal
           </button>
         </form>
         <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
@@ -231,9 +231,9 @@ const SignalsPage = () => {
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">
-                {SYMBOL_LABELS[activeSymbol] ?? activeSymbol} • sinyal özeti
+                {SYMBOL_LABELS[activeSymbol] ?? activeSymbol} • signal snapshot
               </h2>
-              <p className="text-sm text-slate-400">Sinyal motorunun son çıkışı ve teknik ayrıntıları.</p>
+              <p className="text-sm text-slate-400">Latest view from the signal engine with technical context.</p>
             </div>
             {signalError && (
               <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">
@@ -248,7 +248,7 @@ const SignalsPage = () => {
             ) : signal ? (
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-3">
-                  <h3 className="text-xs uppercase tracking-[0.28em] text-slate-500">Özet</h3>
+              <h3 className="text-xs uppercase tracking-[0.28em] text-slate-500">Summary</h3>
                   <dl className="space-y-3 text-sm text-slate-300">
                     {summaryMetrics.map((metric) => (
                       <div key={metric.label} className="flex items-center justify-between">
@@ -259,7 +259,7 @@ const SignalsPage = () => {
                   </dl>
                 </div>
                 <div className="space-y-3">
-                  <h3 className="text-xs uppercase tracking-[0.28em] text-slate-500">Teknikler</h3>
+                  <h3 className="text-xs uppercase tracking-[0.28em] text-slate-500">Technicals</h3>
                   <dl className="space-y-3 text-sm text-slate-300">
                     {techMetrics.map((metric) => (
                       <div key={metric.label} className="flex items-center justify-between">
@@ -271,9 +271,9 @@ const SignalsPage = () => {
                 </div>
               </div>
             ) : (
-              <p className="rounded-2xl border border-outline/30 bg-muted/60 p-4 text-sm text-slate-300">
-                Henüz sinyal bulunamadı. Farklı bir sembol deneyin.
-              </p>
+                <p className="rounded-2xl border border-outline/30 bg-muted/60 p-4 text-sm text-slate-300">
+                  No signal available right now. Try another symbol.
+                </p>
             )}
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -289,13 +289,13 @@ const SignalsPage = () => {
 
         <aside className="space-y-6">
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-            <h3 className="text-lg font-semibold text-white">Otomasyon eşiği</h3>
+            <h3 className="text-lg font-semibold text-white">Automation threshold</h3>
             <p className="mt-1 text-sm text-slate-400">
-              Skor belirlenen eşiği aşınca otomatik olarak işlem tetiklenir.
+              Trigger orders automatically when the signal score clears your guardrail.
             </p>
             <div className="mt-4 space-y-4 text-sm">
               <label className="block text-xs uppercase tracking-[0.28em] text-slate-500">
-                Eşik
+                Threshold
                 <input
                   value={autoThreshold}
                   onChange={(event) => setAutoThreshold(event.target.value)}
@@ -303,7 +303,7 @@ const SignalsPage = () => {
                 />
               </label>
               <label className="block text-xs uppercase tracking-[0.28em] text-slate-500">
-                Miktar
+                Quantity
                 <input
                   value={autoQty}
                   onChange={(event) => setAutoQty(event.target.value)}
@@ -316,7 +316,7 @@ const SignalsPage = () => {
                 disabled={autoBusy}
                 className="w-full rounded-full bg-white px-4 py-2 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {autoBusy ? 'Ayar bekleniyor…' : 'Otomasyonu devreye al'}
+                {autoBusy ? 'Arming…' : 'Arm automation'}
               </button>
               {autoStatus && <p className="text-xs text-slate-400">{autoStatus}</p>}
             </div>
@@ -324,17 +324,17 @@ const SignalsPage = () => {
 
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Hızlı backtest</h3>
+              <h3 className="text-lg font-semibold text-white">Quick backtest</h3>
               <button
                 type="button"
                 onClick={runBacktest}
                 className="rounded-full border border-outline/40 px-3 py-1 text-xs text-slate-300 transition hover:border-outline hover:text-white"
               >
-                Çalıştır
+                Run
               </button>
             </div>
             <p className="mt-1 text-sm text-slate-400">
-              400 işlem, 4 saat ufuk, 4 bps komisyon, 1 bps kayma.
+              400 trades, 4h horizon, 4 bps commission, 1 bps slippage.
             </p>
             {backtestLoading ? (
               <div className="mt-4 h-28 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse" />
@@ -350,26 +350,26 @@ const SignalsPage = () => {
                 ))}
               </dl>
             ) : (
-              <p className="mt-4 text-xs text-slate-400">Backtesti çalıştır ve sonuçları burada gör.</p>
+              <p className="mt-4 text-xs text-slate-400">Run the backtest to populate historical performance.</p>
             )}
           </div>
 
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
-            <h3 className="text-lg font-semibold text-white">Daha fazla öğren</h3>
+            <h3 className="text-lg font-semibold text-white">Need more context?</h3>
             <ul className="mt-3 space-y-2 list-disc pl-4">
               <li>
                 <Link to="/assistant" className="text-slate-200 transition hover:text-white">
-                  Assistant ile sinyal açıklaması iste →
+                  Ask the assistant for a signal explanation →
                 </Link>
               </li>
               <li>
                 <Link to="/forum" className="text-slate-200 transition hover:text-white">
-                  Forumda strateji paylaşımlarını oku →
+                  Read community strategy threads →
                 </Link>
               </li>
               <li>
                 <Link to="/dashboard" className="text-slate-200 transition hover:text-white">
-                  Portföy görünümüne geri dön →
+                  Jump back to your overview →
                 </Link>
               </li>
             </ul>

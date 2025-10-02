@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { createTrade, fetchPortfolio, PortfolioResponse, Trade } from '@/services/api';
 
 const HERO_SUGGESTIONS = [
-  'Son işlemleri CSV olarak dışa aktar',
-  'Assistant’tan portföy riski yorumu iste',
-  'Otomasyon botlarının durumunu gözden geçir',
-  'Sinyal motoruyla uyumlu yeni kayıt ekle'
+  { label: 'Export the latest trades to CSV', action: 'export' as const },
+  { label: 'Ask the assistant for a portfolio risk review', href: '/assistant' },
+  { label: 'Check the status of automation bots', href: '/dashboard' },
+  { label: 'Add a ledger entry aligned with the signal engine', href: '#add-trade' }
 ];
 
 type TradeSide = 'BUY' | 'SELL';
@@ -43,7 +43,7 @@ const PortfolioPage = () => {
       const data = await fetchPortfolio();
       setPortfolio({ ...data, trades: data.trades ?? [] });
     } catch (err) {
-      const messageText = err instanceof Error ? err.message : 'Portföy verisi alınamadı';
+      const messageText = err instanceof Error ? err.message : 'Failed to fetch portfolio';
       setError(messageText);
     } finally {
       setLoading(false);
@@ -80,7 +80,7 @@ const PortfolioPage = () => {
       setMessage('İşlem kaydedildi.');
       await loadPortfolio();
     } catch (err) {
-      const messageText = err instanceof Error ? err.message : 'İşlem kaydedilemedi';
+      const messageText = err instanceof Error ? err.message : 'Failed to create trade';
       setMessage(messageText);
     }
   };
@@ -186,12 +186,12 @@ const PortfolioPage = () => {
     <div className="space-y-16">
       <section className="text-center">
         <header className="space-y-4">
-          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Portföy güncellemeleri</span>
+          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Portfolio updates</span>
           <h1 className="text-4xl font-semibold text-white sm:text-5xl">
-            İşlemlerini kaydet, riskini izle, otomasyonla senkron kal.
+            Log trades, monitor risk, stay in sync with automation.
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-400">
-            Cortexa sinyalleri ve otomasyonuyla hizalı bir ledger tut. Harici işlemleri kaydet, performansını filtrele ve gerektiğinde CSV olarak dışa aktar.
+            Keep a ledger aligned with Cortexa signals and automation flows. Record external fills, filter performance, and export whenever you need.
           </p>
         </header>
         <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
@@ -199,24 +199,50 @@ const PortfolioPage = () => {
             to="/signals"
             className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-medium text-black shadow-inner-glow transition hover:bg-slate-200"
           >
-            Sinyallere git
+            Go to signals
           </Link>
           <Link
             to="/assistant"
             className="inline-flex items-center gap-2 rounded-full border border-outline/50 px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
           >
-            Assistant’ı aç ↗
+            Open the assistant ↗
           </Link>
         </div>
         <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
-          {HERO_SUGGESTIONS.map((suggestion) => (
-            <span
-              key={suggestion}
-              className="rounded-2xl border border-outline/40 bg-surface px-4 py-2"
-            >
-              {suggestion}
-            </span>
-          ))}
+          {HERO_SUGGESTIONS.map((item) => {
+            if (item.action === 'export') {
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={handleExport}
+                  className="rounded-2xl border border-outline/40 bg-surface px-4 py-2 transition hover:border-outline hover:text-white"
+                >
+                  {item.label} ↗
+                </button>
+              );
+            }
+            if (item.href?.startsWith('#')) {
+              return (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="rounded-2xl border border-outline/40 bg-surface px-4 py-2 transition hover:border-outline hover:text-white"
+                >
+                  {item.label} ↗
+                </a>
+              );
+            }
+            return (
+              <Link
+                key={item.label}
+                to={item.href ?? '/'}
+                className="rounded-2xl border border-outline/40 bg-surface px-4 py-2 transition hover:border-outline hover:text-white"
+              >
+                {item.label} ↗
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -232,24 +258,24 @@ const PortfolioPage = () => {
       )}
 
       <section className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-        <article className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+        <article id="add-trade" className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <header className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-white">Yeni işlem kaydı</h2>
-              <p className="text-sm text-slate-400">Ledger’ına harici işlemleri ekle, istatistiklerini güncel tut.</p>
+              <h2 className="text-lg font-semibold text-white">Add a trade</h2>
+              <p className="text-sm text-slate-400">Log external fills and keep your analytics in sync.</p>
             </div>
             {meta && (
               <div className="grid gap-1 text-right text-xs text-slate-400">
-                <span>Toplam işlem: <span className="text-slate-200">{meta.count}</span></span>
-                <span>Net pozisyon: <span className="text-slate-200">{meta.net.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</span></span>
-                <span>Hacim: <span className="text-slate-200">{meta.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span></span>
+                <span>Total trades: <span className="text-slate-200">{meta.count}</span></span>
+                <span>Net exposure: <span className="text-slate-200">{meta.net.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</span></span>
+                <span>Volume: <span className="text-slate-200">{meta.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span></span>
               </div>
             )}
           </header>
 
           <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
             <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Sembol
+              Symbol
               <input
                 value={form.symbol}
                 onChange={(event) => setForm((prev) => ({ ...prev, symbol: event.target.value.toUpperCase() }))}
@@ -257,7 +283,7 @@ const PortfolioPage = () => {
               />
             </label>
             <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Yön
+              Side
               <select
                 value={form.side}
                 onChange={(event) => setForm((prev) => ({ ...prev, side: event.target.value as TradeSide }))}
@@ -268,7 +294,7 @@ const PortfolioPage = () => {
               </select>
             </label>
             <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Miktar
+              Quantity
               <input
                 type="number"
                 min="0"
@@ -279,7 +305,7 @@ const PortfolioPage = () => {
               />
             </label>
             <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Fiyat
+              Price
               <input
                 type="number"
                 min="0"
@@ -290,12 +316,12 @@ const PortfolioPage = () => {
               />
             </label>
             <div className="sm:col-span-2 flex items-center justify-between text-xs text-slate-500">
-              <span>Binance dışında gerçekleşen işlemleri de kaydedebilirsin.</span>
+              <span>Log fills executed outside of automation to keep the ledger complete.</span>
               <button
                 type="submit"
                 className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200"
               >
-                Kaydet
+                Save trade
               </button>
             </div>
             {formError && <p className="sm:col-span-2 text-xs text-rose-300">{formError}</p>}
@@ -303,36 +329,36 @@ const PortfolioPage = () => {
         </article>
 
         <aside className="space-y-6">
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-            <h3 className="text-lg font-semibold text-white">Filtreler</h3>
+          <div id="filters" className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+            <h3 className="text-lg font-semibold text-white">Filters</h3>
             <div className="mt-4 grid gap-3 text-sm text-slate-300">
               <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
-                Sembol
+                Symbol
                 <select
                   value={filters.symbol}
                   onChange={(event) => setFilters((prev) => ({ ...prev, symbol: event.target.value }))}
                   className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="ALL">Tümü</option>
+                  <option value="ALL">All</option>
                   {availableSymbols.map((symbol) => (
                     <option key={symbol} value={symbol}>{symbol}</option>
                   ))}
                 </select>
               </label>
               <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
-                Yön
+                Side
                 <select
                   value={filters.side}
                   onChange={(event) => setFilters((prev) => ({ ...prev, side: event.target.value }))}
                   className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="ALL">Tümü</option>
+                  <option value="ALL">All</option>
                   <option value="BUY">BUY</option>
                   <option value="SELL">SELL</option>
                 </select>
               </label>
               <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
-                Başlangıç
+                Start date
                 <input
                   type="date"
                   value={filters.startDate}
@@ -341,7 +367,7 @@ const PortfolioPage = () => {
                 />
               </label>
               <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
-                Bitiş
+                End date
                 <input
                   type="date"
                   value={filters.endDate}
@@ -354,31 +380,31 @@ const PortfolioPage = () => {
                 onClick={() => setFilters(defaultFilters)}
                 className="rounded-full border border-outline/50 px-4 py-2 text-xs text-slate-300 transition hover:border-outline hover:text-white"
               >
-                Sıfırla
+                Reset
               </button>
               <button
                 type="button"
                 onClick={handleExport}
                 className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-inner-glow transition hover:bg-slate-200"
               >
-                CSV dışa aktar
+                Export CSV
               </button>
               <div className="rounded-2xl border border-outline/30 bg-muted/60 p-4 text-xs text-slate-300">
-                <p>Filtrelenen işlemler</p>
-                <p className="mt-1 text-white">{filteredSummary.count} adet • {filteredSummary.volume.toFixed(4)} hacim</p>
+                <p>Filtered trades</p>
+                <p className="mt-1 text-white">{filteredSummary.count} records • {filteredSummary.volume.toFixed(4)} volume</p>
                 <p className="text-white">Net {filteredSummary.net.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</p>
               </div>
             </div>
           </div>
 
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
-            <h3 className="text-lg font-semibold text-white">İpuçları</h3>
+            <h3 className="text-lg font-semibold text-white">Tips</h3>
             <ul className="mt-3 space-y-2 list-disc pl-4">
-              <li>Ledger ve sinyal motoru senkronu için tüm harici işlemleri kaydet.</li>
-              <li>Filtreleri kullanarak belirli bot ya da sembol performansını incele.</li>
-              <li>CSV çıktısını analitik not defterine aktararak rapor hazırlayabilirsin.</li>
+              <li>Record every external trade to stay aligned with the signal engine.</li>
+              <li>Use filters to inspect performance for a specific bot or symbol.</li>
+              <li>Export CSV data into notebooks or dashboards for deeper analysis.</li>
             </ul>
-            <p className="mt-3 text-[11px] text-slate-500">Enterprise planında özel entegrasyonlarla otomatik senkronizasyon mümkündür.</p>
+            <p className="mt-3 text-[11px] text-slate-500">Enterprise unlocks automated sync integrations.</p>
           </div>
         </aside>
       </section>
@@ -386,19 +412,19 @@ const PortfolioPage = () => {
       <section className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-white">İşlem geçmişi</h2>
-            <p className="text-sm text-slate-400">Filtre sonuçlarını aşağıda görürsün. En yeni kayıtlar listenin sonunda.</p>
+            <h2 className="text-lg font-semibold text-white">Trade history</h2>
+            <p className="text-sm text-slate-400">Filtered results appear below. The newest entries sit at the end of the list.</p>
           </div>
         </header>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-sm text-slate-300">
             <thead>
               <tr className="border-b border-outline/30 text-xs uppercase tracking-[0.28em] text-slate-500">
-                <th className="px-3 py-2 text-left">Sembol</th>
-                <th className="px-3 py-2 text-left">Yön</th>
-                <th className="px-3 py-2 text-right">Miktar</th>
-                <th className="px-3 py-2 text-right">Fiyat</th>
-                <th className="px-3 py-2 text-left">Tarih</th>
+                <th className="px-3 py-2 text-left">Symbol</th>
+                <th className="px-3 py-2 text-left">Side</th>
+                <th className="px-3 py-2 text-right">Qty</th>
+                <th className="px-3 py-2 text-right">Price</th>
+                <th className="px-3 py-2 text-left">Timestamp</th>
               </tr>
             </thead>
             <tbody>
@@ -417,7 +443,7 @@ const PortfolioPage = () => {
               ) : (
                 <tr>
                   <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
-                    Bu filtrelerle eşleşen kayıt bulunamadı.
+                    No trades match the current filters.
                   </td>
                 </tr>
               )}

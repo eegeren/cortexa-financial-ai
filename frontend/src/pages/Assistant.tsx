@@ -27,7 +27,7 @@ const AssistantPage = () => {
   const [messages, setMessages] = useState<Message[]>(() => [
     createMessage(
       'assistant',
-      'Merhaba! Cortexa Assistant. Piyasa yorumu, sinyal açıklaması veya otomasyon planı mı istiyorsun? Sorularını yaz, beraber çözelim.',
+      'Hello! I’m Cortexa Assistant. Need market context, a signal breakdown, or an automation checklist? Drop it here and we’ll tackle it together.',
       { isIntro: true }
     ),
   ]);
@@ -38,10 +38,10 @@ const AssistantPage = () => {
 
   const quickPrompts = useMemo(
     () => [
-      'BTC için bugün hangi volatilite rejimi geçerli?',
-      'ETH sinyallerini 4 saatlik ufukta özetle',
-      'Otomasyona eklemem gereken risk kontrolü nedir?',
-      'Son 10 işlemimin performansını ve net getiriyi hesapla'
+      'What volatility regime is BTC trading in today?',
+      'Summarise ETH signals on a 4h horizon',
+      'Recommend risk controls before I arm automation',
+      'Analyse the result of my last 10 trades'
     ],
     []
   );
@@ -72,13 +72,13 @@ const AssistantPage = () => {
       ];
       const response = await sendChat(payload, ASSISTANT_MODEL);
       if (!response.ok) {
-        setError(response.reason ?? 'Assistant kullanılamıyor');
+        setError(response.reason ?? 'Assistant unavailable');
         return;
       }
       const assistantMessage = createMessage('assistant', response.reply);
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Assistant’a ulaşılamadı';
+      const message = err instanceof Error ? err.message : 'Failed to reach the assistant';
       setError(message);
     } finally {
       setPending(false);
@@ -105,12 +105,12 @@ const AssistantPage = () => {
   }
 
   if (!canAccess) {
-    return <Paywall title="Premium özelliği" description="Assistant’a erişmek için planınızı yükseltin." />;
+    return <Paywall title="Premium feature" description="Upgrade your plan to unlock the Cortexa Assistant." />;
   }
 
   const description = trialDays > 0
-    ? `Durum: ${status}. Deneme süresi ${trialDays} gün.`
-    : 'Sinyal açıklaması, otomasyon planı ve risk rehberliği için assistant ile sohbet et.';
+    ? `Status: ${status}. Trial remaining ${trialDays} day${trialDays === 1 ? '' : 's'}.`
+    : 'Chat with the assistant for signal explanations, automation planning, and risk guidance.';
 
   return (
     <div className="space-y-16">
@@ -118,7 +118,7 @@ const AssistantPage = () => {
         <header className="space-y-4">
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Cortexa Assistant</span>
           <h1 className="text-4xl font-semibold text-white sm:text-5xl">
-            Sorularına yanıt al, araştırmayı hızlandır, planını keskinleştir.
+            Get answers fast, sharpen strategy, stay in the groove.
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-400">{description}</p>
         </header>
@@ -157,8 +157,8 @@ const AssistantPage = () => {
                         : 'border-white/60 bg-white/90 text-black'
                     }`}
                   >
-                    {message.content}
-                  </div>
+                  {message.content}
+                </div>
                   {message.role === 'user' && (
                     <div
                       className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/50 bg-surface text-xs font-semibold uppercase text-slate-300"
@@ -188,12 +188,12 @@ const AssistantPage = () => {
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Assistant’a sorunu yaz..."
+              placeholder="Type your request for the assistant..."
               className="w-full rounded-2xl border border-outline/40 bg-canvas/70 px-4 py-3 text-sm text-ink placeholder:text-slate-500 focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
               rows={3}
             />
             <div className="flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-              <p>Assistant yanıtları rehber niteliğindedir, yatırım tavsiyesi değildir.</p>
+              <p>Assistant responses are guidance, not investment advice.</p>
               <button
                 type="submit"
                 className="inline-flex items-center gap-2 self-start rounded-full bg-white px-4 py-2 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
@@ -202,10 +202,10 @@ const AssistantPage = () => {
                 {pending ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/20 border-t-black" aria-hidden />
-                    <span>Düşünüyor</span>
+                    <span>Thinking</span>
                   </>
                 ) : (
-                  'Gönder'
+                  'Send'
                 )}
               </button>
             </div>
@@ -215,15 +215,15 @@ const AssistantPage = () => {
 
         <aside className="space-y-6">
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-            <h2 className="text-lg font-semibold text-white">Oturum istatistikleri</h2>
-            <p className="mt-1 text-sm text-slate-400">Assistant ile kaç mesaj paylaştığını takip et.</p>
+            <h2 className="text-lg font-semibold text-white">Session stats</h2>
+            <p className="mt-1 text-sm text-slate-400">Track how much you’ve talked to the assistant this session.</p>
             <dl className="mt-4 space-y-3 text-sm text-slate-300">
               <div className="flex items-center justify-between">
-                <dt>Kendi soruların</dt>
+                <dt>Your prompts</dt>
                 <dd className="text-white">{usageStats.userMessages}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt>Assistant yanıtları</dt>
+                <dt>Assistant replies</dt>
                 <dd className="text-white">{usageStats.assistantMessages}</dd>
               </div>
               <div className="flex items-center justify-between">
@@ -231,36 +231,36 @@ const AssistantPage = () => {
                 <dd className="text-white">{plan?.toUpperCase() ?? 'STARTER'}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt>Deneme</dt>
-                <dd className="text-white">{trialDays > 0 ? `${trialDays} gün` : '—'}</dd>
+                <dt>Trial</dt>
+                <dd className="text-white">{trialDays > 0 ? `${trialDays} day${trialDays === 1 ? '' : 's'}` : '—'}</dd>
               </div>
             </dl>
           </div>
 
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-            <h2 className="text-lg font-semibold text-white">Hızlı aksiyonlar</h2>
-            <p className="mt-1 text-sm text-slate-400">Araştırma döngünü hızlandır.</p>
+            <h2 className="text-lg font-semibold text-white">Quick actions</h2>
+            <p className="mt-1 text-sm text-slate-400">Jump to other parts of your workspace.</p>
             <div className="mt-4 space-y-2 text-xs text-accent">
               <Link to="/signals" className="block transition hover:text-white">
-                Canlı sinyallere git →
+                Go to live signals →
               </Link>
               <Link to="/dashboard" className="block transition hover:text-white">
-                Portföy görünümünü aç →
+                Open your overview →
               </Link>
               <Link to="/forum" className="block transition hover:text-white">
-                Topluluk stratejilerini oku →
+                Browse community strategies →
               </Link>
             </div>
           </div>
 
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
-            <h2 className="text-lg font-semibold text-white">Rehberlik</h2>
+            <h2 className="text-lg font-semibold text-white">Guidance</h2>
             <ul className="mt-3 space-y-2 list-disc pl-4">
-              <li>Varlık, zaman dilimi ve hedef ufku net belirt.</li>
-              <li>Risk parametrelerini (stop, maks. DD) paylaş.</li>
-              <li>Önceki yanıtı referans göstererek rafine talep oluştur.</li>
+              <li>Always specify asset, timeframe, and target horizon.</li>
+              <li>Share risk parameters (stop size, max drawdown) for tailored guidance.</li>
+              <li>Reference previous replies when you need refined answers.</li>
             </ul>
-            <p className="mt-3 text-[11px] text-slate-500">Enterprise planında özel veri entegrasyonu ve fine-tuned modeller.</p>
+            <p className="mt-3 text-[11px] text-slate-500">Enterprise plans unlock private data feeds and fine-tuned assistants.</p>
           </div>
         </aside>
       </section>
