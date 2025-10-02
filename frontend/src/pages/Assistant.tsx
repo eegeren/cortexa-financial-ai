@@ -9,21 +9,28 @@ import useSubscriptionAccess from '@/hooks/useSubscriptionAccess';
 interface Message extends ChatMessagePayload {
   id: string;
   createdAt: number;
+  isIntro?: boolean;
 }
 
-const createMessage = (role: Message['role'], content: string): Message => ({
+const createMessage = (role: Message['role'], content: string, extras: Partial<Message> = {}): Message => ({
   id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   role,
   content,
   createdAt: Date.now(),
+  ...extras,
 });
+
+const SYSTEM_PROMPT = `You are Cortexa Assistant, a trading co-pilot. Provide concise, data-driven insights using clear bullet points when useful. Reference signal-derived metrics when the user asks about performance, highlight risk management, and remind users to validate with their own research when suggesting strategies. Refuse anything unrelated to trading, markets, or product support.`;
+
+const ASSISTANT_MODEL = import.meta.env.VITE_ASSISTANT_MODEL;
 
 const AssistantPage = () => {
   const { loading: subscriptionLoading, canAccess, status, trialDays, initialized, plan } = useSubscriptionAccess();
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>(() => [
     createMessage(
       'assistant',
-      'Hi there! I am Cortexa Assistant. Ask me about market structure, strategy ideas, or how to interpret the latest AI signals.'
+      'Hi there! I am Cortexa Assistant. Ask me about market structure, strategy ideas, or how to interpret the latest AI signals.',
+      { isIntro: true }
     ),
   ]);
   const [input, setInput] = useState('');
@@ -43,8 +50,11 @@ const AssistantPage = () => {
     setPending(true);
 
     try {
-      const chatHistory: ChatMessagePayload[] = [...messages, userMessage].map(({ role, content }) => ({ role, content }));
-      const response = await sendChat(chatHistory);
+      const chatHistory: ChatMessagePayload[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...[...messages, userMessage].filter((message) => !message.isIntro).map(({ role, content }) => ({ role, content })),
+      ];
+      const response = await sendChat(chatHistory, ASSISTANT_MODEL);
       if (!response.ok) {
         setError(response.reason ?? 'Assistant unavailable.');
         return;
