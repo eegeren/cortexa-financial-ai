@@ -7,7 +7,6 @@ import MetricCard from '@/components/MetricCard';
 import TrendChart from '@/components/TrendChart';
 import { useToast } from '@/components/ToastProvider';
 import { useI18n } from '@/context/I18nContext';
-import SubscriptionCallout from '@/components/SubscriptionCallout';
 import Skeleton from '@/components/Skeleton';
 import useSubscriptionAccess from '@/hooks/useSubscriptionAccess';
 import LockedFeature from '@/components/LockedFeature';
@@ -27,6 +26,7 @@ const DashboardPage = () => {
   const role = useAuthStore((state) => state.role);
   const subscriptionAccess = useSubscriptionAccess();
   const premiumLocked = subscriptionAccess.initialized ? !subscriptionAccess.canAccess && role !== 'admin' : false;
+  const isPremium = !premiumLocked;
 
   useEffect(() => {
     const load = async () => {
@@ -186,7 +186,78 @@ const DashboardPage = () => {
         }
       />
 
-      <SubscriptionCallout />
+      {!isPremium && (
+        <Card className="relative overflow-hidden border border-primary/30 bg-slate-900/70 p-6 shadow-lg shadow-primary/10">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(1200px_400px_at_50%_-120px,rgba(59,130,246,0.18),transparent)]" />
+          <div className="relative grid gap-6 lg:grid-cols-[2fr_1fr]">
+            <div className="space-y-5">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] uppercase tracking-[0.35em] text-primary/80">
+                Upgrade to unlock
+              </span>
+              <h2 className="text-2xl font-semibold text-white sm:text-3xl">
+                Cortexa Pro ile sınırsız assistant, gelişmiş backtest ve otomasyon.
+              </h2>
+              <p className="text-sm text-slate-300">
+                Premium katmanda sınırsız GPT sohbeti, tüm piyasa kapsamı, parametre sweep raporları ve otomatik trade tetikleyicileri aktif olur. Enterprise ile özel entegrasyonları devreye alabilirsiniz.
+              </p>
+              <div className="grid gap-3 text-xs text-slate-200 sm:grid-cols-2">
+                {[
+                  'Sınırsız Cortexa Assistant sohbeti',
+                  'Tüm marketlerde canlı AI sinyal akışı',
+                  'Gelişmiş backtest & parametrik sweep dashboard’u',
+                  'Webhook tabanlı otomasyon ve API erişimi',
+                ].map((benefit) => (
+                  <div key={benefit} className="flex items-center gap-2 rounded-lg border border-slate-800/70 bg-slate-900/60 p-3">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-primary">✓</span>
+                    <span>{benefit}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  to="/pricing"
+                  className="inline-flex items-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white shadow-primary/30 transition hover:bg-primary/80"
+                >
+                  Planları karşılaştır
+                </Link>
+                <Link
+                  to="/billing"
+                  className="inline-flex items-center rounded-full border border-slate-700 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-primary hover:text-white"
+                >
+                  Fatura ve portalı aç
+                </Link>
+                <Link
+                  to="/assistant"
+                  className="inline-flex items-center rounded-full border border-slate-700 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-primary hover:text-white"
+                >
+                  Assistant demoyu gör
+                </Link>
+              </div>
+            </div>
+            <div className="space-y-4 rounded-2xl border border-primary/40 bg-slate-950/80 p-5 text-sm text-slate-200">
+              <h3 className="text-sm font-semibold text-white">Plan özetleri</h3>
+              <div className="space-y-3 text-xs">
+                <div className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Starter</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Ücretsiz</p>
+                  <p className="mt-1 text-slate-400">Temel sinyaller, limitli chat, manuel trade kaydı</p>
+                </div>
+                <div className="rounded-xl border border-primary/40 bg-primary/10 p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-primary/80">Pro</p>
+                  <p className="mt-1 text-sm font-semibold text-white">$99 / ay*</p>
+                  <p className="mt-1 text-slate-200">Sınırsız assistant, otomasyon, tam piyasa kapsamı</p>
+                </div>
+                <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-amber-300">Enterprise</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Teklif al</p>
+                  <p className="mt-1 text-slate-100">Özel veri, çoklu koltuk, uyumluluk ve SLA</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500">* Yıllık ödemede 2 ay ücretsiz. Bağlantıları kendi ödeme sayfan ile güncelleyebilirsin.</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="relative overflow-hidden border border-slate-800/70 bg-slate-900/60 p-6 backdrop-blur-sm hover:border-slate-700/70 transition">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
