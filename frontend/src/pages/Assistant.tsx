@@ -27,7 +27,7 @@ const AssistantPage = () => {
   const [messages, setMessages] = useState<Message[]>(() => [
     createMessage(
       'assistant',
-      'Hello, I’m Cortexa Assistant. Ask about market structure, signal rationale, or how to deploy automation. I can also draft execution checklists for you.',
+      'Merhaba! Cortexa Assistant. Piyasa yorumu, sinyal açıklaması veya otomasyon planı mı istiyorsun? Sorularını yaz, beraber çözelim.',
       { isIntro: true }
     ),
   ]);
@@ -38,10 +38,10 @@ const AssistantPage = () => {
 
   const quickPrompts = useMemo(
     () => [
-      'Summarise today’s BTC regime shift and signal bias.',
-      'Give me a checklist before arming ETH auto-trade.',
-      'Compare SOL vs. AVAX signals for the next 6 hours.',
-      'What drawdown safeguards should I use for my futures desk?',
+      'BTC için bugün hangi volatilite rejimi geçerli?',
+      'ETH sinyallerini 4 saatlik ufukta özetle',
+      'Otomasyona eklemem gereken risk kontrolü nedir?',
+      'Son 10 işlemimin performansını ve net getiriyi hesapla'
     ],
     []
   );
@@ -72,13 +72,13 @@ const AssistantPage = () => {
       ];
       const response = await sendChat(payload, ASSISTANT_MODEL);
       if (!response.ok) {
-        setError(response.reason ?? 'Assistant unavailable');
+        setError(response.reason ?? 'Assistant kullanılamıyor');
         return;
       }
       const assistantMessage = createMessage('assistant', response.reply);
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to reach assistant';
+      const message = err instanceof Error ? err.message : 'Assistant’a ulaşılamadı';
       setError(message);
     } finally {
       setPending(false);
@@ -98,65 +98,53 @@ const AssistantPage = () => {
   if (loading || !initialized) {
     return (
       <div className="space-y-6">
-        <div className="h-6 w-40 rounded-full bg-surface/60 animate-pulse" />
-        <div className="h-[520px] rounded-3xl border border-outline/40 bg-surface/70 animate-pulse" />
+        <div className="h-5 w-40 rounded-full bg-muted/80 animate-pulse" />
+        <div className="h-[520px] rounded-3xl border border-outline/40 bg-surface animate-pulse" />
       </div>
     );
   }
 
   if (!canAccess) {
-    return <Paywall title="Premium feature" description="Upgrade to Pro or Enterprise to unlock Cortexa Assistant." />;
+    return <Paywall title="Premium özelliği" description="Assistant’a erişmek için planınızı yükseltin." />;
   }
 
   const description = trialDays > 0
-    ? `Status: ${status}. Trial remaining ${trialDays} day${trialDays === 1 ? '' : 's'}.`
-    : 'Get market context, interpret signals, or draft execution playbooks in seconds.';
+    ? `Durum: ${status}. Deneme süresi ${trialDays} gün.`
+    : 'Sinyal açıklaması, otomasyon planı ve risk rehberliği için assistant ile sohbet et.';
 
   return (
-    <div className="space-y-14">
-      <section className="rounded-3xl border border-outline/40 bg-surface/70 p-8 shadow-elevation-soft backdrop-blur">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full border border-outline/60 bg-surface/70 px-3 py-1 text-xs uppercase tracking-[0.4em] text-slate-400">
-              Cortexa assistant
-            </span>
-            <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-              Converse with your trading co-pilot for instant strategy support.
-            </h1>
-            <p className="max-w-2xl text-base text-slate-300">{description}</p>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-              <span className="rounded-full border border-outline/50 px-3 py-1">Model: {ASSISTANT_MODEL ?? 'gpt-4o-mini'}</span>
-              <span className="rounded-full border border-outline/50 px-3 py-1">Plan: {plan?.toUpperCase() ?? 'STARTER'}</span>
-              <span className="rounded-full border border-outline/50 px-3 py-1">Messages: {usageStats.userMessages}</span>
-            </div>
-          </div>
-          <div className="w-full max-w-sm rounded-2xl border border-outline/30 bg-surface/80 p-6 shadow-inner-glow">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-400">Quick prompts</h2>
-            <div className="mt-4 flex flex-col gap-2 text-sm">
-              {quickPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => handlePrompt(prompt)}
-                  className="rounded-xl border border-outline/40 bg-surface/60 px-3 py-2 text-left text-slate-200 transition hover:border-outline hover:text-white"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
+    <div className="space-y-16">
+      <section className="text-center">
+        <header className="space-y-4">
+          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Cortexa Assistant</span>
+          <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+            Sorularına yanıt al, araştırmayı hızlandır, planını keskinleştir.
+          </h1>
+          <p className="mx-auto max-w-2xl text-sm text-slate-400">{description}</p>
+        </header>
+        <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
+          {quickPrompts.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => handlePrompt(prompt)}
+              className="rounded-2xl border border-outline/50 bg-surface px-4 py-2 text-left text-slate-200 transition hover:border-outline hover:text-white"
+            >
+              {prompt} ↗
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <article className="rounded-3xl border border-outline/40 bg-surface/70 p-6 shadow-elevation-soft">
+      <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <article className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <div ref={scrollRef} className="h-[520px] overflow-y-auto pr-1">
             <div className="space-y-6">
               {messages.map((message) => (
                 <div key={message.id} className={`flex gap-3 ${message.role === 'assistant' ? '' : 'justify-end'}`}>
                   {message.role === 'assistant' && (
                     <div
-                      className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/50 bg-surface/80 text-xs font-semibold uppercase text-primary"
+                      className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/50 bg-surface text-xs font-semibold uppercase text-white"
                       aria-hidden="true"
                     >
                       AI
@@ -165,15 +153,15 @@ const AssistantPage = () => {
                   <div
                     className={`max-w-lg rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-inner-glow transition ${
                       message.role === 'assistant'
-                        ? 'border-outline/40 bg-surface/80 text-slate-100'
-                        : 'border-primary/30 bg-primary/20 text-white'
+                        ? 'border-outline/40 bg-muted/60 text-slate-200'
+                        : 'border-white/60 bg-white/90 text-black'
                     }`}
                   >
                     {message.content}
                   </div>
                   {message.role === 'user' && (
                     <div
-                      className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/50 bg-surface/80 text-xs font-semibold uppercase text-slate-300"
+                      className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/50 bg-surface text-xs font-semibold uppercase text-slate-300"
                       aria-hidden="true"
                     >
                       You
@@ -183,13 +171,13 @@ const AssistantPage = () => {
               ))}
               {pending && (
                 <div className="flex gap-3">
-                  <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/50 bg-surface/80 text-xs font-semibold uppercase text-primary">
+                  <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/50 bg-surface text-xs font-semibold uppercase text-white">
                     AI
                   </div>
-                  <div className="flex w-full max-w-lg items-center gap-1 rounded-2xl border border-outline/40 bg-surface/80 px-4 py-3 text-sm text-slate-200">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:120ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:240ms]" />
+                  <div className="flex w-full max-w-lg items-center gap-1 rounded-2xl border border-outline/40 bg-muted/60 px-4 py-3 text-sm text-slate-200">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white [animation-delay:120ms]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white [animation-delay:240ms]" />
                   </div>
                 </div>
               )}
@@ -200,24 +188,24 @@ const AssistantPage = () => {
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Ask for signal breakdowns, plan automations, or risk guidance..."
-              className="w-full rounded-2xl border border-outline/40 bg-canvas/70 px-4 py-3 text-sm text-ink placeholder:text-slate-500 focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary/60"
+              placeholder="Assistant’a sorunu yaz..."
+              className="w-full rounded-2xl border border-outline/40 bg-canvas/70 px-4 py-3 text-sm text-ink placeholder:text-slate-500 focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
               rows={3}
             />
             <div className="flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-              <p>Assistant responses complement — not replace — your own diligence.</p>
+              <p>Assistant yanıtları rehber niteliğindedir, yatırım tavsiyesi değildir.</p>
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 self-start rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 self-start rounded-full bg-white px-4 py-2 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={pending || !input.trim()}
               >
                 {pending ? (
                   <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-hidden />
-                    <span>Thinking</span>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/20 border-t-black" aria-hidden />
+                    <span>Düşünüyor</span>
                   </>
                 ) : (
-                  'Send message'
+                  'Gönder'
                 )}
               </button>
             </div>
@@ -225,54 +213,54 @@ const AssistantPage = () => {
           </form>
         </article>
 
-        <aside className="flex flex-col gap-6">
-          <div className="rounded-3xl border border-outline/40 bg-surface/70 p-6 shadow-elevation-soft">
-            <h2 className="text-lg font-semibold text-white">Session stats</h2>
-            <p className="mt-1 text-sm text-slate-400">Track how many prompts you’ve fired during this desk session.</p>
-            <dl className="mt-4 space-y-3 text-sm">
+        <aside className="space-y-6">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+            <h2 className="text-lg font-semibold text-white">Oturum istatistikleri</h2>
+            <p className="mt-1 text-sm text-slate-400">Assistant ile kaç mesaj paylaştığını takip et.</p>
+            <dl className="mt-4 space-y-3 text-sm text-slate-300">
               <div className="flex items-center justify-between">
-                <dt className="text-slate-400">Your prompts</dt>
+                <dt>Kendi soruların</dt>
                 <dd className="text-white">{usageStats.userMessages}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-slate-400">Assistant replies</dt>
+                <dt>Assistant yanıtları</dt>
                 <dd className="text-white">{usageStats.assistantMessages}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-slate-400">Current plan</dt>
+                <dt>Plan</dt>
                 <dd className="text-white">{plan?.toUpperCase() ?? 'STARTER'}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-slate-400">Trial remaining</dt>
-                <dd className="text-white">{trialDays > 0 ? `${trialDays} day${trialDays === 1 ? '' : 's'}` : '—'}</dd>
+                <dt>Deneme</dt>
+                <dd className="text-white">{trialDays > 0 ? `${trialDays} gün` : '—'}</dd>
               </div>
             </dl>
           </div>
 
-          <div className="rounded-3xl border border-outline/40 bg-surface/70 p-6 shadow-elevation-soft">
-            <h2 className="text-lg font-semibold text-white">Workflow shortcuts</h2>
-            <p className="mt-1 text-sm text-slate-400">Keep your research loop tight across the platform.</p>
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+            <h2 className="text-lg font-semibold text-white">Hızlı aksiyonlar</h2>
+            <p className="mt-1 text-sm text-slate-400">Araştırma döngünü hızlandır.</p>
             <div className="mt-4 space-y-2 text-xs text-accent">
               <Link to="/signals" className="block transition hover:text-white">
-                Jump to live signals →
+                Canlı sinyallere git →
               </Link>
               <Link to="/dashboard" className="block transition hover:text-white">
-                Review portfolio posture →
+                Portföy görünümünü aç →
               </Link>
               <Link to="/forum" className="block transition hover:text-white">
-                Browse trading playbooks →
+                Topluluk stratejilerini oku →
               </Link>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-outline/40 bg-surface/70 p-6 shadow-elevation-soft text-xs text-slate-300">
-            <h2 className="text-lg font-semibold text-white">Best practices</h2>
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
+            <h2 className="text-lg font-semibold text-white">Rehberlik</h2>
             <ul className="mt-3 space-y-2 list-disc pl-4">
-              <li>Always mention the asset, timeframe, and horizon you’re targeting.</li>
-              <li>Share risk parameters (stop size, max drawdown) for tailored guidance.</li>
-              <li>Reference previous replies if you need refined or follow-up context.</li>
+              <li>Varlık, zaman dilimi ve hedef ufku net belirt.</li>
+              <li>Risk parametrelerini (stop, maks. DD) paylaş.</li>
+              <li>Önceki yanıtı referans göstererek rafine talep oluştur.</li>
             </ul>
-            <p className="mt-3 text-[11px] text-slate-500">Enterprise adds private data feeds and bespoke fine-tuned assistants.</p>
+            <p className="mt-3 text-[11px] text-slate-500">Enterprise planında özel veri entegrasyonu ve fine-tuned modeller.</p>
           </div>
         </aside>
       </section>

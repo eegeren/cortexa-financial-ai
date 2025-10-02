@@ -1,22 +1,29 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import PageHeader from '@/components/PageHeader';
-import Card from '@/components/Card';
-import Spinner from '@/components/Spinner';
-import Banner from '@/components/Banner';
-import { createTrade, fetchPortfolio, PortfolioResponse, Trade } from '@/services/api';
 import { Link } from 'react-router-dom';
+import { createTrade, fetchPortfolio, PortfolioResponse, Trade } from '@/services/api';
 
-const topSymbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'];
-const symbolLabels: Record<string, string> = {
-  BTCUSDT: 'Bitcoin',
-  ETHUSDT: 'Ethereum',
-  SOLUSDT: 'Solana',
-  AVAXUSDT: 'Avalanche',
-  XRPUSDT: 'XRP',
-  DOGEUSDT: 'Dogecoin'
-};
+const HERO_SUGGESTIONS = [
+  'Son işlemleri CSV olarak dışa aktar',
+  'Assistant’tan portföy riski yorumu iste',
+  'Otomasyon botlarının durumunu gözden geçir',
+  'Sinyal motoruyla uyumlu yeni kayıt ekle'
+];
 
 type TradeSide = 'BUY' | 'SELL';
+
+type FilterState = {
+  symbol: string;
+  side: string;
+  startDate: string;
+  endDate: string;
+};
+
+const defaultFilters: FilterState = {
+  symbol: 'ALL',
+  side: 'ALL',
+  startDate: '',
+  endDate: ''
+};
 
 const PortfolioPage = () => {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
@@ -27,7 +34,7 @@ const PortfolioPage = () => {
   const [form, setForm] = useState<{ symbol: string; side: TradeSide; qty: number; price: number }>(
     { symbol: 'BTCUSDT', side: 'BUY', qty: 0.001, price: 0 }
   );
-  const [filters, setFilters] = useState({ symbol: 'ALL', side: 'ALL', startDate: '', endDate: '' });
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
 
   const loadPortfolio = async () => {
     setLoading(true);
@@ -36,7 +43,7 @@ const PortfolioPage = () => {
       const data = await fetchPortfolio();
       setPortfolio({ ...data, trades: data.trades ?? [] });
     } catch (err) {
-      const messageText = err instanceof Error ? err.message : 'Failed to fetch portfolio';
+      const messageText = err instanceof Error ? err.message : 'Portföy verisi alınamadı';
       setError(messageText);
     } finally {
       setLoading(false);
@@ -56,50 +63,49 @@ const PortfolioPage = () => {
     const qty = Number(form.qty);
     const price = Number(form.price);
     if (symbol.length < 3) {
-      setFormError('Symbol must be at least 3 characters.');
+      setFormError('Sembol en az 3 karakter olmalı.');
       return;
     }
     if (Number.isNaN(qty) || qty <= 0) {
-      setFormError('Quantity must be a positive number.');
+      setFormError('Miktar pozitif olmalı.');
       return;
     }
     if (Number.isNaN(price) || price < 0) {
-      setFormError('Price cannot be negative.');
+      setFormError('Fiyat negatif olamaz.');
       return;
     }
 
     try {
       await createTrade({ ...form, symbol, qty, price });
-      setMessage('Trade added successfully.');
+      setMessage('İşlem kaydedildi.');
       await loadPortfolio();
     } catch (err) {
-      const messageText = err instanceof Error ? err.message : 'Failed to create trade';
+      const messageText = err instanceof Error ? err.message : 'İşlem kaydedilemedi';
       setMessage(messageText);
     }
   };
 
+  const trades = useMemo(() => (portfolio?.trades ?? []) as Trade[], [portfolio]);
+
   const meta = useMemo(() => {
-    if (!portfolio) {
+    if (!trades.length) {
       return null;
     }
-    const trades = (portfolio.trades ?? []) as Trade[];
-    const volume = trades.reduce<number>((acc, trade) => acc + trade.qty, 0);
-    const net = trades.reduce<number>(
+    const volume = trades.reduce((acc, trade) => acc + trade.qty, 0);
+    const net = trades.reduce(
       (acc, trade) => acc + (trade.side === 'BUY' ? trade.qty * trade.price : -trade.qty * trade.price),
       0
     );
-    const last = trades[0];
+    const last = trades[trades.length - 1];
     return { count: trades.length, volume, net, last };
-  }, [portfolio]);
+  }, [trades]);
 
   const availableSymbols = useMemo(() => {
-    const trades = (portfolio?.trades ?? []) as Trade[];
-    const uniques = new Set(trades.map((trade) => trade.symbol));
-    return Array.from(uniques).sort();
-  }, [portfolio]);
+    const unique = new Set(trades.map((trade) => trade.symbol));
+    return Array.from(unique).sort();
+  }, [trades]);
 
   const filteredTrades = useMemo(() => {
-    const trades = (portfolio?.trades ?? []) as Trade[];
     if (!trades.length) {
       return [];
     }
@@ -123,7 +129,7 @@ const PortfolioPage = () => {
       }
       return true;
     });
-  }, [filters, portfolio]);
+  }, [filters, trades]);
 
   const filteredSummary = useMemo(() => {
     if (!filteredTrades.length) {
@@ -167,293 +173,258 @@ const PortfolioPage = () => {
     URL.revokeObjectURL(url);
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-6 w-60 rounded-full bg-muted/80 animate-pulse" />
+        <div className="h-64 rounded-3xl border border-outline/40 bg-surface animate-pulse" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Portfolio"
-        description="Review executed trades and record manual entries for external fills."
-        actions={
+    <div className="space-y-16">
+      <section className="text-center">
+        <header className="space-y-4">
+          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Portföy güncellemeleri</span>
+          <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+            İşlemlerini kaydet, riskini izle, otomasyonla senkron kal.
+          </h1>
+          <p className="mx-auto max-w-2xl text-sm text-slate-400">
+            Cortexa sinyalleri ve otomasyonuyla hizalı bir ledger tut. Harici işlemleri kaydet, performansını filtrele ve gerektiğinde CSV olarak dışa aktar.
+          </p>
+        </header>
+        <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
           <Link
             to="/signals"
-            className="rounded-full border border-primary/60 px-4 py-2 text-sm text-primary transition hover:border-primary hover:text-slate-50"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-medium text-black shadow-inner-glow transition hover:bg-slate-200"
           >
-            Jump to signals
+            Sinyallere git
           </Link>
-        }
-      />
-
-      {error && <Banner tone="error">{error}</Banner>}
-
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <Card className="relative overflow-hidden border-slate-700/60 bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950">
-          <div className="pointer-events-none absolute -top-24 right-[-6rem] h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-          <div className="relative space-y-6">
-            <header className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Manual ledger</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Quick trade entry</h2>
-                <p className="mt-2 text-sm text-slate-300">
-                  Register fills from other venues or backdate entries to keep your statistics aligned.
-                </p>
-              </div>
-              {meta && (
-                <div className="grid gap-2 text-right text-xs text-slate-400">
-                  <span>{meta.count} trades logged</span>
-                  <span>Total volume {meta.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-                  <span>Net exposure {meta.net.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</span>
-                </div>
-              )}
-            </header>
-
-            <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-4">
-              <label className="text-xs uppercase tracking-wide text-slate-400">
-                Symbol
-                <input
-                  value={form.symbol}
-                  onChange={(event) => setForm((prev) => ({ ...prev, symbol: event.target.value }))}
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                  required
-                />
-              </label>
-              <div className="md:col-span-4">
-                <p className="text-[11px] uppercase tracking-wide text-slate-500">Quick symbols</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {topSymbols.map((sym) => (
-                    <button
-                      key={sym}
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, symbol: sym }))}
-                      className={`rounded-full border px-3 py-1 text-xs transition ${
-                        form.symbol.toUpperCase() === sym
-                          ? 'border-primary bg-primary/20 text-primary'
-                          : 'border-slate-700 text-slate-300 hover:border-primary/60 hover:text-primary'
-                      }`}
-                    >
-                      {symbolLabels[sym] ?? sym}
-                    </button>
-                  ))}
-                </div>
-              </div>
-          <label className="text-xs uppercase tracking-wide text-slate-400">
-            Side
-            <select
-              value={form.side}
-              onChange={(event) => setForm((prev) => ({ ...prev, side: event.target.value as TradeSide }))}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-            >
-              <option value="BUY">BUY</option>
-              <option value="SELL">SELL</option>
-            </select>
-          </label>
-              <label className="text-xs uppercase tracking-wide text-slate-400">
-                Quantity
-                <input
-                  type="number"
-                  min={0}
-                  step={0.0001}
-                  value={form.qty}
-                  onChange={(event) => setForm((prev) => ({ ...prev, qty: Number(event.target.value) }))}
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                  required
-                />
-              </label>
-              <label className="text-xs uppercase tracking-wide text-slate-400">
-                Price
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={form.price}
-                  onChange={(event) => setForm((prev) => ({ ...prev, price: Number(event.target.value) }))}
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                  required
-                />
-              </label>
-              <div className="md:col-span-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="submit"
-                    className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-white transition hover:bg-primary/80"
-                  >
-                    Add trade
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ symbol: 'BTCUSDT', side: 'BUY', qty: 0.001, price: 0 })}
-                    className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white"
-                  >
-                    Reset
-                  </button>
-                </div>
-                <div className="space-y-1 text-sm text-slate-400 text-right">
-                  {formError && <p className="text-xs text-red-400">{formError}</p>}
-                  {message && <p>{message}</p>}
-                </div>
-              </div>
-            </form>
-          </div>
-        </Card>
-
-      <Card className="bg-slate-900/70">
-        <h3 className="text-lg font-semibold text-white">Best practices</h3>
-        <ul className="mt-3 space-y-2 text-sm text-slate-300">
-          <li>• Record Binance auto-trades here to keep your history centralised.</li>
-          <li>• Use SELL entries with zero price for exit markers, then adjust later.</li>
-          <li>• Export data regularly once CSV/analytics tooling is connected.</li>
-        </ul>
-      </Card>
-
-      <Card className="bg-slate-900/70">
-        <h3 className="text-lg font-semibold text-white">Filtreler</h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <label className="text-xs uppercase tracking-wide text-slate-400">
-            Sembol
-            <select
-              value={filters.symbol}
-              onChange={(event) => setFilters((prev) => ({ ...prev, symbol: event.target.value }))}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-            >
-              <option value="ALL">All</option>
-              {availableSymbols.map((symbol) => (
-                <option key={symbol} value={symbol}>
-                  {symbol}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs uppercase tracking-wide text-slate-400">
-            Side
-            <select
-              value={filters.side}
-              onChange={(event) => setFilters((prev) => ({ ...prev, side: event.target.value }))}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-            >
-              <option value="ALL">All</option>
-              <option value="BUY">BUY</option>
-              <option value="SELL">SELL</option>
-            </select>
-          </label>
-          <label className="text-xs uppercase tracking-wide text-slate-400">
-            Start
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-            />
-          </label>
-          <label className="text-xs uppercase tracking-wide text-slate-400">
-            End
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-primary focus:outline-none"
-            />
-          </label>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-          <span>
-            Total records: <span className="font-semibold text-slate-200">{filteredSummary.count}</span>
-          </span>
-          <span>
-            Volume: <span className="font-semibold text-slate-200">{filteredSummary.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-          </span>
-          <span>
-            Net: <span className="font-semibold text-slate-200">{filteredSummary.net.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</span>
-          </span>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => setFilters({ symbol: 'ALL', side: 'ALL', startDate: '', endDate: '' })}
-            className="rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-300 transition hover:border-primary hover:text-white"
+          <Link
+            to="/assistant"
+            className="inline-flex items-center gap-2 rounded-full border border-outline/50 px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
           >
-            Reset filters
-          </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            className="rounded-full bg-primary/80 px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary"
-            disabled={!filteredSummary.count}
-          >
-            Download CSV
-          </button>
+            Assistant’ı aç ↗
+          </Link>
         </div>
-      </Card>
-    </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
+          {HERO_SUGGESTIONS.map((suggestion) => (
+            <span
+              key={suggestion}
+              className="rounded-2xl border border-outline/40 bg-surface px-4 py-2"
+            >
+              {suggestion}
+            </span>
+          ))}
+        </div>
+      </section>
 
-    {loading && <Spinner />}
+      {error && (
+        <div className="rounded-3xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200 text-center">
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="rounded-3xl border border-primary/40 bg-primary/20 p-4 text-sm text-primary text-center">
+          {message}
+        </div>
+      )}
 
-    {!loading && portfolio && (
-      <Card className="bg-slate-900/70">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-white">Trade history</h3>
-            {meta?.last && (
-              <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">
-                Last entry: {meta.last.symbol} {meta.last.side} @{' '}
-                {meta.last.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-              </span>
+      <section className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
+        <article className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+          <header className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Yeni işlem kaydı</h2>
+              <p className="text-sm text-slate-400">Ledger’ına harici işlemleri ekle, istatistiklerini güncel tut.</p>
+            </div>
+            {meta && (
+              <div className="grid gap-1 text-right text-xs text-slate-400">
+                <span>Toplam işlem: <span className="text-slate-200">{meta.count}</span></span>
+                <span>Net pozisyon: <span className="text-slate-200">{meta.net.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</span></span>
+                <span>Hacim: <span className="text-slate-200">{meta.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span></span>
+              </div>
             )}
+          </header>
+
+          <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
+            <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
+              Sembol
+              <input
+                value={form.symbol}
+                onChange={(event) => setForm((prev) => ({ ...prev, symbol: event.target.value.toUpperCase() }))}
+                className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </label>
+            <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
+              Yön
+              <select
+                value={form.side}
+                onChange={(event) => setForm((prev) => ({ ...prev, side: event.target.value as TradeSide }))}
+                className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="BUY">BUY</option>
+                <option value="SELL">SELL</option>
+              </select>
+            </label>
+            <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
+              Miktar
+              <input
+                type="number"
+                min="0"
+                step="0.0001"
+                value={form.qty}
+                onChange={(event) => setForm((prev) => ({ ...prev, qty: Number(event.target.value) }))}
+                className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </label>
+            <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
+              Fiyat
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                onChange={(event) => setForm((prev) => ({ ...prev, price: Number(event.target.value) }))}
+                className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </label>
+            <div className="sm:col-span-2 flex items-center justify-between text-xs text-slate-500">
+              <span>Binance dışında gerçekleşen işlemleri de kaydedebilirsin.</span>
+              <button
+                type="submit"
+                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200"
+              >
+                Kaydet
+              </button>
+            </div>
+            {formError && <p className="sm:col-span-2 text-xs text-rose-300">{formError}</p>}
+          </form>
+        </article>
+
+        <aside className="space-y-6">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+            <h3 className="text-lg font-semibold text-white">Filtreler</h3>
+            <div className="mt-4 grid gap-3 text-sm text-slate-300">
+              <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
+                Sembol
+                <select
+                  value={filters.symbol}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, symbol: event.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="ALL">Tümü</option>
+                  {availableSymbols.map((symbol) => (
+                    <option key={symbol} value={symbol}>{symbol}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
+                Yön
+                <select
+                  value={filters.side}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, side: event.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="ALL">Tümü</option>
+                  <option value="BUY">BUY</option>
+                  <option value="SELL">SELL</option>
+                </select>
+              </label>
+              <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
+                Başlangıç
+                <input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </label>
+              <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
+                Bitiş
+                <input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => setFilters(defaultFilters)}
+                className="rounded-full border border-outline/50 px-4 py-2 text-xs text-slate-300 transition hover:border-outline hover:text-white"
+              >
+                Sıfırla
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-inner-glow transition hover:bg-slate-200"
+              >
+                CSV dışa aktar
+              </button>
+              <div className="rounded-2xl border border-outline/30 bg-muted/60 p-4 text-xs text-slate-300">
+                <p>Filtrelenen işlemler</p>
+                <p className="mt-1 text-white">{filteredSummary.count} adet • {filteredSummary.volume.toFixed(4)} hacim</p>
+                <p className="text-white">Net {filteredSummary.net.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</p>
+              </div>
+            </div>
           </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-800 text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
-                <tr className="bg-slate-900/60">
-                  <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">Symbol</th>
-                  <th className="px-4 py-3">Side</th>
-                  <th className="px-4 py-3">Quantity</th>
-                  <th className="px-4 py-3">Price</th>
-                  <th className="px-4 py-3">Created</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filteredTrades.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                      {(portfolio.trades ?? []).length === 0
-                        ? 'You haven’t added any trades yet.'
-                        : 'No records match the current filters.'}
-                    </td>
-                  </tr>
-                )}
-                {filteredTrades.map((trade) => (
-                  <tr key={trade.id} className="transition hover:bg-slate-900/40">
-                    <td className="px-4 py-2 text-slate-400">{trade.id}</td>
-                    <td className="px-4 py-2 font-medium text-slate-100">
-                      {trade.symbol}
-                      <span className="ml-2 text-xs text-slate-500">
-                        {symbolLabels[trade.symbol] ?? ''}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          trade.side === 'BUY'
-                            ? 'bg-emerald-500/10 text-emerald-300'
-                            : 'bg-rose-500/10 text-rose-300'
-                        }`}
-                      >
-                        {trade.side}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-slate-200">
-                      {trade.qty.toLocaleString(undefined, { maximumFractionDigits: 6 })}
-                    </td>
-                    <td className="px-4 py-2 text-slate-200">
-                      {trade.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-2 text-slate-400">
+
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
+            <h3 className="text-lg font-semibold text-white">İpuçları</h3>
+            <ul className="mt-3 space-y-2 list-disc pl-4">
+              <li>Ledger ve sinyal motoru senkronu için tüm harici işlemleri kaydet.</li>
+              <li>Filtreleri kullanarak belirli bot ya da sembol performansını incele.</li>
+              <li>CSV çıktısını analitik not defterine aktararak rapor hazırlayabilirsin.</li>
+            </ul>
+            <p className="mt-3 text-[11px] text-slate-500">Enterprise planında özel entegrasyonlarla otomatik senkronizasyon mümkündür.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-white">İşlem geçmişi</h2>
+            <p className="text-sm text-slate-400">Filtre sonuçlarını aşağıda görürsün. En yeni kayıtlar listenin sonunda.</p>
+          </div>
+        </header>
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full text-sm text-slate-300">
+            <thead>
+              <tr className="border-b border-outline/30 text-xs uppercase tracking-[0.28em] text-slate-500">
+                <th className="px-3 py-2 text-left">Sembol</th>
+                <th className="px-3 py-2 text-left">Yön</th>
+                <th className="px-3 py-2 text-right">Miktar</th>
+                <th className="px-3 py-2 text-right">Fiyat</th>
+                <th className="px-3 py-2 text-left">Tarih</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTrades.length ? (
+                filteredTrades.map((trade) => (
+                  <tr key={trade.id} className="border-b border-outline/20">
+                    <td className="px-3 py-2 text-white">{trade.symbol}</td>
+                    <td className="px-3 py-2 text-white">{trade.side}</td>
+                    <td className="px-3 py-2 text-right text-white">{trade.qty.toFixed(4)}</td>
+                    <td className="px-3 py-2 text-right text-white">{trade.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2 text-slate-400">
                       {trade.created_at ? new Date(trade.created_at).toLocaleString() : '—'}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
+                    Bu filtrelerle eşleşen kayıt bulunamadı.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 };
