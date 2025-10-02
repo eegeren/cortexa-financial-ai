@@ -89,8 +89,19 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-canvas text-ink">
-      <div className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-12 sm:px-6">
+    <div className="relative min-h-screen bg-canvas text-ink">
+      <video
+        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-10"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        src="/videoplayback.mp4"
+        aria-hidden
+      />
+      <div className="pointer-events-none fixed inset-0 bg-black/60" />
+      <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-12 sm:px-6">
         <div className="mb-14 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-outline/50 bg-surface px-4 py-2 text-xs uppercase tracking-[0.4em] text-slate-400">
             Cortexa Trade
