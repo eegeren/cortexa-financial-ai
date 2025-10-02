@@ -100,86 +100,88 @@ const PricingPage = () => {
           ))}
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => setBillingInterval('monthly')}
-            className={clsx(
-              'rounded-full border px-4 py-1 text-xs font-semibold transition',
-              billingInterval === 'monthly'
-                ? 'border-primary bg-primary/20 text-primary'
-                : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-primary/40 hover:text-white'
-            )}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setBillingInterval('annual')}
-            className={clsx(
-              'rounded-full border px-4 py-1 text-xs font-semibold transition',
-              billingInterval === 'annual'
-                ? 'border-primary bg-primary/20 text-primary'
-                : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-primary/40 hover:text-white'
-            )}
-          >
-            Annual (2 months free)
-          </button>
-        </div>
+        <>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBillingInterval('monthly')}
+              className={clsx(
+                'rounded-full border px-4 py-1 text-xs font-semibold transition',
+                billingInterval === 'monthly'
+                  ? 'border-primary bg-primary/20 text-primary'
+                  : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-primary/40 hover:text-white'
+              )}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingInterval('annual')}
+              className={clsx(
+                'rounded-full border px-4 py-1 text-xs font-semibold transition',
+                billingInterval === 'annual'
+                  ? 'border-primary bg-primary/20 text-primary'
+                  : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-primary/40 hover:text-white'
+              )}
+            >
+              Annual (2 months free)
+            </button>
+          </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {orderedPlans.map((plan) => {
-            const highlight = planHighlights[plan.code] ?? {
-              tier: plan.name,
-              description: plan.description,
-              extra: plan.features,
-            };
-            const isPopular = plan.code === 'pro';
-            const badge = billingInterval === 'annual' ? 'per year' : 'per month';
-            return (
-              <Card
-                key={plan.id}
-                className={`relative border border-slate-800/60 bg-slate-900/70 p-6 transition hover:-translate-y-1 hover:border-primary/40 ${
-                  isPopular ? 'shadow-lg shadow-primary/20' : ''
-                }`}
-              >
-                {isPopular && (
-                  <span className="absolute right-4 top-4 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">
-                    Most popular
-                  </span>
-                )}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">{highlight.tier}</h3>
-                    <p className="mt-1 text-sm text-slate-400">{highlight.description}</p>
-                  </div>
-                  <div>
-                    <span className="text-3xl font-bold text-white">
-                      {formatPrice(plan.amount_cents, plan.currency, billingInterval)}
+          <div className="grid gap-6 lg:grid-cols-3">
+            {orderedPlans.map((plan) => {
+              const highlight = planHighlights[plan.code] ?? {
+                tier: plan.name,
+                description: plan.description,
+                extra: plan.features,
+              };
+              const isPopular = plan.code === 'pro';
+              const badge = billingInterval === 'annual' ? 'per year' : 'per month';
+              return (
+                <Card
+                  key={plan.id}
+                  className={`relative border border-slate-800/60 bg-slate-900/70 p-6 transition hover:-translate-y-1 hover:border-primary/40 ${
+                    isPopular ? 'shadow-lg shadow-primary/20' : ''
+                  }`}
+                >
+                  {isPopular && (
+                    <span className="absolute right-4 top-4 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">
+                      Most popular
                     </span>
-                    <span className="ml-2 text-xs uppercase tracking-wide text-slate-500">/{badge}</span>
+                  )}
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">{highlight.tier}</h3>
+                      <p className="mt-1 text-sm text-slate-400">{highlight.description}</p>
+                    </div>
+                    <div>
+                      <span className="text-3xl font-bold text-white">
+                        {formatPrice(plan.amount_cents, plan.currency, billingInterval)}
+                      </span>
+                      <span className="ml-2 text-xs uppercase tracking-wide text-slate-500">/{badge}</span>
+                    </div>
+                    <ul className="space-y-2 text-sm text-slate-200">
+                      {highlight.extra.map((item) => (
+                        <li key={item} className="flex items-start gap-2">
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => handleCheckout(plan.code)}
+                      className="mt-6 w-full rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={checkingOut === plan.code}
+                    >
+                      {checkingOut === plan.code ? 'Redirecting…' : 'Choose plan'}
+                    </button>
                   </div>
-                  <ul className="space-y-2 text-sm text-slate-200">
-                    {highlight.extra.map((item) => (
-                      <li key={item} className="flex items-start gap-2">
-                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    onClick={() => handleCheckout(plan.code)}
-                    className="mt-6 w-full rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={checkingOut === plan.code}
-                  >
-                    {checkingOut === plan.code ? 'Redirecting…' : 'Choose plan'}
-                  </button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <Card className="border border-slate-800/60 bg-slate-900/80 p-6 text-sm text-slate-300">
