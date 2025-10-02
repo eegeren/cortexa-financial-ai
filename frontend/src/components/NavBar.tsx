@@ -93,7 +93,9 @@ const NavBar = () => {
             </nav>
 
             <div className="flex items-center gap-3">
-              <NotificationCenter />
+              <div className="relative">
+                <NotificationCenter />
+              </div>
 
               <div className="hidden border-l border-slate-800/50 pl-4 text-xs text-slate-400 lg:flex lg:flex-col">
                 <span className="uppercase tracking-wide text-slate-500">Plan</span>

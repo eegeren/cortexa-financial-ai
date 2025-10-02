@@ -6,7 +6,7 @@ const NotificationCenter = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="relative"> 
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -20,7 +20,7 @@ const NotificationCenter = () => {
         )}
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-3 w-80 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
+        <div className="absolute right-0 z-[200] mt-3 w-80 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-white">Notifications</p>
             {history.length > 0 && (
