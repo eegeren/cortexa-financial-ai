@@ -19,7 +19,8 @@ const RegisterPage = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [kvkkAccepted, setKvkkAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [marketingAccepted, setMarketingAccepted] = useState(false);
   const [info, setInfo] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -60,7 +61,7 @@ const RegisterPage = () => {
       errors.password = 'Use upper, lower case letters and a number.';
     }
     if (password !== confirmation) errors.confirmation = 'Passwords do not match.';
-    if (!kvkkAccepted) errors.kvkk = 'Please consent to privacy terms.';
+    if (!termsAccepted) errors.kvkk = 'Please accept the terms and privacy policy.';
 
     if (phone && !/^\+?[0-9 ()-]{8,}$/.test(phone)) {
       errors.phone = 'Please provide a valid phone number.';
@@ -85,7 +86,7 @@ const RegisterPage = () => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
-        kvkkAccepted
+        kvkkAccepted: termsAccepted
       });
       setInfo('Registration successful, please log in.');
       setEmail('');
@@ -94,7 +95,8 @@ const RegisterPage = () => {
       setFirstName('');
       setLastName('');
       setPhone('');
-      setKvkkAccepted(false);
+      setTermsAccepted(false);
+      setMarketingAccepted(false);
       setFieldErrors({});
     } catch (err) {
       console.error(err);
@@ -102,48 +104,57 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-slate-950">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-20 top-[-10%] h-80 w-80 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute bottom-[-25%] right-[-15%] h-96 w-96 rounded-full bg-accent/15 blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.6),_transparent_55%)]" />
-      </div>
+    <div className="relative min-h-screen bg-canvas text-ink">
+      <video
+        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-30"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        src="/videoplayback.mp4"
+        aria-hidden
+      />
+      <div className="pointer-events-none fixed inset-0 bg-black/50" />
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-16 lg:flex-row lg:items-center lg:gap-16">
         <section className="w-full space-y-8 text-slate-200 lg:w-1/2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-[11px] uppercase tracking-[0.45em] text-primary">
-            Join Cortexa
-          </div>
-          <header className="space-y-4">
-            <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-              Build your edge with institutional grade intelligence.
-            </h1>
-            <p className="max-w-xl text-sm text-slate-300">
+          <div className="relative overflow-hidden rounded-3xl border border-outline/40 bg-surface/80 p-10 shadow-elevation-soft">
+            <span className="inline-flex items-center gap-2 rounded-full border border-outline/50 bg-surface px-4 py-2 text-[11px] uppercase tracking-[0.45em] text-slate-400">
+              Join Cortexa
+            </span>
+            <h1 className="mt-6 text-3xl font-semibold text-white sm:text-4xl">Build your edge with institutional grade intelligence.</h1>
+            <p className="mt-3 max-w-xl text-sm text-slate-300">
               Cortexa surfaces AI-calibrated trade ideas, live risk analytics, and automated execution in a single workspace. Create an account to unlock tailored strategies and concierge onboarding.
             </p>
-          </header>
+
+            <span className="orb-float pointer-events-none" style={{ background: 'rgba(38, 132, 255, 0.35)', left: '-120px', top: '-160px' }} />
+            <span className="orb-float pointer-events-none" data-delay="1" style={{ background: 'rgba(16, 163, 127, 0.3)', right: '-140px', top: '-80px' }} />
+            <div className="scan-line pointer-events-none absolute left-0 top-0 h-full w-1/3 opacity-30" />
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
-            <Card className="border border-slate-800/60 bg-slate-900/60 p-5">
+            <Card className="border border-outline/40 bg-surface/80 p-5">
               <h3 className="text-sm font-semibold text-white">Signals with provenance</h3>
               <p className="mt-2 text-xs text-slate-400">Multi-timeframe models, audited backtests, and live hit-rate tracking keep you ahead of market drift.</p>
             </Card>
-            <Card className="border border-slate-800/60 bg-slate-900/60 p-5">
+            <Card className="border border-outline/40 bg-surface/80 p-5">
               <h3 className="text-sm font-semibold text-white">Secure compliance</h3>
-              <p className="mt-2 text-xs text-slate-400">KVKK-ready data policies, GDPR-aligned consent flows, and SOC2-aligned infrastructure.</p>
+              <p className="mt-2 text-xs text-slate-400">GDPR/CCPA-aligned policies, audit trails, and SOC2-ready infrastructure.</p>
             </Card>
-            <Card className="border border-slate-800/60 bg-slate-900/60 p-5">
-              <h3 className="text-sm font-semibold text-white">Dedicated onboarding</h3>
-              <p className="mt-2 text-xs text-slate-400">Portfolio walkthroughs, playbook templates, and direct analyst support in Turkish & English.</p>
+            <Card className="border border-outline/40 bg-surface/80 p-5">
+              <h3 className="text-sm font-semibold text-white">Concierge onboarding</h3>
+              <p className="mt-2 text-xs text-slate-400">Portfolio walkthroughs, playbook templates, and analyst support from day one.</p>
             </Card>
-            <Card className="border border-slate-800/60 bg-slate-900/60 p-5">
+            <Card className="border border-outline/40 bg-surface/80 p-5">
               <h3 className="text-sm font-semibold text-white">Enterprise ready</h3>
-              <p className="mt-2 text-xs text-slate-400">Role-based access, audit trails, and custom SLAs for desks running multi-seat operations.</p>
+              <p className="mt-2 text-xs text-slate-400">Role-based access, audit logs, and custom SLAs for desks running multi-seat operations.</p>
             </Card>
           </div>
           <div className="flex flex-wrap gap-4 text-xs text-slate-400">
-            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-emerald-200">98% uptime</span>
+            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-emerald-200">99.9% uptime</span>
             <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-blue-200">AES-256 encryption</span>
-            <span className="rounded-full border border-slate-700 px-4 py-2">ISO-ready controls</span>
+            <span className="rounded-full border border-outline/40 px-4 py-2">SOC2 controls</span>
           </div>
         </section>
 
@@ -309,14 +320,14 @@ const RegisterPage = () => {
                 {fieldErrors.phone && <span className="text-[11px] text-red-400">{fieldErrors.phone}</span>}
               </label>
 
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+              <div className="space-y-3 rounded-lg border border-outline/40 bg-surface/80 p-4">
                 <label className="flex items-start gap-3 text-xs text-slate-300">
                   <input
                     type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border border-slate-600 bg-slate-900 text-primary focus:outline-none"
-                    checked={kvkkAccepted}
+                    className="mt-1 h-4 w-4 rounded border border-outline/50 bg-canvas text-primary focus:outline-none"
+                    checked={termsAccepted}
                     onChange={(event) => {
-                      setKvkkAccepted(event.target.checked);
+                      setTermsAccepted(event.target.checked);
                       if (fieldErrors.kvkk) {
                         setFieldErrors((prev) => {
                           const next = { ...prev };
@@ -328,10 +339,21 @@ const RegisterPage = () => {
                     required
                   />
                   <span>
-                    I agree to Cortexa’s <span className="text-primary">Privacy Notice</span> and understand that my personal data will be processed in line with KVKK and GDPR requirements.
+                    I agree to the{' '}
+                    <Link to="/legal/terms" className="text-primary underline">Terms of Service</Link> and{' '}
+                    <Link to="/legal/privacy" className="text-primary underline">Privacy Policy</Link>.
                   </span>
                 </label>
-                {fieldErrors.kvkk && <span className="mt-2 block text-[11px] text-red-400">{fieldErrors.kvkk}</span>}
+                {fieldErrors.kvkk && <span className="mt-2 block text-[11px] text-rose-300">{fieldErrors.kvkk}</span>}
+                <label className="flex items-start gap-3 text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border border-outline/50 bg-canvas"
+                    checked={marketingAccepted}
+                    onChange={(event) => setMarketingAccepted(event.target.checked)}
+                  />
+                  <span>Send me product updates and trading research (optional).</span>
+                </label>
               </div>
 
               <button
