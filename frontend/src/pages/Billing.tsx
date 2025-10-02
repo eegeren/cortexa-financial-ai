@@ -6,6 +6,7 @@ import Paywall from '@/components/Paywall';
 import useSubscriptionAccess from '@/hooks/useSubscriptionAccess';
 import { useSubscriptionStore } from '@/store/subscription';
 import { updateBillingProfile, BillingProfile } from '@/services/api';
+import clsx from 'clsx';
 
 const emptyProfile: BillingProfile = {
   country: '',
@@ -32,6 +33,8 @@ const BillingPage = () => {
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
   const [portalError, setPortalError] = useState<string | null>(null);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
+
+  const upcomingInvoice = useMemo(() => invoices.find((invoice) => invoice.status === 'open' || invoice.status === 'draft'), [invoices]);
 
   useEffect(() => {
     if (!subscription) {
@@ -110,6 +113,44 @@ const BillingPage = () => {
         />
       )}
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-sm text-slate-200">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Current status</p>
+          <p className="mt-2 text-lg font-semibold text-white">{statusCopy}</p>
+          <p className="mt-3 text-xs text-slate-400">Plan changes anında yürürlüğe girer, ek ücret yoktur.</p>
+        </Card>
+        <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-sm text-slate-200">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Upcoming invoice</p>
+          {upcomingInvoice ? (
+            <div className="mt-2 space-y-1 text-xs text-slate-300">
+              <p>
+                Tutar:{' '}
+                <span className="font-semibold text-white">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: upcomingInvoice.currency.toUpperCase(),
+                  }).format(upcomingInvoice.amount_cents / 100)}
+                </span>
+              </p>
+              <p>Durum: {upcomingInvoice.status}</p>
+              <p>Vade: {upcomingInvoice.due_at ? new Date(upcomingInvoice.due_at).toLocaleDateString() : '—'}</p>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-slate-400">Henüz bekleyen bir fatura yok.</p>
+          )}
+        </Card>
+        <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-sm text-slate-200">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Destek</p>
+          <p className="mt-2 text-xs text-slate-400">
+            Ödeme ile ilgili sorular için{' '}
+            <a href="mailto:finance@cortexaai.net" className="text-primary underline">
+              finance@cortexaai.net
+            </a>{' '}
+            adresine mail gönderin. Enterprise müşterileri için 24/5 Slack hattı aktiftir.
+          </p>
+        </Card>
+      </div>
+
       <Card className="border border-slate-800/60 bg-slate-900/70 p-6">
         <div className="grid gap-6 md:grid-cols-2">
           <div>
@@ -138,8 +179,9 @@ const BillingPage = () => {
             <button
               type="button"
               onClick={handlePortal}
-              className="mt-5 inline-flex items-center rounded-full border border-primary/60 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary hover:text-white"
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-primary/60 px-4 py-2 text-sm font-semibold text-primary transition hover:border-primary hover:text-white"
             >
+              <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
               Open customer portal
             </button>
             {portalUrl && (
@@ -263,7 +305,7 @@ const BillingPage = () => {
               </thead>
               <tbody className="divide-y divide-slate-800/70 text-slate-200">
                 {invoices.map((invoice) => (
-                  <tr key={invoice.id}>
+                  <tr key={invoice.id} className={clsx(invoice.status === 'paid' ? 'bg-emerald-500/5' : '')}>
                     <td className="py-3">
                       {invoice.issued_at ? new Date(invoice.issued_at).toLocaleDateString() : '—'}
                     </td>

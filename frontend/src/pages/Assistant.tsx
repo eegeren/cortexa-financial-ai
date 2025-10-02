@@ -19,11 +19,11 @@ const createMessage = (role: Message['role'], content: string): Message => ({
 });
 
 const AssistantPage = () => {
-  const { loading: subscriptionLoading, canAccess, status, trialDays, initialized } = useSubscriptionAccess();
+  const { loading: subscriptionLoading, canAccess, status, trialDays, initialized, plan } = useSubscriptionAccess();
   const [messages, setMessages] = useState<Message[]>([
     createMessage(
       'assistant',
-      'Hi! I am Cortexa Assistant. Ask me about market structure, trading strategies, or how to interpret current AI signals.'
+      'Merhaba! Ben Cortexa Assistant. Piyasa yapısı, strateji fikri ya da güncel AI sinyallerini nasıl yorumlayacağını merak ediyorsan hemen sorabilirsin.'
     ),
   ]);
   const [input, setInput] = useState('');
@@ -72,6 +72,32 @@ const AssistantPage = () => {
     return 'Chat with our GPT-powered assistant for market context, signal breakdowns, and portfolio guidance.';
   }, [canAccess, status, trialDays]);
 
+  const quickPrompts = useMemo(
+    () => [
+      'BTC için bugünkü volatilite rejimi nedir?',
+      'ETH sinyallerinde 4 saatlik trendi özetle.',
+      'Portföyüm için risk yönetimi önerileri ver.',
+      'Son 10 işlemde hit rate ve net getiriyi hesapla.',
+    ],
+    []
+  );
+
+  const handlePrompt = (prompt: string) => {
+    if (pending) {
+      return;
+    }
+    setInput(prompt);
+  };
+
+  const usageStats = useMemo(() => {
+    const userMessages = messages.filter((message) => message.role === 'user').length;
+    const assistantMessages = messages.filter((message) => message.role === 'assistant').length;
+    return {
+      userMessages,
+      assistantMessages,
+    };
+  }, [messages]);
+
   if (subscriptionLoading || !initialized) {
     return (
       <div className="space-y-6">
@@ -89,77 +115,134 @@ const AssistantPage = () => {
     <div className="space-y-8">
       <PageHeader title="Assistant" description={headerDescription} />
 
-      <Card className="border border-slate-800/60 bg-slate-900/80 shadow-lg">
-        <div ref={scrollRef} className="h-[520px] overflow-y-auto pr-2">
-          <div className="space-y-6">
-            {messages.map((message) => (
-              <div key={message.id} className="flex gap-3">
-                <div
-                  className={`mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
-                    message.role === 'assistant'
-                      ? 'border-primary/50 bg-primary/10 text-primary'
-                      : 'border-slate-700/60 bg-slate-800/70 text-slate-200'
-                  }`}
-                  aria-hidden="true"
-                >
-                  {message.role === 'assistant' ? 'AI' : 'You'}
+      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <Card className="border border-slate-800/60 bg-slate-900/80 shadow-lg">
+          <div ref={scrollRef} className="h-[520px] overflow-y-auto pr-2">
+            <div className="space-y-6">
+              {messages.map((message) => (
+                <div key={message.id} className="flex gap-3">
+                  <div
+                    className={`mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
+                      message.role === 'assistant'
+                        ? 'border-primary/50 bg-primary/10 text-primary'
+                        : 'border-slate-700/60 bg-slate-800/70 text-slate-200'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {message.role === 'assistant' ? 'AI' : 'You'}
+                  </div>
+                  <div
+                    className={`w-full rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm transition ${
+                      message.role === 'assistant'
+                        ? 'border-primary/30 bg-primary/10 text-slate-100'
+                        : 'border-slate-700/50 bg-slate-800/70 text-slate-200 backdrop-blur'
+                    }`}
+                  >
+                    {message.content}
+                  </div>
                 </div>
-                <div
-                  className={`w-full rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm transition ${
-                    message.role === 'assistant'
-                      ? 'border-primary/30 bg-primary/10 text-slate-100'
-                      : 'border-slate-700/50 bg-slate-800/70 text-slate-200 backdrop-blur'
-                  }`}
-                >
-                  {message.content}
+              ))}
+              {pending && (
+                <div className="flex gap-3">
+                  <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full border border-primary/50 bg-primary/10 text-primary">
+                    AI
+                  </div>
+                  <div className="flex w-full rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-slate-100">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
+                    <span className="ml-1 h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:120ms]" />
+                    <span className="ml-1 h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:240ms]" />
+                  </div>
                 </div>
-              </div>
-            ))}
-            {pending && (
-              <div className="flex gap-3">
-                <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full border border-primary/50 bg-primary/10 text-primary">
-                  AI
-                </div>
-                <div className="flex w-full rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-slate-100">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
-                  <span className="ml-1 h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:120ms]" />
-                  <span className="ml-1 h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:240ms]" />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-          <textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask about current market conditions or request a backtest summary..."
-            className="w-full rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:outline-none"
-            rows={3}
-          />
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">
-              Cortexa Assistant can explain signals, summarise regimes, and suggest playbooks. Do not treat responses as
-              investment advice.
-            </p>
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={pending || !input.trim()}
-            >
-              {pending ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-hidden />
-                  <span>Thinking</span>
-                </>
-              ) : (
-                'Send'
               )}
-            </button>
+            </div>
           </div>
-          {error && <p className="text-xs text-rose-300">{error}</p>}
-        </form>
-      </Card>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-3">
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder="Ask about current market conditions or request a backtest summary..."
+              className="w-full rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:outline-none"
+              rows={3}
+            />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <p className="text-xs text-slate-500">
+                Cortexa Assistant can explain signals, summarise regimes, and suggest playbooks. Do not treat responses as
+                investment advice.
+              </p>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={pending || !input.trim()}
+              >
+                {pending ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-hidden />
+                    <span>Thinking</span>
+                  </>
+                ) : (
+                  'Send'
+                )}
+              </button>
+            </div>
+            {error && <p className="text-xs text-rose-300">{error}</p>}
+          </form>
+        </Card>
+
+        <aside className="space-y-6">
+          <Card className="border border-slate-800/60 bg-slate-900/70 p-5">
+            <h3 className="text-sm font-semibold text-white">Quick prompts</h3>
+            <p className="mt-2 text-xs text-slate-400">Tek tıkla sohbete başlayın:</p>
+            <div className="mt-3 flex flex-col gap-2">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => handlePrompt(prompt)}
+                  className="rounded-lg border border-slate-800/60 bg-slate-900/60 px-3 py-2 text-left text-xs text-slate-200 transition hover:border-primary hover:bg-primary/10 hover:text-white"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-sm text-slate-200">
+            <h3 className="text-sm font-semibold text-white">Plan & Usage</h3>
+            <dl className="mt-3 space-y-2 text-xs text-slate-400">
+              <div className="flex justify-between">
+                <dt>Plan</dt>
+                <dd className="text-slate-200 uppercase">{plan?.toUpperCase() ?? 'STARTER'}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Status</dt>
+                <dd className="text-slate-200 capitalize">{status}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Remaining trial</dt>
+                <dd>{trialDays > 0 ? `${trialDays} day(s)` : '—'}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Your prompts</dt>
+                <dd>{usageStats.userMessages}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Assistant replies</dt>
+                <dd>{usageStats.assistantMessages}</dd>
+              </div>
+            </dl>
+          </Card>
+
+          <Card className="border border-slate-800/60 bg-slate-900/70 p-5 text-xs text-slate-300">
+            <h3 className="text-sm font-semibold text-white">Doğru yanıtlar için ipuçları</h3>
+            <ul className="mt-3 space-y-2 list-disc pl-4">
+              <li>Net bir varlık ve zaman dilimi belirtmek daha hassas analiz sağlar.</li>
+              <li>Strateji sorularında risk toleransınızı (ör. %2 stop) paylaşın.</li>
+              <li>Belirsiz cevap alırsanız önceki cevabı referans göstererek devam edin.</li>
+            </ul>
+            <p className="mt-3 text-[11px] text-slate-500">Enterprise planı özel veri entegasyonu ve özel model fine-tuning içerir.</p>
+          </Card>
+        </aside>
+      </div>
     </div>
   );
 };
