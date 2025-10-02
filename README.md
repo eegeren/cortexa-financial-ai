@@ -42,6 +42,7 @@ Backend `.env` dosyasında bulunması gereken temel anahtarlar:
 - `OPENAI_BASE_URL` (opsiyonel, default `https://api.openai.com`)
 - `OPENAI_MODEL` (opsiyonel, default `gpt-4o-mini`)
 - `PAYMENT_PROVIDER` – `stripe`, `paddle`, `lemonsqueezy`, `iyzico`
+- `OWNER_EMAIL` veya `OWNER_EMAILS` – Yönetici/premium olarak otomatik işaretlenecek e-posta(lar)
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
 - `PADDLE_API_KEY`, `PADDLE_ENV`, `PADDLE_WEBHOOK_SECRET`
 - `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`

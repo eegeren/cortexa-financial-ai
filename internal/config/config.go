@@ -20,6 +20,7 @@ type Config struct {
 	BinanceFallbackURL        string
 	BinanceFallbackKlinesPath string
 	OwnerEmail                string
+	OwnerEmails               []string
 
 	// AI assistant
 	OpenAIAPIKey  string
@@ -90,9 +91,35 @@ func Load() Config {
 		DefaultTrialDays:          getenvInt("TRIAL_DAYS", 7),
 	}
 
+	ownerList := []string{}
+	if list := strings.TrimSpace(getenv("OWNER_EMAILS", "")); list != "" {
+		for _, item := range strings.Split(list, ",") {
+			item = strings.TrimSpace(item)
+			if item != "" {
+				ownerList = append(ownerList, item)
+			}
+		}
+	}
+	if cfg.OwnerEmail != "" {
+		ownerList = append(ownerList, cfg.OwnerEmail)
+	}
+	cfg.OwnerEmails = ownerList
+
 	if cfg.JWTSecret == "dev_secret_change_me" {
 		log.Println("[WARN] using default JWT secret. Set JWT_SECRET in production.")
 	}
 
 	return cfg
+}
+
+func (cfg Config) IsOwnerEmail(email string) bool {
+	if strings.TrimSpace(email) == "" {
+		return false
+	}
+	for _, owner := range cfg.OwnerEmails {
+		if strings.EqualFold(strings.TrimSpace(owner), strings.TrimSpace(email)) {
+			return true
+		}
+	}
+	return false
 }

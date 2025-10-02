@@ -72,7 +72,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (models
 	if bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password)) != nil {
 		return u, errors.New("invalid credentials")
 	}
-	if owner := strings.TrimSpace(s.cfg.OwnerEmail); owner != "" && strings.EqualFold(owner, u.Email) {
+	if s.cfg.IsOwnerEmail(u.Email) {
 		if u.Role != "premium" {
 			if _, err := s.db.ExecContext(ctx, `UPDATE users SET role='premium' WHERE id=$1`, u.ID); err == nil {
 				u.Role = "premium"
@@ -105,8 +105,7 @@ func (s *AuthService) UpdateUserRole(ctx context.Context, userID int64, role str
 		return user, err
 	}
 
-	owner := strings.TrimSpace(s.cfg.OwnerEmail)
-	if owner != "" && strings.EqualFold(owner, user.Email) {
+	if s.cfg.IsOwnerEmail(user.Email) {
 		role = "premium"
 	}
 
@@ -167,7 +166,6 @@ func (s *AuthService) AdminUserSummaries(ctx context.Context) ([]AdminUserSummar
 		return nil, err
 	}
 
-	owner := strings.TrimSpace(s.cfg.OwnerEmail)
 	now := time.Now()
 	summaries := make([]AdminUserSummary, 0, len(rows))
 	for _, row := range rows {
@@ -177,7 +175,7 @@ func (s *AuthService) AdminUserSummaries(ctx context.Context) ([]AdminUserSummar
 		seats := "Single seat"
 		renewal := row.CreatedAt.Add(14 * 24 * time.Hour)
 
-		if owner != "" && strings.EqualFold(owner, row.Email) {
+		if s.cfg.IsOwnerEmail(row.Email) {
 			plan = "Premium Access"
 			monthlyFee = 499
 			status = "Active"

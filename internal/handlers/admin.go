@@ -47,7 +47,7 @@ func (h *Handlers) AdminUpdateUserRole(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if strings.TrimSpace(h.Cfg.OwnerEmail) == "" || !strings.EqualFold(actor.Email, strings.TrimSpace(h.Cfg.OwnerEmail)) {
+		if !h.Cfg.IsOwnerEmail(actor.Email) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
