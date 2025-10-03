@@ -21,11 +21,8 @@
   ],
   "rewrites": [
     {
-      "source": "/:path*",
-      "destination": "/index.html",
-      "missing": [
-        { "type": "file", "key": "path" }
-      ]
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
