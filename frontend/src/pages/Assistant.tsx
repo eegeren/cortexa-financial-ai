@@ -102,9 +102,9 @@ const AssistantPage = () => {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1">
+    <div className="flex w-full flex-1">
       <section className="flex flex-1 flex-col">
-        <article className="flex min-h-[70vh] flex-1 flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+        <article className="flex min-h-[70vh] flex-1 flex-col rounded-3xl border border-outline/40 bg-surface px-4 py-6 shadow-elevation-soft sm:px-6">
           <div ref={scrollRef} className="flex-1 overflow-y-auto pr-1">
             <div className="space-y-6">
               {messages.map((message) => (
