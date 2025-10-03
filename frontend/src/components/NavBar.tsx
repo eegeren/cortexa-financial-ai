@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 
@@ -11,6 +11,24 @@ const NavBar = () => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const prefetchRoute = useCallback((path: string) => {
+    const prefetched: Record<string, () => Promise<unknown>> = {
+      '/dashboard': () => import('@/pages/Dashboard'),
+      '/signals': () => import('@/pages/Signals'),
+      '/assistant': () => import('@/pages/Assistant'),
+      '/portfolio': () => import('@/pages/Portfolio'),
+      '/forum': () => import('@/pages/Forum'),
+      '/billing': () => import('@/pages/Billing'),
+      '/settings': () => import('@/pages/Settings'),
+      '/pricing': () => import('@/pages/Pricing'),
+      '/login': () => import('@/pages/Login'),
+      '/register': () => import('@/pages/Register')
+    };
+    const action = prefetched[path];
+    if (action) {
+      void action();
+    }
+  }, []);
 
   const links = token
     ? [
@@ -74,6 +92,7 @@ const NavBar = () => {
             <NavLink
               key={link.to}
               to={link.to}
+              onMouseEnter={() => prefetchRoute(link.to)}
               className={({ isActive }) =>
                 `transition-colors ${
                   link.highlight
@@ -95,6 +114,7 @@ const NavBar = () => {
               <button
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
+                onMouseEnter={() => prefetchRoute('/settings')}
                 className="inline-flex items-center gap-2 rounded-full border border-outline/60 bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-outline hover:text-white"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
@@ -119,6 +139,7 @@ const NavBar = () => {
                   <button
                     type="button"
                     onClick={openSettings}
+                    onMouseEnter={() => prefetchRoute('/settings')}
                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-muted/70"
                   >
                     Settings
@@ -127,6 +148,7 @@ const NavBar = () => {
                   <button
                     type="button"
                     onClick={openBilling}
+                    onMouseEnter={() => prefetchRoute('/billing')}
                     className="mt-1 flex w-full items-center rounded-lg px-3 py-2 transition hover:bg-muted/70"
                   >
                     Billing
@@ -144,14 +166,15 @@ const NavBar = () => {
           </div>
         ) : (
           <div className="flex items-center gap-3 text-sm text-slate-300 md:gap-4">
-            <NavLink to="/pricing" className="hover:text-white">
+            <NavLink to="/pricing" className="hover:text-white" onMouseEnter={() => prefetchRoute('/pricing')}>
               Pricing
             </NavLink>
-            <NavLink to="/login" className="hover:text-white">
+            <NavLink to="/login" className="hover:text-white" onMouseEnter={() => prefetchRoute('/login')}>
               Log in
             </NavLink>
             <NavLink
               to="/register"
+              onMouseEnter={() => prefetchRoute('/register')}
               className="rounded-full border border-outline/60 px-3 py-1 text-ink transition hover:border-outline hover:text-white"
             >
               Sign up

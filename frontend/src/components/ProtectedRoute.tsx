@@ -1,6 +1,5 @@
 import { PropsWithChildren } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import Spinner from '@/components/Spinner';
 import { useAuthStore } from '@/store/auth';
 
 const ProtectedRoute = ({ children }: PropsWithChildren) => {
@@ -9,7 +8,11 @@ const ProtectedRoute = ({ children }: PropsWithChildren) => {
   const location = useLocation();
 
   if (!hydrated) {
-    return <Spinner />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas text-slate-300">
+        Yükleniyor…
+      </div>
+    );
   }
 
   if (!token) {

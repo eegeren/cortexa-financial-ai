@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchPortfolio, fetchSignal, PortfolioResponse, SignalResponse } from '@/services/api';
 import { useToast } from '@/components/ToastProvider';
+
+const MarketWidget = lazy(() => import('@/components/MarketWidget'));
+const HeatmapMatrix = lazy(() => import('@/components/HeatmapMatrix'));
 
 const SUGGESTIONS = [
   { label: 'Review risk allocation across my portfolio', href: '/portfolio' },
@@ -21,6 +24,29 @@ const DashboardPage = () => {
   const [signal, setSignal] = useState<SignalResponse | null>(null);
   const [signalLoading, setSignalLoading] = useState(true);
   const { pushToast } = useToast();
+
+  const heatmapRows = useMemo(() => ['Low Vol', 'Mid Vol', 'High Vol'], []);
+  const heatmapCols = useMemo(() => ['Bull', 'Neutral', 'Bear'], []);
+  const heatmapData = useMemo(
+    () => ({
+      'Low Vol': {
+        Bull: { label: '+1.4%', value: 0.14 },
+        Neutral: { label: '+0.8%', value: 0.08 },
+        Bear: { label: '-0.5%', value: -0.05 }
+      },
+      'Mid Vol': {
+        Bull: { label: '+2.3%', value: 0.23 },
+        Neutral: { label: '+1.1%', value: 0.11 },
+        Bear: { label: '-1.0%', value: -0.1 }
+      },
+      'High Vol': {
+        Bull: { label: '+3.8%', value: 0.38 },
+        Neutral: { label: '+0.5%', value: 0.05 },
+        Bear: { label: '-2.4%', value: -0.24 }
+      }
+    }),
+    []
+  );
 
   useEffect(() => {
     const loadPortfolio = async () => {
@@ -226,6 +252,21 @@ const DashboardPage = () => {
             <p className="mt-6 text-xs text-slate-400">No signal available right now. Check back shortly.</p>
           )}
         </aside>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <Suspense fallback={<div className="h-full rounded-3xl border border-outline/40 bg-surface p-6 text-sm text-slate-400">Loading market watch…</div>}>
+          <MarketWidget />
+        </Suspense>
+        <Suspense fallback={<div className="h-full rounded-3xl border border-outline/40 bg-surface p-6 text-sm text-slate-400">Loading regime matrix…</div>}>
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+            <h3 className="text-lg font-semibold text-white">Regime matrix</h3>
+            <p className="mt-1 text-sm text-slate-400">Quick view of strategy performance across volatility and trend regimes.</p>
+            <div className="mt-4">
+              <HeatmapMatrix rows={heatmapRows} cols={heatmapCols} data={heatmapData} />
+            </div>
+          </div>
+        </Suspense>
       </section>
     </div>
   );
