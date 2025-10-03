@@ -1,5 +1,4 @@
 import { FormEvent, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import Paywall from '@/components/Paywall';
 import type { ChatMessagePayload, ChatResponse } from '@/services/api';
 import { sendChat } from '@/lib/api';
@@ -24,7 +23,7 @@ const SYSTEM_PROMPT = `You are Cortexa Assistant, a trading co-pilot. Provide co
 const ASSISTANT_MODEL = import.meta.env.VITE_ASSISTANT_MODEL;
 
 const AssistantPage = () => {
-  const { loading, canAccess, status, trialDays, initialized, plan } = useSubscriptionAccess();
+  const { loading, canAccess, initialized } = useSubscriptionAccess();
   const [messages, setMessages] = useState<Message[]>(() => [
     createMessage(
       'assistant',
@@ -46,12 +45,6 @@ const AssistantPage = () => {
     ],
     []
   );
-
-  const usageStats = useMemo(() => {
-    const userMessages = messages.filter((message) => message.role === 'user').length;
-    const assistantMessages = messages.filter((message) => message.role === 'assistant').length;
-    return { userMessages, assistantMessages };
-  }, [messages]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -112,27 +105,22 @@ const AssistantPage = () => {
     return <Paywall title="Premium feature" description="Upgrade your plan to unlock the Cortexa Assistant." />;
   }
 
-  const description = trialDays > 0
-    ? `Status: ${status}. Trial remaining ${trialDays} day${trialDays === 1 ? '' : 's'}.`
-    : 'Chat with the assistant for signal explanations, automation planning, and risk guidance.';
-
   return (
-    <div className="space-y-16">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <section className="text-center">
-        <header className="space-y-4">
-          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Cortexa Assistant</span>
-          <h1 className="text-4xl font-semibold text-white sm:text-5xl">
-            Get answers fast, sharpen strategy, stay in the groove.
-          </h1>
-          <p className="mx-auto max-w-2xl text-sm text-slate-400">{description}</p>
+        <header className="space-y-3">
+          <h1 className="text-3xl font-semibold text-white sm:text-4xl">Cortexa Assistant</h1>
+          <p className="mx-auto max-w-xl text-sm text-slate-400">
+            Need market context, a signal breakdown, or automation guidance? Start typing below.
+          </p>
         </header>
-        <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
+        <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs sm:text-sm">
           {quickPrompts.map((prompt) => (
             <button
               key={prompt}
               type="button"
               onClick={() => handlePrompt(prompt)}
-              className="rounded-2xl border border-outline/50 bg-surface px-4 py-2 text-left text-slate-200 transition hover:border-outline hover:text-white"
+              className="rounded-full border border-outline/50 bg-surface px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
             >
               {prompt} ↗
             </button>
@@ -140,9 +128,9 @@ const AssistantPage = () => {
         </div>
       </section>
 
-      <section className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+      <section className="flex flex-1 flex-col">
         <article className="flex flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-          <div ref={scrollRef} className="h-[620px] overflow-y-auto pr-1 md:h-[680px]">
+          <div ref={scrollRef} className="h-[70vh] min-h-[480px] overflow-y-auto pr-1">
             <div className="space-y-6">
               {messages.map((message) => (
                 <div key={message.id} className={`flex gap-3 ${message.role === 'assistant' ? '' : 'justify-end'}`}>
@@ -155,7 +143,7 @@ const AssistantPage = () => {
                     </div>
                   )}
                   <div
-                    className={`max-w-3xl rounded-2xl border px-5 py-4 text-sm leading-relaxed shadow-inner-glow transition ${
+                    className={`max-w-4xl rounded-3xl border px-5 py-4 text-sm leading-relaxed shadow-inner-glow transition ${
                       message.role === 'assistant'
                         ? 'border-outline/40 bg-muted/60 text-slate-200'
                         : 'border-white/60 bg-white/90 text-black'
@@ -216,56 +204,6 @@ const AssistantPage = () => {
             {error && <p className="text-xs text-rose-300">{error}</p>}
           </form>
         </article>
-        <aside className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-            <h2 className="text-lg font-semibold text-white">Session stats</h2>
-            <p className="mt-1 text-sm text-slate-400">Track how much you’ve talked to the assistant this session.</p>
-            <dl className="mt-4 space-y-3 text-sm text-slate-300">
-              <div className="flex items-center justify-between">
-                <dt>Your prompts</dt>
-                <dd className="text-white">{usageStats.userMessages}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt>Assistant replies</dt>
-                <dd className="text-white">{usageStats.assistantMessages}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt>Plan</dt>
-                <dd className="text-white">{plan?.toUpperCase() ?? 'STARTER'}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt>Trial</dt>
-                <dd className="text-white">{trialDays > 0 ? `${trialDays} day${trialDays === 1 ? '' : 's'}` : '—'}</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-            <h2 className="text-lg font-semibold text-white">Quick actions</h2>
-            <p className="mt-1 text-sm text-slate-400">Jump to other parts of your workspace.</p>
-            <div className="mt-4 space-y-2 text-xs text-accent">
-              <Link to="/signals" className="block transition hover:text-white">
-                Go to live signals →
-              </Link>
-              <Link to="/dashboard" className="block transition hover:text-white">
-                Open your overview →
-              </Link>
-              <Link to="/forum" className="block transition hover:text-white">
-                Browse community strategies →
-              </Link>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
-            <h2 className="text-lg font-semibold text-white">Guidance</h2>
-            <ul className="mt-3 space-y-2 list-disc pl-4">
-              <li>Always specify asset, timeframe, and target horizon.</li>
-              <li>Share risk parameters (stop size, max drawdown) for tailored guidance.</li>
-              <li>Reference previous replies when you need refined answers.</li>
-            </ul>
-            <p className="mt-3 text-[11px] text-slate-500">Enterprise plans unlock private data feeds and fine-tuned assistants.</p>
-          </div>
-        </aside>
       </section>
     </div>
   );
