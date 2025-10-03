@@ -133,6 +133,9 @@ export const useAuthStore = create<AuthState>()(
       storage,
       partialize: (state) => ({ token: state.token, email: state.email }),
       onRehydrateStorage: () => (state) => {
+        if (state?.token) {
+          setAuthToken(state.token);
+        }
         state?.setHydrated(true);
       }
     }
