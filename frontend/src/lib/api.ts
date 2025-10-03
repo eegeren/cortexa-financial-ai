@@ -4,17 +4,20 @@ if (!BASE) {
   throw new Error('VITE_API_URL tanımlı değil; frontend isteği yapılamıyor');
 }
 
+const ensureTrailingSlash = (value: string) => (value.endsWith('/') ? value : `${value}/`);
+
 const withBase = (path: string) => {
-  const normalized = path.startsWith('/') ? path : `/${path}`;
-  return new URL(normalized, BASE).toString();
+  const trimmed = path.startsWith('/') ? path.slice(1) : path;
+  return new URL(trimmed, ensureTrailingSlash(BASE)).toString();
 };
 
-const request = async <T>(path: string, init: RequestInit = {}) => {
+const request = async <T>(path: string | URL, init: RequestInit = {}) => {
   const signal = init.signal ?? AbortSignal.timeout(10000);
   let response: Response;
+  const target = path instanceof URL ? path.toString() : withBase(path);
 
   try {
-    response = await fetch(withBase(path), { ...init, signal });
+    response = await fetch(target, { ...init, signal });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'İstek başlatılamadı';
     throw new Error(message);
@@ -44,10 +47,10 @@ export const fetchSignal = async <T>(symbol: string) => {
 };
 
 export const triggerAutoTrade = async <T>(symbol: string, params: { threshold: number; qty: number }) => {
-  const url = new URL(`/signals/${encodeURIComponent(symbol)}/auto-trade`, BASE);
+  const url = new URL(`signals/${encodeURIComponent(symbol)}/auto-trade`, ensureTrailingSlash(BASE));
   url.searchParams.set('threshold', params.threshold.toString());
   url.searchParams.set('qty', params.qty.toString());
-  return request<T>(url.pathname + url.search, { method: 'POST' });
+  return request<T>(url, { method: 'POST' });
 };
 
 export const fetchBacktest = async <T>(
@@ -61,14 +64,14 @@ export const fetchBacktest = async <T>(
     position_size?: number;
   } = {}
 ) => {
-  const url = new URL(`/signals/${encodeURIComponent(symbol)}/backtest`, BASE);
+  const url = new URL(`signals/${encodeURIComponent(symbol)}/backtest`, ensureTrailingSlash(BASE));
   Object.entries(params).forEach(([key, value]) => {
     if (value === undefined) {
       return;
     }
     url.searchParams.set(key, Array.isArray(value) ? value.join(',') : String(value));
   });
-  return request<T>(url.pathname + url.search);
+  return request<T>(url);
 };
 
 export const sendChat = async <T>(payload: { messages: Array<{ role: string; content: string }>; model?: string }) => {
