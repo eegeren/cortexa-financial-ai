@@ -70,3 +70,13 @@ export const fetchBacktest = async <T>(
   });
   return request<T>(url.pathname + url.search);
 };
+
+export const sendChat = async <T>(payload: { messages: Array<{ role: string; content: string }>; model?: string }) => {
+  return request<T>('/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+};

@@ -1,7 +1,8 @@
 import { FormEvent, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Paywall from '@/components/Paywall';
-import { sendChat, ChatMessagePayload } from '@/services/api';
+import type { ChatMessagePayload, ChatResponse } from '@/services/api';
+import { sendChat } from '@/lib/api';
 import useSubscriptionAccess from '@/hooks/useSubscriptionAccess';
 
 interface Message extends ChatMessagePayload {
@@ -70,7 +71,10 @@ const AssistantPage = () => {
           .filter((message) => !message.isIntro)
           .map(({ role, content }) => ({ role, content })),
       ];
-      const response = await sendChat(payload, ASSISTANT_MODEL);
+      const response = await sendChat<ChatResponse>({
+        messages: payload,
+        model: ASSISTANT_MODEL,
+      });
       if (!response.ok) {
         setError(response.reason ?? 'Assistant unavailable');
         return;
