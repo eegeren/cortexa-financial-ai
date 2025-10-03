@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 
@@ -9,6 +9,10 @@ const NavBar = () => {
     logout: state.logout,
   }));
   const navigate = useNavigate();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement | null>(null);
+  const mobileAccountRef = useRef<HTMLDivElement | null>(null);
 
   const prefetchRoute = useCallback((path: string) => {
     const prefetched: Record<string, () => Promise<unknown>> = {
@@ -48,6 +52,19 @@ const NavBar = () => {
     navigate('/login');
   };
 
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+      if (mobileAccountRef.current && !mobileAccountRef.current.contains(event.target as Node)) {
+        setMobileAccountOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
       isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
@@ -55,11 +72,11 @@ const NavBar = () => {
 
   return (
     <>
-      <aside className="hidden w-64 flex-col border-r border-outline/40 bg-canvas/80 px-4 pb-6 pt-10 backdrop-blur lg:flex">
+      <aside className="hidden w-56 flex-col border-r border-outline/40 bg-canvas/80 px-3 pb-6 pt-8 backdrop-blur lg:flex">
         <button
           type="button"
           onClick={() => navigate(token ? '/assistant' : '/')}
-          className="flex items-center gap-2 self-start rounded-xl border border-outline/50 px-3 py-2 text-left text-slate-300 transition hover:border-outline hover:text-white"
+          className="flex items-center gap-2 self-start rounded-xl border border-outline/40 px-3 py-2 text-left text-slate-300 transition hover:border-outline hover:text-white"
         >
           <span className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">Cortexa</span>
           <span className="text-base font-semibold text-white">Trade</span>
@@ -67,45 +84,81 @@ const NavBar = () => {
 
         <nav className="mt-10 flex flex-1 flex-col gap-1">
           {(token ? authedLinks : publicLinks).map((link) => (
-            <NavLink key={link.to} to={link.to} className={linkClass} onMouseEnter={() => prefetchRoute(link.to)}>
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={linkClass}
+              onMouseEnter={() => prefetchRoute(link.to)}
+              onClick={() => setAccountOpen(false)}
+            >
               {link.label}
             </NavLink>
           ))}
         </nav>
 
-        <div className="mt-10 space-y-3 rounded-2xl border border-outline/30 bg-surface/60 p-4 text-sm text-slate-300">
+        <div ref={accountRef} className="relative mt-auto pt-6">
           {token ? (
             <>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-slate-500">Account</p>
-                <p className="mt-1 text-white">{email ?? 'Signed in'}</p>
-              </div>
               <button
                 type="button"
-                onClick={() => navigate('/settings')}
-                onMouseEnter={() => prefetchRoute('/settings')}
-                className="w-full rounded-lg border border-outline/30 px-3 py-2 text-left transition hover:border-outline hover:text-white"
+                onClick={() => setAccountOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between rounded-xl border border-outline/40 bg-surface/70 px-3 py-2 text-sm text-slate-200 transition hover:border-outline hover:text-white"
+                aria-haspopup="menu"
+                aria-expanded={accountOpen}
               >
-                Settings
+                <span className="truncate">{email ?? 'Account'}</span>
+                <svg
+                  aria-hidden
+                  viewBox="0 0 12 8"
+                  className={`h-3 w-3 transition-transform ${accountOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
-              <button
-                type="button"
-                onClick={() => navigate('/billing')}
-                onMouseEnter={() => prefetchRoute('/billing')}
-                className="w-full rounded-lg border border-outline/30 px-3 py-2 text-left transition hover:border-outline hover:text-white"
-              >
-                Billing
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full rounded-lg border border-rose-400/40 px-3 py-2 text-left text-rose-300 transition hover:border-rose-400 hover:text-rose-200"
-              >
-                Sign out
-              </button>
+              {accountOpen && (
+                <div
+                  role="menu"
+                  className="absolute bottom-14 left-0 right-0 rounded-xl border border-outline/40 bg-surface p-2 text-sm text-slate-200 shadow-elevation-soft"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('/settings');
+                      setAccountOpen(false);
+                    }}
+                    onMouseEnter={() => prefetchRoute('/settings')}
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-muted/60"
+                  >
+                    Settings
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('/billing');
+                      setAccountOpen(false);
+                    }}
+                    onMouseEnter={() => prefetchRoute('/billing')}
+                    className="mt-1 flex w-full items-center rounded-lg px-3 py-2 transition hover:bg-muted/60"
+                  >
+                    Billing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountOpen(false);
+                      handleLogout();
+                    }}
+                    className="mt-1 flex w-full items-center rounded-lg px-3 py-2 text-rose-300 transition hover:bg-rose-500/10"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
             </>
           ) : (
-            <>
+            <div className="space-y-2 rounded-xl border border-outline/40 bg-surface/70 p-3 text-sm text-slate-300">
               <p className="text-xs uppercase tracking-wide text-slate-500">Getting started</p>
               <button
                 type="button"
@@ -123,7 +176,7 @@ const NavBar = () => {
               >
                 Sign up
               </button>
-            </>
+            </div>
           )}
         </div>
       </aside>
@@ -143,6 +196,7 @@ const NavBar = () => {
               key={link.to}
               to={link.to}
               onMouseEnter={() => prefetchRoute(link.to)}
+              onClick={() => setMobileAccountOpen(false)}
               className={({ isActive }) =>
                 `rounded-full px-3 py-1 transition ${isActive ? 'bg-white text-black' : 'hover:text-white'}`
               }
@@ -150,6 +204,67 @@ const NavBar = () => {
               {link.label}
             </NavLink>
           ))}
+          {token && (
+            <div ref={mobileAccountRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setMobileAccountOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-full border border-outline/60 px-3 py-1 text-ink transition hover:border-outline hover:text-white"
+                aria-haspopup="menu"
+                aria-expanded={mobileAccountOpen}
+              >
+                <span className="max-w-[120px] truncate">{email ?? 'Account'}</span>
+                <svg
+                  aria-hidden
+                  viewBox="0 0 12 8"
+                  className={`h-3 w-3 transition-transform ${mobileAccountOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {mobileAccountOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-48 rounded-xl border border-outline/40 bg-surface p-2 text-sm text-slate-200 shadow-elevation-soft"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('/settings');
+                      setMobileAccountOpen(false);
+                    }}
+                    onMouseEnter={() => prefetchRoute('/settings')}
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 transition hover:bg-muted/60"
+                  >
+                    Settings
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('/billing');
+                      setMobileAccountOpen(false);
+                    }}
+                    onMouseEnter={() => prefetchRoute('/billing')}
+                    className="mt-1 flex w-full items-center rounded-lg px-3 py-2 transition hover:bg-muted/60"
+                  >
+                    Billing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileAccountOpen(false);
+                      handleLogout();
+                    }}
+                    className="mt-1 flex w-full items-center rounded-lg px-3 py-2 text-rose-300 transition hover:bg-rose-500/10"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </nav>
     </>

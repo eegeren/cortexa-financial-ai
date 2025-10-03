@@ -140,9 +140,9 @@ const AssistantPage = () => {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <article className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-          <div ref={scrollRef} className="h-[520px] overflow-y-auto pr-1">
+      <section className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <article className="flex flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+          <div ref={scrollRef} className="h-[620px] overflow-y-auto pr-1 md:h-[680px]">
             <div className="space-y-6">
               {messages.map((message) => (
                 <div key={message.id} className={`flex gap-3 ${message.role === 'assistant' ? '' : 'justify-end'}`}>
@@ -155,7 +155,7 @@ const AssistantPage = () => {
                     </div>
                   )}
                   <div
-                    className={`max-w-lg rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-inner-glow transition ${
+                    className={`max-w-3xl rounded-2xl border px-5 py-4 text-sm leading-relaxed shadow-inner-glow transition ${
                       message.role === 'assistant'
                         ? 'border-outline/40 bg-muted/60 text-slate-200'
                         : 'border-white/60 bg-white/90 text-black'
@@ -216,8 +216,7 @@ const AssistantPage = () => {
             {error && <p className="text-xs text-rose-300">{error}</p>}
           </form>
         </article>
-
-        <aside className="space-y-6">
+        <aside className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
             <h2 className="text-lg font-semibold text-white">Session stats</h2>
             <p className="mt-1 text-sm text-slate-400">Track how much you’ve talked to the assistant this session.</p>
