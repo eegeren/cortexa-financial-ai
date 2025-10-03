@@ -129,8 +129,8 @@ const AssistantPage = () => {
       </section>
 
       <section className="flex flex-1 flex-col">
-        <article className="flex flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
-          <div ref={scrollRef} className="h-[70vh] min-h-[480px] overflow-y-auto pr-1">
+        <article className="flex min-h-[70vh] flex-1 flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto pr-1">
             <div className="space-y-6">
               {messages.map((message) => (
                 <div key={message.id} className={`flex gap-3 ${message.role === 'assistant' ? '' : 'justify-end'}`}>
