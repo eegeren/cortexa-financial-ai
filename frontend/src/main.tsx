@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -38,29 +38,21 @@ const ErrorFallback = ({ error, resetErrorBoundary }: { error: Error; resetError
 );
 
 const HydrationShell = () => {
-  const [ready, setReady] = useState(false);
   const basename = import.meta.env.BASE_URL ?? '/';
 
   useEffect(() => {
-    setReady(true);
     if (typeof document !== 'undefined') {
       document.body.style.backgroundColor = '#0d0d0d';
       document.body.style.color = '#f4f4f5';
     }
   }, []);
 
-  const hydrationFallback = (
-    <div className="flex min-h-screen items-center justify-center bg-canvas text-slate-300">
-      <div className="h-9 w-9 animate-spin rounded-full border-2 border-outline/60 border-t-primary" />
-    </div>
-  );
-
   return (
     <BrowserRouter basename={basename}>
       <AppProviders>
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <Suspense fallback={<AppSkeleton />}>
-            {ready ? <App /> : hydrationFallback}
+            <App />
           </Suspense>
         </ErrorBoundary>
       </AppProviders>
