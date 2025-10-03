@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchPortfolio, fetchSignal, PortfolioResponse, SignalResponse } from '@/services/api';
+import { ASSISTANT_QUICK_PROMPTS } from '@/constants/assistantPrompts';
 import { useToast } from '@/components/ToastProvider';
 
 const MarketWidget = lazy(() => import('@/components/MarketWidget'));
@@ -156,6 +157,17 @@ const DashboardPage = () => {
               className="min-w-[220px] flex-1 rounded-2xl border border-outline/50 bg-surface px-4 py-3 text-left text-sm text-slate-200 transition hover:border-outline hover:text-white"
             >
               {item.label} ↗
+            </Link>
+          ))}
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {ASSISTANT_QUICK_PROMPTS.map((prompt) => (
+            <Link
+              key={prompt}
+              to={`/assistant?prompt=${encodeURIComponent(prompt)}`}
+              className="rounded-2xl border border-outline/40 bg-surface px-4 py-3 text-left text-sm text-slate-200 transition hover:border-outline hover:text-white"
+            >
+              {prompt} ↗
             </Link>
           ))}
         </div>

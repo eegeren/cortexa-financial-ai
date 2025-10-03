@@ -1,4 +1,5 @@
-import { FormEvent, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Paywall from '@/components/Paywall';
 import type { ChatMessagePayload, ChatResponse } from '@/services/api';
 import { sendChat } from '@/lib/api';
@@ -24,6 +25,7 @@ const ASSISTANT_MODEL = import.meta.env.VITE_ASSISTANT_MODEL;
 
 const AssistantPage = () => {
   const { loading, canAccess, initialized } = useSubscriptionAccess();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>(() => [
     createMessage(
       'assistant',
@@ -36,15 +38,16 @@ const AssistantPage = () => {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const quickPrompts = useMemo(
-    () => [
-      'What volatility regime is BTC trading in today?',
-      'Summarise ETH signals on a 4h horizon',
-      'Recommend risk controls before I arm automation',
-      'Analyse the result of my last 10 trades'
-    ],
-    []
-  );
+  useEffect(() => {
+    const preset = searchParams.get('prompt');
+    if (!preset) {
+      return;
+    }
+    setInput(preset);
+    const next = new URLSearchParams(searchParams);
+    next.delete('prompt');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -85,13 +88,6 @@ const AssistantPage = () => {
     }
   };
 
-  const handlePrompt = (prompt: string) => {
-    if (pending) {
-      return;
-    }
-    setInput(prompt);
-  };
-
   if (loading || !initialized) {
     return (
       <div className="space-y-6">
@@ -106,28 +102,7 @@ const AssistantPage = () => {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-      <section className="text-center">
-        <header className="space-y-3">
-          <h1 className="text-3xl font-semibold text-white sm:text-4xl">Cortexa Assistant</h1>
-          <p className="mx-auto max-w-xl text-sm text-slate-400">
-            Need market context, a signal breakdown, or automation guidance? Start typing below.
-          </p>
-        </header>
-        <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs sm:text-sm">
-          {quickPrompts.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              onClick={() => handlePrompt(prompt)}
-              className="rounded-full border border-outline/50 bg-surface px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
-            >
-              {prompt} ↗
-            </button>
-          ))}
-        </div>
-      </section>
-
+    <div className="mx-auto flex w-full max-w-5xl flex-1">
       <section className="flex flex-1 flex-col">
         <article className="flex min-h-[70vh] flex-1 flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <div ref={scrollRef} className="flex-1 overflow-y-auto pr-1">
