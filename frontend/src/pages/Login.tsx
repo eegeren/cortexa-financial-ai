@@ -3,25 +3,63 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 
 const FEATURE_BULLETS = [
-  'AI-tuned signals mapped across every horizon you trade',
-  'Automation guardrails that execute with discipline',
-  'Backtests, assistant, and portfolio analytics in one pane'
+  {
+    title: 'Signals that move',
+    description: 'Multi-horizon AI scoring tuned on live flows and intraday regimes.'
+  },
+  {
+    title: 'Automation locked in',
+    description: 'Guardrails and webhooks keep execution disciplined across desks.'
+  },
+  {
+    title: 'Assistant on-call',
+    description: 'Summaries, playbooks, and risk sweeps delivered in seconds.'
+  }
 ];
 
 const INFO_POINTS = [
   {
-    title: 'What you need',
-    description: 'A Cortexa workspace with API credentials already provisioned. New desks are onboarded in under 24 hours.'
+    label: '99.9%',
+    sub: 'Signal uptime'
   },
   {
-    title: 'Data coverage',
-    description: 'Live crypto spot and futures markets, fx majors, and the macro calendar feed are available out of the box.'
+    label: '24h',
+    sub: 'Desk onboarding'
   },
   {
-    title: 'Support',
-    description: 'Need help? Email support@cortexaai.net or use the #desk-support Slack channel if you are on Enterprise.'
+    label: '45+',
+    sub: 'Markets covered'
   }
 ];
+
+const SparklineGraphic = () => (
+  <svg
+    className="pointer-events-none absolute inset-x-0 bottom-0 h-32 w-full opacity-70"
+    viewBox="0 0 600 200"
+    preserveAspectRatio="none"
+    aria-hidden
+  >
+    <defs>
+      <linearGradient id="sparklineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#4ade80" stopOpacity="0.2" />
+        <stop offset="50%" stopColor="#22d3ee" stopOpacity="0.35" />
+        <stop offset="100%" stopColor="#818cf8" stopOpacity="0.2" />
+      </linearGradient>
+    </defs>
+    <path
+      d="M0 150 C 80 120, 120 40, 200 70 C 280 100, 320 40, 400 80 C 470 118, 520 40, 600 70 L 600 200 L 0 200 Z"
+      fill="url(#sparklineGradient)"
+    />
+    <path
+      d="M0 150 C 80 120, 120 40, 200 70 C 280 100, 320 40, 400 80 C 470 118, 520 40, 600 70"
+      stroke="#38bdf8"
+      strokeWidth="6"
+      strokeLinecap="round"
+      fill="none"
+      opacity="0.9"
+    />
+  </svg>
+);
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -115,65 +153,43 @@ const LoginPage = () => {
         src="/videoplayback.mp4"
         aria-hidden
       />
-      <div className="pointer-events-none fixed inset-0 bg-black/30" />
-      <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-12 sm:px-6">
-        <div className="relative mb-14 overflow-hidden rounded-3xl border border-outline/40 bg-surface/70 p-12 text-center shadow-elevation-soft">
-          <span className="inline-flex items-center gap-2 rounded-full border border-outline/50 bg-surface px-4 py-2 text-xs uppercase tracking-[0.4em] text-slate-400">
-            Cortexa Trade
-          </span>
-          <h1 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl">
-            Sign in and stay ahead of the market curve.
-          </h1>
-          <p className="mt-3 text-sm text-slate-400">
-            Your workspace for signals, automation, and the Cortexa assistant.
-          </p>
-
-          <span className="orb-float pointer-events-none" style={{ background: 'rgba(38, 132, 255, 0.5)', left: '-120px', top: '-160px' }} />
-          <span className="orb-float pointer-events-none" data-delay="1" style={{ background: 'rgba(16, 163, 127, 0.45)', right: '-140px', top: '-100px' }} />
-          <span className="orb-float pointer-events-none" data-delay="2" style={{ background: 'rgba(255, 255, 255, 0.2)', left: '20%', bottom: '-200px' }} />
-          <div className="scan-line pointer-events-none absolute left-0 top-0 h-full w-1/3 opacity-40" />
-        </div>
-
-        <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr]">
-          <section className="space-y-8">
-            <div className="space-y-4 text-slate-300">
-              <p className="text-base text-slate-200">
-                Cortexa keeps your desk synced with AI-calibrated signals, execution guardrails, and instant research support.
+      <div className="pointer-events-none fixed inset-0 bg-black/45" />
+      <div className="relative mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-12 sm:px-6">
+        <div className="relative grid w-full items-center gap-10 lg:grid-cols-[1.25fr_1fr]">
+          <section className="space-y-10">
+            <div className="relative overflow-hidden rounded-[2.5rem] border border-outline/30 bg-gradient-to-br from-indigo-600/70 via-slate-900/40 to-emerald-500/40 p-10 shadow-inner-glow">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs uppercase tracking-[0.35em] text-slate-200">
+                Cortexa Trade
+              </span>
+              <h1 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl">
+                Sign in. Unlock signal intelligence in minutes.
+              </h1>
+              <p className="mt-3 max-w-xl text-sm text-slate-200/80">
+                Live signals, disciplined automation, and a trading assistant that speaks your desk’s language.
               </p>
-              <ul className="space-y-3 text-sm">
-                {FEATURE_BULLETS.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] text-primary">
-                      ●
-                    </span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+              <SparklineGraphic />
             </div>
 
-            <div className="grid gap-4 text-xs text-slate-500 sm:grid-cols-2">
-              <div className="rounded-2xl border border-outline/40 bg-surface px-4 py-3">
-                <p className="text-sm font-semibold text-white">Healthy automation</p>
-                <p className="mt-1">Latency monitoring, webhook status, and auto-trade audit trail.</p>
-              </div>
-              <div className="rounded-2xl border border-outline/40 bg-surface px-4 py-3">
-                <p className="text-sm font-semibold text-white">Assistant insights</p>
-                <p className="mt-1">Summaries, prompts, and backtests delivered in seconds.</p>
-              </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURE_BULLETS.map((item) => (
+                <div key={item.title} className="rounded-3xl border border-outline/30 bg-surface/70 p-5 text-sm text-slate-300 shadow-elevation-soft">
+                  <h3 className="text-base font-semibold text-white">{item.title}</h3>
+                  <p className="mt-2 text-xs text-slate-400">{item.description}</p>
+                </div>
+              ))}
             </div>
 
-            <div className="mt-8 grid gap-4 text-left sm:grid-cols-3">
-              {INFO_POINTS.map((item) => (
-                <div key={item.title} className="rounded-2xl border border-outline/40 bg-surface px-4 py-3 text-left text-xs text-slate-400">
-                  <h3 className="text-sm font-semibold text-white">{item.title}</h3>
-                  <p className="mt-2 text-[12px] leading-relaxed">{item.description}</p>
+            <div className="flex flex-wrap gap-4">
+              {INFO_POINTS.map((stat) => (
+                <div key={stat.label} className="flex min-w-[120px] flex-col rounded-2xl border border-outline/30 bg-surface/60 px-5 py-4 text-center text-slate-200">
+                  <span className="text-2xl font-semibold text-white">{stat.label}</span>
+                  <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">{stat.sub}</span>
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="rounded-3xl border border-outline/40 bg-surface p-8 shadow-elevation-soft">
+          <section className="rounded-3xl border border-outline/40 bg-surface/85 p-8 shadow-elevation-soft">
             <header className="mb-6 space-y-2 text-left">
               <h2 className="text-2xl font-semibold text-white">Welcome back</h2>
               <p className="text-sm text-slate-400">Use your workspace credentials to continue.</p>
