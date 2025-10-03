@@ -153,20 +153,33 @@ const LoginPage = () => {
         src="/videoplayback.mp4"
         aria-hidden
       />
-      <div className="pointer-events-none fixed inset-0 bg-black/45" />
+      <div className="pointer-events-none fixed inset-0 bg-black/35" />
       <div className="relative mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-12 sm:px-6">
         <div className="relative grid w-full items-center gap-10 lg:grid-cols-[1.25fr_1fr]">
           <section className="space-y-10">
-            <div className="relative overflow-hidden rounded-[2.5rem] border border-outline/30 bg-gradient-to-br from-indigo-600/70 via-slate-900/40 to-emerald-500/40 p-10 shadow-inner-glow">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs uppercase tracking-[0.35em] text-slate-200">
-                Cortexa Trade
-              </span>
-              <h1 className="mt-6 text-4xl font-semibold leading-tight text-white sm:text-5xl">
-                Sign in. Unlock signal intelligence in minutes.
-              </h1>
-              <p className="mt-3 max-w-xl text-sm text-slate-200/80">
-                Live signals, disciplined automation, and a trading assistant that speaks your desk’s language.
-              </p>
+            <div className="relative overflow-hidden rounded-[2.5rem] border border-outline/30 p-10 shadow-inner-glow">
+              <video
+                className="absolute inset-0 h-full w-full object-cover opacity-60"
+                src="/videoplayback.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                aria-hidden
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/70 via-slate-900/70 to-emerald-700/60" />
+              <div className="relative space-y-4">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs uppercase tracking-[0.35em] text-slate-200">
+                  Cortexa Trade
+                </span>
+                <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
+                  Sign in. Unlock signal intelligence in minutes.
+                </h1>
+                <p className="max-w-xl text-sm text-slate-200/80">
+                  Live signals, disciplined automation, and a trading assistant that speaks your desk’s language.
+                </p>
+              </div>
               <SparklineGraphic />
             </div>
 
