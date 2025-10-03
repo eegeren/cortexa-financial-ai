@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchSignal, triggerAutoTrade, fetchBacktest, SignalResponse, BacktestResponse } from '@/services/api';
+import type { SignalResponse, BacktestResponse } from '@/services/api';
+import { fetchSignal, triggerAutoTrade, fetchBacktest } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 
 const PRIMARY_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'] as const;
@@ -46,7 +47,7 @@ const SignalsPage = () => {
     setSignalLoading(true);
     setSignalError(null);
     try {
-      const data = await fetchSignal(symbol);
+      const data = await fetchSignal<SignalResponse>(symbol);
       setSignal(data);
       setActiveSymbol(symbol);
       setSearchValue(symbol);
@@ -78,7 +79,13 @@ const SignalsPage = () => {
     setAutoBusy(true);
     setAutoStatus(null);
     try {
-      const result = await triggerAutoTrade(activeSymbol, threshold, qty);
+      const result = await triggerAutoTrade<{ executed: boolean; note?: string; reason?: string; score: number }>(
+        activeSymbol,
+        {
+          threshold,
+          qty,
+        }
+      );
       const message = result.executed
         ? `Otomasyon ${result.score.toFixed(2)} skorunda devrede`
         : result.reason ?? 'Otomasyon kuyrukta';
@@ -97,7 +104,7 @@ const SignalsPage = () => {
     setBacktestLoading(true);
     setBacktestError(null);
     try {
-      const report = await fetchBacktest(activeSymbol, {
+      const report = await fetchBacktest<BacktestResponse>(activeSymbol, {
         threshold: Number.parseFloat(autoThreshold) || 0.65,
         horizon: 4,
         limit: 400,
