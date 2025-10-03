@@ -22,9 +22,9 @@ const Layout = () => {
           </Helmet>
             <div className="relative min-h-screen overflow-hidden bg-canvas text-ink transition-colors duration-300">
             <div className="pointer-events-none absolute inset-0 bg-grid-glow opacity-60" />
-            <div className="relative z-10">
+            <div className="relative z-10 flex min-h-screen flex-col lg:flex-row">
               <NavBar />
-              <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-10 sm:px-6">
+              <main className="flex-1 overflow-x-hidden px-4 pb-16 pt-24 sm:px-8 md:px-12 md:pt-12 lg:pt-10">
                 <Outlet />
               </main>
               <OnboardingTour />

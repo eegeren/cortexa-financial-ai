@@ -49,7 +49,7 @@ const PublicOnlyRoute = ({ children }: { children: JSX.Element }) => {
     return <Spinner />;
   }
   if (token) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/assistant" replace />;
   }
   return children;
 };
@@ -77,7 +77,7 @@ const App = () => {
         />
 
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to="/assistant" replace />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/signals" element={<ProtectedRoute><SignalsPage /></ProtectedRoute>} />
