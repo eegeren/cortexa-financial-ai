@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
+import SplashScreen from '@/components/SplashScreen';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoginPage from '@/pages/Login';
 import RegisterPage from '@/pages/Register';
@@ -55,8 +56,11 @@ const PublicOnlyRoute = ({ children }: { children: JSX.Element }) => {
 };
 
 const App = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
     <>
+      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       <AuthBootstrap />
       <Routes>
         <Route

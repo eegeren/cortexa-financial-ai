@@ -32,7 +32,10 @@
       "Bash(git remote set-url origin https://github.com/eegeren/cortexa-financial-ai.git)",
       "Bash(git add railway.json ai-service/railway.json ai-service/Dockerfile)",
       "Bash(git push)",
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(npm run build)",
+      "Bash(git add frontend/src/styles.css frontend/src/components/Card.tsx frontend/src/components/MetricCard.tsx frontend/src/components/NavBar.tsx frontend/src/components/Layout.tsx frontend/src/pages/Dashboard.tsx frontend/dist/)",
+      "Bash(git push origin main)"
     ]
   }
 }

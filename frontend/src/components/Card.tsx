@@ -9,15 +9,14 @@ interface CardProps {
 const Card = ({ children, className, glow = true }: PropsWithChildren<CardProps>) => (
   <div
     className={clsx(
-      'relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 shadow-lg shadow-slate-950/20 backdrop-blur',
+      'ui-surface relative overflow-hidden rounded-2xl p-5',
       glow && 'card-glow',
       className
     )}
   >
-    {/* Subtle shimmer line at the top */}
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"
+      className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"
     />
     {children}
   </div>
