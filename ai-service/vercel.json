@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "signal_api.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "signal_api.py"
+    }
+  ]
+}

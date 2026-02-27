@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c \"python --version 2>&1\")",
+      "Bash(cmd /c \"go version 2>&1\")",
+      "Bash(cmd /c \"node --version 2>&1\")",
+      "Bash(cmd /c \"npm --version 2>&1\")",
+      "Bash(powershell -Command \"python --version; go version; node --version; npm --version\")",
+      "Bash(# Check env file in frontend cat /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/frontend/.env || cat /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/frontend/.env.example || ls /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/frontend/)",
+      "Bash(powershell -Command \"winget --version\")",
+      "Bash(cat /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/internal/routes/*.go)",
+      "Bash(cat /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/internal/storage/*.go)",
+      "Bash(ls /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/frontend/.env*)",
+      "Bash(cat /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/internal/middleware/*.go)",
+      "Bash(wc -l /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/internal/handlers/*.go /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/internal/services/*.go)",
+      "Bash(grep -l \"localhost\" /c/Users/egeev/OneDrive/Desktop/cortexa-financial-ai-main/frontend/dist/assets/*.js)",
+      "Bash(openssl rand -hex 32)",
+      "Bash(powershell -Command \"[System.Convert]::ToBase64String\\([System.Security.Cryptography.RandomNumberGenerator]::GetBytes\\(32\\)\\)\")",
+      "Bash(where gh)",
+      "Bash(powershell -Command \"Get-Command gh -ErrorAction SilentlyContinue\")",
+      "Bash(where git)",
+      "Bash(git --version)",
+      "Bash(git init)",
+      "Bash(git config user.email \"yusufegeerenn@gmail.com\")",
+      "Bash(git config user.name \"egeev\")",
+      "Bash(git add .)"
+    ]
+  }
+}
