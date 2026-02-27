@@ -11,17 +11,24 @@ interface MetricCardProps {
   className?: string;
 }
 
-const accentClass: Record<Required<MetricCardProps>['accent'], string> = {
-  emerald: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100',
-  blue: 'border-blue-500/40 bg-blue-500/10 text-blue-100',
-  amber: 'border-amber-500/40 bg-amber-500/10 text-amber-100',
-  slate: 'border-slate-700/60 bg-slate-900/70 text-slate-200'
+const accentBarColor: Record<Required<MetricCardProps>['accent'], string> = {
+  emerald: 'bg-emerald-500',
+  blue:    'bg-blue-500',
+  amber:   'bg-amber-500',
+  slate:   'bg-slate-700',
 };
 
-const deltaToneClass: Record<NonNullable<MetricCardProps['deltaTone']>, string> = {
-  positive: 'text-emerald-300',
-  negative: 'text-rose-300',
-  neutral: 'text-slate-400'
+const accentClass: Record<Required<MetricCardProps>['accent'], string> = {
+  emerald: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100',
+  blue:    'border-blue-500/30 bg-blue-500/10 text-blue-100',
+  amber:   'border-amber-500/30 bg-amber-500/10 text-amber-100',
+  slate:   'border-slate-700/60 bg-slate-900/70 text-slate-200',
+};
+
+const deltaPillClass: Record<NonNullable<MetricCardProps['deltaTone']>, string> = {
+  positive: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20',
+  negative: 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/20',
+  neutral:  'bg-slate-700/40 text-slate-400 ring-1 ring-slate-700/40',
 };
 
 const MetricCard = ({
@@ -31,21 +38,29 @@ const MetricCard = ({
   accent = 'slate',
   deltaLabel,
   deltaTone = 'neutral',
-  className
+  className,
 }: MetricCardProps) => (
   <div
     className={clsx(
-      'rounded-xl border p-4 transition hover:border-primary/60 hover:shadow-lg hover:shadow-primary/10 backdrop-blur-sm',
+      'card-glow relative overflow-hidden rounded-xl border p-4 backdrop-blur-sm transition',
       accentClass[accent],
       className
     )}
   >
-    <div className="flex items-start justify-between gap-2">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
-      {deltaLabel && <span className={clsx('text-[11px] font-semibold', deltaToneClass[deltaTone])}>{deltaLabel}</span>}
+    {/* Accent top bar */}
+    <div className={clsx('absolute inset-x-0 top-0 h-0.5', accentBarColor[accent])} />
+
+    <div className="flex items-start justify-between gap-2 pt-1">
+      <p className="text-[10px] font-medium uppercase tracking-widest text-slate-500">{label}</p>
+      {deltaLabel && (
+        <span className={clsx('rounded-full px-2 py-0.5 text-[10px] font-semibold', deltaPillClass[deltaTone])}>
+          {deltaLabel}
+        </span>
+      )}
     </div>
-    <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-    {hint && <div className="mt-1 text-xs text-slate-300">{hint}</div>}
+
+    <div className="mt-3 text-2xl font-semibold tracking-tight text-white">{value}</div>
+    {hint && <div className="mt-1.5 text-xs text-slate-400">{hint}</div>}
   </div>
 );
 

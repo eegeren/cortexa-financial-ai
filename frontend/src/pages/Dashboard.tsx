@@ -120,10 +120,10 @@ const DashboardPage = () => {
   }, [portfolio, portfolioLoading]);
 
   return (
-    <div className="space-y-16">
-      <section className="text-center">
-        <header className="space-y-4">
-          <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Cortexa Trade</span>
+    <div className="space-y-10">
+      <section className="animate-fade-up text-center">
+        <header className="space-y-3">
+          <span className="text-[10px] font-medium uppercase tracking-[0.45em] text-slate-500">Cortexa Trade</span>
           <h1 className="text-4xl font-semibold text-white sm:text-5xl">
             Act on signals, manage automation, keep your desk sharp.
           </h1>
@@ -131,41 +131,35 @@ const DashboardPage = () => {
             Your command center for signals, the automation runway, and rapid research support from the Cortexa assistant.
           </p>
         </header>
-        <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
-          <Link
-            to="/signals"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-medium text-black shadow-inner-glow transition hover:bg-slate-200"
-          >
-            Şimdi başla
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link to="/signals" className="btn btn-primary">
+            Get started →
           </Link>
-          <Link
-            to="/assistant"
-            className="inline-flex items-center gap-2 rounded-full border border-outline/50 px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
-          >
-            Learn about the assistant ↗
+          <Link to="/assistant" className="btn btn-ghost">
+            Explore assistant ↗
           </Link>
         </div>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-left text-xs uppercase tracking-[0.35em] text-slate-500">What do you want to do?</h2>
+        <h2 className="text-left text-[10px] font-medium uppercase tracking-[0.4em] text-slate-500">What do you want to do?</h2>
         <div className="flex flex-wrap gap-3">
           {SUGGESTIONS.map((item) => (
             <Link
               key={item.label}
               to={item.href}
-              className="min-w-[220px] flex-1 rounded-2xl border border-outline/50 bg-surface px-4 py-3 text-left text-sm text-slate-200 transition hover:border-outline hover:text-white"
+              className="card-glow min-w-[220px] flex-1 rounded-2xl border border-outline/50 bg-surface px-4 py-3 text-left text-sm text-slate-300 transition hover:text-white"
             >
               {item.label} ↗
             </Link>
           ))}
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ASSISTANT_QUICK_PROMPTS.map((prompt) => (
             <Link
               key={prompt}
               to={`/assistant?prompt=${encodeURIComponent(prompt)}`}
-              className="rounded-2xl border border-outline/40 bg-surface px-4 py-3 text-left text-sm text-slate-200 transition hover:border-outline hover:text-white"
+              className="card-glow rounded-2xl border border-outline/40 bg-surface px-4 py-3 text-left text-sm text-slate-300 transition hover:text-white"
             >
               {prompt} ↗
             </Link>

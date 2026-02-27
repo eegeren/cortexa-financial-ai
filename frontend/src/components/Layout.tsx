@@ -24,7 +24,7 @@ const Layout = () => {
             <div className="pointer-events-none absolute inset-0 bg-grid-glow opacity-60" />
             <div className="relative z-10 flex min-h-screen flex-col lg:flex-row">
               <NavBar />
-              <main className="flex-1 overflow-x-hidden px-2 pb-0 pt-0 sm:px-2">
+              <main className="flex-1 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
                 <Outlet />
               </main>
               <OnboardingTour />
