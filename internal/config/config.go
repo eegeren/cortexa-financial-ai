@@ -73,9 +73,20 @@ func getenvBool(k string, def bool) bool {
 	return def
 }
 
+// resolveAddr: HTTP_ADDR > PORT (Railway/Render) > :8080
+func resolveAddr() string {
+	if v := strings.TrimSpace(os.Getenv("HTTP_ADDR")); v != "" {
+		return v
+	}
+	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" {
+		return ":" + port
+	}
+	return ":8080"
+}
+
 func Load() Config {
 	cfg := Config{
-		HTTPAddr:                  strings.TrimSpace(getenv("HTTP_ADDR", ":8080")),
+		HTTPAddr:                  resolveAddr(),
 		DBURL:                     strings.TrimSpace(getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/cta?sslmode=disable")),
 		RedisURL:                  strings.TrimSpace(getenv("REDIS_URL", "")),
 		JWTSecret:                 strings.TrimSpace(getenv("JWT_SECRET", "dev_secret_change_me")),
