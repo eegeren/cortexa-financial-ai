@@ -1,0 +1,666 @@
+from __future__ import annotations
+
+import math
+import os
+import time
+from typing import Any, Dict, Iterable, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from requests.adapters import HTTPAdapter
+
+try:
+    from urllib3.util.retry import Retry
+except Exception:  # pragma: no cover
+    from requests.packages.urllib3.util.retry import Retry  # type: ignore
+
+import logging
+import traceback
+
+from analysis_engine import (
+    build_analysis,
+    build_indicator_frame,
+    build_indicator_snapshot,
+    legacy_score_from_confidence,
+    legacy_side_from_trend,
+    normalize_timeframe,
+    safe_float,
+)
+from explanation_engine import generate_explanation
+from validation import validate_analysis_history
+
+
+def json_sanitize(value: Any):
+    if isinstance(value, dict):
+        return {key: json_sanitize(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_sanitize(item) for item in value]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    try:
+        if isinstance(value, (np.floating,)):
+            cast = float(value)
+            return cast if math.isfinite(cast) else None
+        if isinstance(value, (np.integer,)):
+            return int(value)
+        if isinstance(value, (np.bool_,)):
+            return bool(value)
+    except Exception:
+        pass
+    return value
+
+
+def parse_float_list(value: str) -> list[float]:
+    try:
+        return [float(item) for item in value.split(",") if item.strip()]
+    except Exception as exc:
+        raise HTTPException(400, "invalid float list") from exc
+
+
+def parse_int_list(value: str) -> list[int]:
+    try:
+        return [int(item) for item in value.split(",") if item.strip()]
+    except Exception as exc:
+        raise HTTPException(400, "invalid int list") from exc
+
+
+def parse_symbol_list(value: str) -> list[str]:
+    try:
+        items = [item.strip().upper() for item in value.split(",") if item.strip()]
+        return [symbol for symbol in items if symbol.isalnum() and 4 <= len(symbol) <= 20]
+    except Exception as exc:
+        raise HTTPException(400, "invalid symbols list") from exc
+
+
+SUPPORTED_SYMBOLS = [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "USDTTRY",
+    "ADAUSDT",
+    "DOGEUSDT",
+    "TRXUSDT",
+    "MATICUSDT",
+    "TONUSDT",
+    "LINKUSDT",
+    "DOTUSDT",
+    "LTCUSDT",
+    "AVAXUSDT",
+    "ATOMUSDT",
+    "NEARUSDT",
+    "APTUSDT",
+    "OPUSDT",
+    "ARBUSDT",
+    "SUIUSDT",
+    "INJUSDT",
+    "AAVEUSDT",
+    "FTMUSDT",
+    "SHIBUSDT",
+    "PEPEUSDT",
+    "WIFUSDT",
+]
+
+TIMEFRAME_TO_INTERVAL = {
+    "15m": "15m",
+    "1h": "1h",
+    "4h": "4h",
+    "1d": "1d",
+}
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        os.getenv("FRONTEND_ORIGIN", "https://www.cortexaai.net"),
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+logger = logging.getLogger("ai-service")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+
+@app.exception_handler(Exception)
+async def _unhandled_error(request: Request, exc: Exception):
+    logger.error("unhandled error on %s: %s", request.url.path, exc, exc_info=True)
+    path = request.url.path if request else ""
+    if path.startswith(("/signals", "/predict", "/market", "/optimize")):
+        return JSONResponse(status_code=200, content={"ok": False, "error": "ai-service-internal", "path": path})
+    return JSONResponse(status_code=500, content={"ok": False, "error": "ai-service-internal"})
+
+
+_SESSION = requests.Session()
+_retry = Retry(
+    total=3,
+    connect=3,
+    read=3,
+    backoff_factor=0.4,
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=("GET",),
+    raise_on_status=False,
+)
+_SESSION.headers.update(
+    {
+        "User-Agent": "cortexa-ai-service/2.0 (+https://www.cortexaai.net)",
+        "Accept": "application/json",
+    }
+)
+_SESSION.mount("https://", HTTPAdapter(max_retries=_retry))
+_SESSION.mount("http://", HTTPAdapter(max_retries=_retry))
+
+_BINANCE_TICKER_URL = "https://api.binance.com/api/v3/ticker/24hr"
+_OHLCV_CACHE: Dict[tuple[str, str, int], tuple[float, pd.DataFrame]] = {}
+_OHLCV_TTL_SEC = int(os.getenv("OHLCV_TTL_SEC", "20"))
+_ANALYSIS_CACHE: Dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+_ANALYSIS_TTL_SEC = int(os.getenv("SIG_TTL_SEC", "60"))
+
+
+def _normalize_path(path: str) -> str:
+    return path if path.startswith("/") else f"/{path}"
+
+
+def _build_sources() -> Iterable[Tuple[str, str]]:
+    primary_base = os.getenv("BINANCE_BASE_URL", "https://api.binance.com").rstrip("/")
+    primary_path = _normalize_path(os.getenv("BINANCE_KLINES_PATH", "/api/v3/klines"))
+    fallback_base = os.getenv("BINANCE_FALLBACK_URL", "https://data-api.binance.vision").rstrip("/")
+    fallback_path = _normalize_path(os.getenv("BINANCE_FALLBACK_KLINES_PATH", "/api/v3/klines"))
+    seen: set[tuple[str, str]] = set()
+    for pair in ((primary_base, primary_path), (fallback_base, fallback_path)):
+        if pair in seen or not pair[0]:
+            continue
+        seen.add(pair)
+        yield pair
+
+
+DATA_SOURCES = tuple(_build_sources()) or (("https://data-api.binance.vision", "/api/v3/klines"),)
+
+
+def _cache_get(symbol: str, interval: str, limit: int) -> pd.DataFrame | None:
+    record = _OHLCV_CACHE.get((symbol.upper(), interval, int(limit)))
+    if not record:
+        return None
+    ts, data = record
+    if time.time() - ts <= _OHLCV_TTL_SEC and not data.empty:
+        return data.copy()
+    return None
+
+
+def _cache_put(symbol: str, interval: str, limit: int, df: pd.DataFrame) -> None:
+    _OHLCV_CACHE[(symbol.upper(), interval, int(limit))] = (time.time(), df.copy())
+
+
+def _analysis_cache_get(symbol: str, timeframe: str) -> dict[str, Any] | None:
+    record = _ANALYSIS_CACHE.get((symbol.upper(), normalize_timeframe(timeframe)))
+    if not record:
+        return None
+    ts, data = record
+    if time.time() - ts <= _ANALYSIS_TTL_SEC:
+        return data.copy()
+    return None
+
+
+def _analysis_cache_put(symbol: str, timeframe: str, payload: dict[str, Any]) -> None:
+    _ANALYSIS_CACHE[(symbol.upper(), normalize_timeframe(timeframe))] = (time.time(), payload.copy())
+
+
+def fetch_24h_tickers(symbols: Optional[list[str]] = None, top_n: Optional[int] = None) -> list[dict]:
+    try:
+        if symbols:
+            results = []
+            for symbol in symbols:
+                response = _SESSION.get(_BINANCE_TICKER_URL, params={"symbol": symbol}, timeout=8)
+                if response.status_code == 200:
+                    results.append(response.json())
+            return results
+
+        response = _SESSION.get(_BINANCE_TICKER_URL, timeout=12)
+        if response.status_code != 200:
+            raise HTTPException(502, f"ticker list failed: {response.status_code}")
+        payload = response.json()
+        if not isinstance(payload, list):
+            raise HTTPException(502, "unexpected ticker payload")
+        if top_n and top_n > 0:
+            payload.sort(key=lambda item: float(item.get("quoteVolume", 0) or 0), reverse=True)
+            payload = payload[:top_n]
+        return payload
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("fetch_24h_tickers error: %s", exc)
+        raise HTTPException(502, "failed to fetch 24h tickers")
+
+
+def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 300) -> pd.DataFrame:
+    cached = _cache_get(symbol, interval, limit)
+    if cached is not None:
+        return cached
+
+    errors: list[str] = []
+    for base, path in DATA_SOURCES:
+        for attempt in range(3):
+            try:
+                response = _SESSION.get(
+                    f"{base}{path}",
+                    params={"symbol": symbol.upper(), "interval": interval, "limit": limit},
+                    timeout=15,
+                )
+            except requests.RequestException as exc:
+                errors.append(f"{base}{path}: request failed ({exc}) [{attempt + 1}/3]")
+                time.sleep(0.2 * (2**attempt))
+                continue
+
+            if response.status_code != 200:
+                errors.append(f"{base}{path}: status {response.status_code} [{attempt + 1}/3]")
+                time.sleep(0.2 * (2**attempt))
+                continue
+
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                errors.append(f"{base}{path}: invalid json ({exc}) [{attempt + 1}/3]")
+                continue
+
+            if not payload:
+                errors.append(f"{base}{path}: empty klines [{attempt + 1}/3]")
+                continue
+
+            frame = pd.DataFrame(
+                payload,
+                columns=["time", "open", "high", "low", "close", "volume", "ct", "qv", "n", "tb", "tq", "ig"],
+            )
+            for column in ("open", "high", "low", "close", "volume"):
+                frame[column] = pd.to_numeric(frame[column], errors="coerce")
+            frame = frame.dropna(subset=["open", "high", "low", "close"]).copy()
+            frame["symbol"] = symbol.upper()
+            if len(frame) < 200:
+                errors.append(f"{base}{path}: insufficient rows ({len(frame)}) [{attempt + 1}/3]")
+                continue
+            _cache_put(symbol, interval, limit, frame)
+            return frame
+
+    raise HTTPException(502, "all data providers failed: " + " | ".join(errors))
+
+
+def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int = 300) -> dict[str, Any]:
+    symbol = symbol.upper()
+    timeframe = normalize_timeframe(timeframe)
+    interval = TIMEFRAME_TO_INTERVAL.get(timeframe, "1h")
+    raw_frame = fetch_ohlcv(symbol, interval, max(limit, 220))
+    indicator_frame = build_indicator_frame(raw_frame)
+    if len(indicator_frame) < 200:
+        raise HTTPException(503, "not enough data for indicators")
+
+    analysis = build_analysis(indicator_frame, symbol=symbol, timeframe=timeframe)
+    analysis["explanation"] = generate_explanation(analysis)
+
+    indicators = analysis["indicators"]
+    analysis["rsi"] = indicators["rsi"]
+    analysis["atr"] = indicators["atr"]
+    analysis["adx"] = indicators["adx"]
+    analysis["atr_pct"] = safe_float(
+        indicator_frame.iloc[-1]["atr_pct"],
+        4,
+    )
+    analysis["ema_fast"] = indicators["ema20"]
+    analysis["ema_slow"] = indicators["ema50"]
+    analysis["score"] = legacy_score_from_confidence(analysis["confidence"])
+    analysis["side"] = legacy_side_from_trend(analysis["trend"])
+    analysis["sl"] = None
+    analysis["tp"] = None
+    analysis["stale"] = False
+    analysis["ok"] = True
+
+    _analysis_cache_put(symbol, timeframe, json_sanitize(analysis))
+    return analysis
+
+
+def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
+    return {
+        "symbol": symbol.upper(),
+        "timeframe": normalize_timeframe(timeframe),
+        "trend": "Neutral",
+        "momentum": "Weak",
+        "risk": "Medium",
+        "confidence": 50,
+        "market_regime": "Unavailable",
+        "price": None,
+        "indicators": {
+            "ema20": None,
+            "ema50": None,
+            "ema200": None,
+            "rsi": None,
+            "macd": {"macd": None, "signal": None, "histogram": None},
+            "adx": None,
+            "atr": None,
+            "volume_ratio": None,
+        },
+        "levels": {"support": None, "resistance": None},
+        "scenario": "Fresh market structure is unavailable right now. Recheck after data connectivity recovers.",
+        "explanation": "Fresh market structure is unavailable right now. Recheck after data connectivity recovers.",
+        "disclaimer": "This is not financial advice. It is an informational market analysis.",
+        "score": 0.5,
+        "side": "HOLD",
+        "rsi": None,
+        "atr": None,
+        "adx": None,
+        "atr_pct": None,
+        "ema_fast": None,
+        "ema_slow": None,
+        "sl": None,
+        "tp": None,
+    }
+
+
+def analysis_payload(symbol: str, timeframe: str = "1h") -> dict[str, Any]:
+    try:
+        payload = compute_analysis(symbol, timeframe)
+        return {"ok": True, "data": json_sanitize(payload), "stale": False, **json_sanitize(payload)}
+    except HTTPException:
+        cached = _analysis_cache_get(symbol, timeframe)
+        if cached is not None:
+            return {"ok": True, "data": cached, "stale": True, **cached}
+        fallback = json_sanitize(_fallback_analysis(symbol, timeframe))
+        return {"ok": True, "data": fallback, "stale": True, **fallback}
+    except Exception as exc:
+        logger.error("analysis payload failed for %s %s: %s", symbol, timeframe, exc)
+        cached = _analysis_cache_get(symbol, timeframe)
+        if cached is not None:
+            return {"ok": True, "data": cached, "stale": True, **cached}
+        fallback = json_sanitize(_fallback_analysis(symbol, timeframe))
+        return {"ok": True, "data": fallback, "stale": True, **fallback}
+
+
+def last_indicators_snapshot(symbol: str, timeframe: str = "1h") -> dict[str, Any]:
+    interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
+    frame = build_indicator_frame(fetch_ohlcv(symbol.upper(), interval, 220))
+    latest = frame.iloc[-1]
+    snapshot = build_indicator_snapshot(latest)
+    snapshot["price"] = safe_float(latest.get("close"), 2)
+    snapshot["atr_pct"] = safe_float(latest.get("atr_pct"), 4)
+    snapshot["trend"] = build_analysis(frame, symbol=symbol.upper(), timeframe=timeframe)["trend"]
+    return json_sanitize(snapshot)
+
+
+@app.get("/")
+def root():
+    return {"ok": True, "service": "ai-service"}
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
+@app.get("/symbols")
+def get_symbols(top_n: int = 0, only_usdt: bool = True):
+    try:
+        symbols = list(dict.fromkeys(SUPPORTED_SYMBOLS))
+        if top_n > 0:
+            for ticker in fetch_24h_tickers(None, top_n=top_n):
+                symbol = str(ticker.get("symbol", "")).upper()
+                if only_usdt and not symbol.endswith("USDT"):
+                    continue
+                symbols.append(symbol)
+        return {"ok": True, "symbols": list(dict.fromkeys(symbols))}
+    except Exception:
+        return JSONResponse(status_code=200, content={"ok": False, "symbols": SUPPORTED_SYMBOLS})
+
+
+@app.get("/signals")
+def get_signals(symbol: str = "BTCUSDT", timeframe: str = "1h"):
+    return analysis_payload(symbol, timeframe)
+
+
+@app.get("/predict")
+def predict_get(symbol: str = "BTCUSDT", timeframe: str = "1h"):
+    return analysis_payload(symbol, timeframe)
+
+
+@app.post("/predict")
+def predict(payload: dict[str, Any]):
+    symbol = str(payload.get("symbol", "BTCUSDT"))
+    timeframe = str(payload.get("timeframe") or payload.get("interval") or "1h")
+    return analysis_payload(symbol, timeframe)
+
+
+@app.get("/debug/predict")
+def debug_predict(symbol: str = "BTCUSDT", timeframe: str = "1h"):
+    try:
+        data = compute_analysis(symbol, timeframe)
+        return {"ok": True, "data": json_sanitize(data)}
+    except HTTPException as exc:
+        return {"ok": False, "status": exc.status_code, "error": str(exc.detail)}
+    except Exception as exc:
+        return {"ok": False, "status": 500, "error": str(exc)}
+
+
+@app.get("/backtest")
+def backtest(
+    symbol: str = "BTCUSDT",
+    timeframe: str = "1h",
+    threshold: float = 0.6,
+    limit: int = 400,
+    horizon: int = 4,
+    commission_bps: float = 4.0,
+    slippage_bps: float = 1.0,
+    position_size: float = 1.0,
+    mode: str = "horizon",
+    bootstrap: int = 0,
+):
+    if not (0 < threshold < 1):
+        raise HTTPException(400, "threshold must be between 0 and 1")
+    if limit < 220 or limit > 2000:
+        raise HTTPException(400, "limit must be between 220 and 2000")
+    if horizon < 1 or horizon > 50:
+        raise HTTPException(400, "horizon must be between 1 and 50")
+    if commission_bps < 0 or slippage_bps < 0:
+        raise HTTPException(400, "commission/slippage cannot be negative")
+    if position_size <= 0:
+        raise HTTPException(400, "position_size must be positive")
+
+    try:
+        del mode, bootstrap
+        interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
+        frame = fetch_ohlcv(symbol.upper(), interval, limit)
+        result = validate_analysis_history(
+            frame,
+            symbol=symbol.upper(),
+            timeframe=timeframe,
+            threshold=threshold,
+            horizon=horizon,
+            commission_bps=commission_bps,
+            slippage_bps=slippage_bps,
+            position_size=position_size,
+        )
+        return json_sanitize(result)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("/backtest failed: %s\n%s", exc, traceback.format_exc())
+        raise HTTPException(500, "internal error while backtesting; check server logs")
+
+
+@app.get("/backtest/sweep")
+def backtest_sweep_endpoint(
+    symbol: str = "BTCUSDT",
+    timeframe: str = "1h",
+    thresholds: str = "0.4,0.5,0.6,0.7",
+    horizons: str = "2,4,6",
+    limit: int = 400,
+    commission_bps: float = 4.0,
+    slippage_bps: float = 1.0,
+    position_size: float = 1.0,
+):
+    threshold_values = parse_float_list(thresholds)
+    horizon_values = parse_int_list(horizons)
+    if not threshold_values or not horizon_values:
+        raise HTTPException(400, "thresholds and horizons must be non-empty")
+
+    interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
+    frame = fetch_ohlcv(symbol.upper(), interval, limit)
+    results = [
+        validate_analysis_history(
+            frame,
+            symbol=symbol.upper(),
+            timeframe=timeframe,
+            threshold=threshold_value,
+            horizon=horizon_value,
+            commission_bps=commission_bps,
+            slippage_bps=slippage_bps,
+            position_size=position_size,
+        )
+        for threshold_value in threshold_values
+        for horizon_value in horizon_values
+    ]
+
+    return json_sanitize(
+        {
+            "symbol": symbol.upper(),
+            "thresholds": threshold_values,
+            "horizons": horizon_values,
+            "limit": limit,
+            "commission_bps": commission_bps,
+            "slippage_bps": slippage_bps,
+            "position_size": position_size,
+            "results": results,
+        }
+    )
+
+
+@app.get("/optimize")
+def optimize_endpoint(
+    symbol: str = "BTCUSDT",
+    timeframe: str = "1h",
+    thresholds: str = "0.4,0.5,0.6,0.7,0.8",
+    horizons: str = "2,4,6,8",
+    limit: int = 400,
+    commission_bps: float = 4.0,
+    slippage_bps: float = 1.0,
+    position_size: float = 1.0,
+    target_hit: float = 0.64,
+    min_trades: int = 25,
+    mode: str = "horizon",
+    walkforward: bool = False,
+):
+    del mode, walkforward
+    threshold_values = parse_float_list(thresholds)
+    horizon_values = parse_int_list(horizons)
+    interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
+    frame = fetch_ohlcv(symbol.upper(), interval, limit)
+
+    best: dict[str, Any] | None = None
+    closest: dict[str, Any] | None = None
+    smallest_gap = 99.0
+
+    for threshold_value in threshold_values:
+        for horizon_value in horizon_values:
+            result = validate_analysis_history(
+                frame,
+                symbol=symbol.upper(),
+                timeframe=timeframe,
+                threshold=threshold_value,
+                horizon=horizon_value,
+                commission_bps=commission_bps,
+                slippage_bps=slippage_bps,
+                position_size=position_size,
+            )
+            trades = int(result["trades"])
+            hit_rate = float(result["hit_rate"])
+            gap = abs(hit_rate - target_hit)
+            candidate = {
+                "threshold": threshold_value,
+                "horizon": horizon_value,
+                "trades": trades,
+                "hit_rate": hit_rate,
+                "profit_factor": float(result.get("profit_factor", 0.0)),
+                "net_return_sum": float(result.get("net_return_sum", 0.0)),
+            }
+
+            if closest is None or gap < smallest_gap:
+                closest = candidate
+                smallest_gap = gap
+            if trades >= min_trades and hit_rate >= target_hit:
+                if best is None or candidate["net_return_sum"] > best["net_return_sum"]:
+                    best = candidate
+
+    return json_sanitize(
+        {
+            "symbol": symbol.upper(),
+            "timeframe": normalize_timeframe(timeframe),
+            "target_hit": target_hit,
+            "min_trades": min_trades,
+            "suggestion": best or closest,
+        }
+    )
+
+
+@app.get("/market/summary")
+def market_summary(symbols: Optional[str] = None, top_n: int = 0, with_indicators: bool = True, timeframe: str = "1h"):
+    try:
+        parsed_symbols = parse_symbol_list(symbols) if symbols else None
+        tickers = fetch_24h_tickers(parsed_symbols, top_n if not parsed_symbols else None)
+        results = []
+        for ticker in tickers:
+            symbol = str(ticker.get("symbol", "")).upper()
+            item = {
+                "symbol": symbol,
+                "lastPrice": safe_float(ticker.get("lastPrice"), 6),
+                "priceChangePercent": safe_float(ticker.get("priceChangePercent"), 4),
+                "volume": safe_float(ticker.get("volume"), 4),
+                "quoteVolume": safe_float(ticker.get("quoteVolume"), 2),
+                "highPrice": safe_float(ticker.get("highPrice"), 6),
+                "lowPrice": safe_float(ticker.get("lowPrice"), 6),
+            }
+            if with_indicators and symbol:
+                try:
+                    item["indicators"] = last_indicators_snapshot(symbol, timeframe)
+                except Exception as exc:
+                    item["indicators_error"] = str(exc)
+            results.append(item)
+        return {"ok": True, "count": len(results), "data": json_sanitize(results)}
+    except HTTPException as exc:
+        return JSONResponse(status_code=200, content={"ok": False, "error": str(exc.detail), "code": exc.status_code})
+
+
+@app.get("/signals/batch")
+def signals_batch(symbols: str, timeframe: str = "1h"):
+    parsed_symbols = parse_symbol_list(symbols)
+    if not parsed_symbols:
+        raise HTTPException(400, "symbols must be non-empty")
+    results = []
+    for symbol in parsed_symbols[:25]:
+        try:
+            results.append({"symbol": symbol, "data": compute_analysis(symbol, timeframe)})
+        except HTTPException as exc:
+            results.append({"symbol": symbol, "error": str(exc.detail), "status": exc.status_code})
+        except Exception as exc:
+            results.append({"symbol": symbol, "error": str(exc)})
+    return json_sanitize({"ok": True, "count": len(results), "results": results})
+
+
+@app.get("/readiness")
+def readiness(symbol: str = "BTCUSDT", timeframe: str = "1h"):
+    try:
+        interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
+        df = fetch_ohlcv(symbol.upper(), interval, 220)
+        return {"ok": bool(len(df) >= 200), "rows": int(len(df))}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
