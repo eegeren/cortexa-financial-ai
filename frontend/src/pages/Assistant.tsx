@@ -1,8 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Paywall from '@/components/Paywall';
-import type { ChatMessagePayload, ChatResponse } from '@/services/api';
-import { sendChat } from '@/lib/api';
+import { sendChat, type ChatMessagePayload, type ChatResponse } from '@/services/api';
 import useSubscriptionAccess from '@/hooks/useSubscriptionAccess';
 
 interface Message extends ChatMessagePayload {
@@ -67,7 +66,7 @@ const AssistantPage = () => {
           .filter((message) => !message.isIntro)
           .map(({ role, content }) => ({ role, content })),
       ];
-      const response = await sendChat<ChatResponse>({
+      const response = await sendChat({
         messages: payload,
         model: ASSISTANT_MODEL,
       });

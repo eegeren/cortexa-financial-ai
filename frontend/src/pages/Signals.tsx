@@ -1,7 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { SignalResponse, BacktestResponse } from '@/services/api';
-import { fetchSignal, fetchBacktest } from '@/lib/api';
+import { fetchSignal, fetchBacktest, type SignalResponse, type BacktestResponse } from '@/services/api';
 import { useToast } from '@/components/ToastProvider';
 
 const PRIMARY_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'] as const;
@@ -44,7 +43,7 @@ const SignalsPage = () => {
     setSignalLoading(true);
     setSignalError(null);
     try {
-      const data = await fetchSignal<SignalResponse>(symbol);
+      const data = await fetchSignal(symbol);
       setSignal(data);
       setActiveSymbol(symbol);
       setSearchValue(symbol);
@@ -70,7 +69,7 @@ const SignalsPage = () => {
     setBacktestLoading(true);
     setBacktestError(null);
     try {
-      const report = await fetchBacktest<BacktestResponse>(activeSymbol, {
+      const report = await fetchBacktest(activeSymbol, {
         threshold: Number.parseFloat(validationThreshold) || 0.6,
         horizon: 4,
         limit: 400,

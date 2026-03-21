@@ -1,5 +1,4 @@
 import http, { setAuthHeader } from './httpClient';
-import { sendChat as sendChatRequest } from '@/lib/api';
 
 export interface SignalResponse {
   symbol: string;
@@ -412,8 +411,9 @@ export const fetchBacktestSweep = async (
   return data;
 };
 
-export const sendChat = async (messages: ChatMessagePayload[], model?: string) => {
-  return sendChatRequest<ChatResponse>({ messages, model });
+export const sendChat = async (payload: { messages: ChatMessagePayload[]; model?: string }) => {
+  const { data } = await http.post<ChatResponse>('/api/chat', payload);
+  return data;
 };
 
 export const fetchPlans = async () => {

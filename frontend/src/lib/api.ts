@@ -1,59 +1,25 @@
-const BASE = (import.meta.env.VITE_API_URL ?? '').trim();
+import type { BacktestResponse, ChatMessagePayload, ChatResponse, SignalResponse } from '@/services/api';
+import {
+  fetchBacktest as fetchBacktestFromServices,
+  fetchSignal as fetchSignalFromServices,
+  sendChat as sendChatFromServices,
+  triggerAutoTrade as triggerAutoTradeFromServices,
+} from '@/services/api';
 
-if (!BASE) {
-  throw new Error('VITE_API_URL tanımlı değil; frontend isteği yapılamıyor');
-}
-
-const ensureTrailingSlash = (value: string) => (value.endsWith('/') ? value : `${value}/`);
-
-const withBase = (path: string) => {
-  const trimmed = path.startsWith('/') ? path.slice(1) : path;
-  return new URL(trimmed, ensureTrailingSlash(BASE)).toString();
+// Deprecated compatibility wrappers. Protected API calls must flow through
+// services/api.ts so they inherit the shared axios base URL and Bearer auth.
+export const fetchSignal = async <T = SignalResponse>(symbol: string) => {
+  return (await fetchSignalFromServices(symbol)) as T;
 };
 
-const request = async <T>(path: string | URL, init: RequestInit = {}) => {
-  const signal = init.signal ?? AbortSignal.timeout(10000);
-  let response: Response;
-  const target = path instanceof URL ? path.toString() : withBase(path);
-
-  try {
-    response = await fetch(target, { ...init, signal });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'İstek başlatılamadı';
-    throw new Error(message);
-  }
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Endpoint bulunamadı: API base veya route yanlış');
-    }
-    if (response.status === 502) {
-      throw new Error('Upstream 502: Backend uykuda/kapalı');
-    }
-    const fallback = `İstek ${response.status} ile başarısız`;
-    const detail = await response.text().catch(() => fallback);
-    throw new Error(detail || fallback);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+export const triggerAutoTrade = async <T = { executed: boolean; note?: string; reason?: string; score: number }>(
+  symbol: string,
+  params: { threshold: number; qty: number }
+) => {
+  return (await triggerAutoTradeFromServices(symbol, params.threshold, params.qty)) as T;
 };
 
-export const fetchSignal = async <T>(symbol: string) => {
-  return request<T>(`/signals/${encodeURIComponent(symbol)}`);
-};
-
-export const triggerAutoTrade = async <T>(symbol: string, params: { threshold: number; qty: number }) => {
-  const url = new URL(`signals/${encodeURIComponent(symbol)}/auto-trade`, ensureTrailingSlash(BASE));
-  url.searchParams.set('threshold', params.threshold.toString());
-  url.searchParams.set('qty', params.qty.toString());
-  return request<T>(url, { method: 'POST' });
-};
-
-export const fetchBacktest = async <T>(
+export const fetchBacktest = async <T = BacktestResponse>(
   symbol: string,
   params: {
     threshold?: number;
@@ -64,22 +30,9 @@ export const fetchBacktest = async <T>(
     position_size?: number;
   } = {}
 ) => {
-  const url = new URL(`signals/${encodeURIComponent(symbol)}/backtest`, ensureTrailingSlash(BASE));
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined) {
-      return;
-    }
-    url.searchParams.set(key, Array.isArray(value) ? value.join(',') : String(value));
-  });
-  return request<T>(url);
+  return (await fetchBacktestFromServices(symbol, params)) as T;
 };
 
-export const sendChat = async <T>(payload: { messages: Array<{ role: string; content: string }>; model?: string }) => {
-  return request<T>('/chat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+export const sendChat = async <T = ChatResponse>(payload: { messages: ChatMessagePayload[]; model?: string }) => {
+  return (await sendChatFromServices(payload)) as T;
 };
