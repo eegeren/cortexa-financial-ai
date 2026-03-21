@@ -17,6 +17,13 @@ from analysis_engine import (  # noqa: E402
     score_row,
     trend_label,
 )
+from signal_api import (  # noqa: E402
+    SUPPORTED_SYMBOLS,
+    SUPPORTED_TIMEFRAMES,
+    parse_predict_payload,
+    validate_symbol,
+    validate_timeframe,
+)
 
 
 def sample_frame(length: int = 260, *, drift: float = 1.0, volatility: float = 0.5) -> pd.DataFrame:
@@ -93,6 +100,19 @@ class AnalysisEngineTests(unittest.TestCase):
         self.assertIn("ema50", indicators)
         self.assertIn("ema200", indicators)
         self.assertIn("macd", indicators)
+
+    def test_symbol_validation_allows_supported_symbol(self):
+        self.assertEqual(validate_symbol("btcusdt"), "BTCUSDT")
+        self.assertIn("BTCUSDT", SUPPORTED_SYMBOLS)
+
+    def test_timeframe_validation_allows_supported_timeframe(self):
+        self.assertEqual(validate_timeframe("1H"), "1h")
+        self.assertIn("1h", SUPPORTED_TIMEFRAMES)
+
+    def test_predict_payload_parses_symbol_and_timeframe(self):
+        symbol, timeframe = parse_predict_payload({"symbol": "ethusdt", "timeframe": "4H"})
+        self.assertEqual(symbol, "ETHUSDT")
+        self.assertEqual(timeframe, "4h")
 
 
 if __name__ == "__main__":

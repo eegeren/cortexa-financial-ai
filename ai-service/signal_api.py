@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import os
 import time
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -83,32 +83,16 @@ def parse_symbol_list(value: str) -> list[str]:
 SUPPORTED_SYMBOLS = [
     "BTCUSDT",
     "ETHUSDT",
-    "BNBUSDT",
     "SOLUSDT",
+    "BNBUSDT",
     "XRPUSDT",
-    "USDTTRY",
     "ADAUSDT",
-    "DOGEUSDT",
-    "TRXUSDT",
-    "MATICUSDT",
-    "TONUSDT",
-    "LINKUSDT",
-    "DOTUSDT",
-    "LTCUSDT",
     "AVAXUSDT",
-    "ATOMUSDT",
-    "NEARUSDT",
-    "APTUSDT",
-    "OPUSDT",
-    "ARBUSDT",
-    "SUIUSDT",
-    "INJUSDT",
-    "AAVEUSDT",
-    "FTMUSDT",
-    "SHIBUSDT",
-    "PEPEUSDT",
-    "WIFUSDT",
+    "LINKUSDT",
+    "DOGEUSDT",
+    "TONUSDT",
 ]
+SUPPORTED_SYMBOL_SET = frozenset(SUPPORTED_SYMBOLS)
 
 TIMEFRAME_TO_INTERVAL = {
     "15m": "15m",
@@ -116,6 +100,8 @@ TIMEFRAME_TO_INTERVAL = {
     "4h": "4h",
     "1d": "1d",
 }
+SUPPORTED_TIMEFRAMES = tuple(TIMEFRAME_TO_INTERVAL.keys())
+MIN_CANDLES_REQUIRED = 220
 
 app = FastAPI()
 app.add_middleware(
@@ -166,31 +152,13 @@ _SESSION.headers.update(
 _SESSION.mount("https://", HTTPAdapter(max_retries=_retry))
 _SESSION.mount("http://", HTTPAdapter(max_retries=_retry))
 
-_BINANCE_TICKER_URL = "https://api.binance.com/api/v3/ticker/24hr"
+_BINANCE_BASE_URL = os.getenv("BINANCE_BASE_URL", "https://api.binance.com").rstrip("/")
+_BINANCE_TICKER_URL = f"{_BINANCE_BASE_URL}/api/v3/ticker/24hr"
+_BINANCE_KLINES_URL = f"{_BINANCE_BASE_URL}/api/v3/klines"
 _OHLCV_CACHE: Dict[tuple[str, str, int], tuple[float, pd.DataFrame]] = {}
 _OHLCV_TTL_SEC = int(os.getenv("OHLCV_TTL_SEC", "20"))
 _ANALYSIS_CACHE: Dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 _ANALYSIS_TTL_SEC = int(os.getenv("SIG_TTL_SEC", "60"))
-
-
-def _normalize_path(path: str) -> str:
-    return path if path.startswith("/") else f"/{path}"
-
-
-def _build_sources() -> Iterable[Tuple[str, str]]:
-    primary_base = os.getenv("BINANCE_BASE_URL", "https://api.binance.com").rstrip("/")
-    primary_path = _normalize_path(os.getenv("BINANCE_KLINES_PATH", "/api/v3/klines"))
-    fallback_base = os.getenv("BINANCE_FALLBACK_URL", "https://data-api.binance.vision").rstrip("/")
-    fallback_path = _normalize_path(os.getenv("BINANCE_FALLBACK_KLINES_PATH", "/api/v3/klines"))
-    seen: set[tuple[str, str]] = set()
-    for pair in ((primary_base, primary_path), (fallback_base, fallback_path)):
-        if pair in seen or not pair[0]:
-            continue
-        seen.add(pair)
-        yield pair
-
-
-DATA_SOURCES = tuple(_build_sources()) or (("https://data-api.binance.vision", "/api/v3/klines"),)
 
 
 def _cache_get(symbol: str, interval: str, limit: int) -> pd.DataFrame | None:
@@ -201,6 +169,14 @@ def _cache_get(symbol: str, interval: str, limit: int) -> pd.DataFrame | None:
     if time.time() - ts <= _OHLCV_TTL_SEC and not data.empty:
         return data.copy()
     return None
+
+
+def _cache_get_stale(symbol: str, interval: str, limit: int) -> pd.DataFrame | None:
+    record = _OHLCV_CACHE.get((symbol.upper(), interval, int(limit)))
+    if not record:
+        return None
+    _, data = record
+    return data.copy() if not data.empty else None
 
 
 def _cache_put(symbol: str, interval: str, limit: int, df: pd.DataFrame) -> None:
@@ -221,12 +197,33 @@ def _analysis_cache_put(symbol: str, timeframe: str, payload: dict[str, Any]) ->
     _ANALYSIS_CACHE[(symbol.upper(), normalize_timeframe(timeframe))] = (time.time(), payload.copy())
 
 
+def validate_symbol(symbol: str) -> str:
+    normalized = (symbol or "").strip().upper()
+    if normalized not in SUPPORTED_SYMBOL_SET:
+        raise HTTPException(400, f"unsupported symbol; supported symbols: {', '.join(SUPPORTED_SYMBOLS)}")
+    return normalized
+
+
+def validate_timeframe(timeframe: str | None) -> str:
+    normalized = normalize_timeframe(timeframe)
+    if normalized not in TIMEFRAME_TO_INTERVAL:
+        raise HTTPException(400, f"unsupported timeframe; supported timeframes: {', '.join(SUPPORTED_TIMEFRAMES)}")
+    return normalized
+
+
+def parse_predict_payload(payload: dict[str, Any]) -> tuple[str, str]:
+    symbol = validate_symbol(str(payload.get("symbol", "BTCUSDT")))
+    timeframe = validate_timeframe(str(payload.get("timeframe") or payload.get("interval") or "1h"))
+    return symbol, timeframe
+
+
 def fetch_24h_tickers(symbols: Optional[list[str]] = None, top_n: Optional[int] = None) -> list[dict]:
     try:
         if symbols:
             results = []
             for symbol in symbols:
-                response = _SESSION.get(_BINANCE_TICKER_URL, params={"symbol": symbol}, timeout=8)
+                validated = validate_symbol(symbol)
+                response = _SESSION.get(_BINANCE_TICKER_URL, params={"symbol": validated}, timeout=8)
                 if response.status_code == 200:
                     results.append(response.json())
             return results
@@ -249,61 +246,67 @@ def fetch_24h_tickers(symbols: Optional[list[str]] = None, top_n: Optional[int] 
 
 
 def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 300) -> pd.DataFrame:
+    symbol = validate_symbol(symbol)
+    timeframe = validate_timeframe(interval)
+    interval = TIMEFRAME_TO_INTERVAL[timeframe]
+    limit = max(int(limit), MIN_CANDLES_REQUIRED)
     cached = _cache_get(symbol, interval, limit)
     if cached is not None:
         return cached
 
     errors: list[str] = []
-    for base, path in DATA_SOURCES:
-        for attempt in range(3):
-            try:
-                response = _SESSION.get(
-                    f"{base}{path}",
-                    params={"symbol": symbol.upper(), "interval": interval, "limit": limit},
-                    timeout=15,
-                )
-            except requests.RequestException as exc:
-                errors.append(f"{base}{path}: request failed ({exc}) [{attempt + 1}/3]")
-                time.sleep(0.2 * (2**attempt))
-                continue
-
-            if response.status_code != 200:
-                errors.append(f"{base}{path}: status {response.status_code} [{attempt + 1}/3]")
-                time.sleep(0.2 * (2**attempt))
-                continue
-
-            try:
-                payload = response.json()
-            except ValueError as exc:
-                errors.append(f"{base}{path}: invalid json ({exc}) [{attempt + 1}/3]")
-                continue
-
-            if not payload:
-                errors.append(f"{base}{path}: empty klines [{attempt + 1}/3]")
-                continue
-
-            frame = pd.DataFrame(
-                payload,
-                columns=["time", "open", "high", "low", "close", "volume", "ct", "qv", "n", "tb", "tq", "ig"],
+    for attempt in range(3):
+        try:
+            response = _SESSION.get(
+                _BINANCE_KLINES_URL,
+                params={"symbol": symbol, "interval": interval, "limit": limit},
+                timeout=15,
             )
-            for column in ("open", "high", "low", "close", "volume"):
-                frame[column] = pd.to_numeric(frame[column], errors="coerce")
-            frame = frame.dropna(subset=["open", "high", "low", "close"]).copy()
-            frame["symbol"] = symbol.upper()
-            if len(frame) < 200:
-                errors.append(f"{base}{path}: insufficient rows ({len(frame)}) [{attempt + 1}/3]")
-                continue
-            _cache_put(symbol, interval, limit, frame)
-            return frame
+        except requests.RequestException as exc:
+            errors.append(f"binance request failed ({exc}) [{attempt + 1}/3]")
+            time.sleep(0.2 * (2**attempt))
+            continue
 
-    raise HTTPException(502, "all data providers failed: " + " | ".join(errors))
+        if response.status_code != 200:
+            errors.append(f"binance status {response.status_code} [{attempt + 1}/3]")
+            time.sleep(0.2 * (2**attempt))
+            continue
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            errors.append(f"binance invalid json ({exc}) [{attempt + 1}/3]")
+            continue
+
+        if not payload:
+            errors.append(f"binance empty klines [{attempt + 1}/3]")
+            continue
+
+        frame = pd.DataFrame(
+            payload,
+            columns=["time", "open", "high", "low", "close", "volume", "ct", "qv", "n", "tb", "tq", "ig"],
+        )
+        for column in ("open", "high", "low", "close", "volume"):
+            frame[column] = pd.to_numeric(frame[column], errors="coerce")
+        frame = frame.dropna(subset=["open", "high", "low", "close"]).copy()
+        frame["symbol"] = symbol
+        if len(frame) < 200:
+            errors.append(f"binance insufficient rows ({len(frame)}) [{attempt + 1}/3]")
+            continue
+        _cache_put(symbol, interval, limit, frame)
+        return frame
+
+    stale = _cache_get_stale(symbol, interval, limit)
+    if stale is not None:
+        logger.warning("serving stale Binance cache for %s %s after errors: %s", symbol, interval, " | ".join(errors))
+        return stale
+    raise HTTPException(502, "binance market data unavailable: " + " | ".join(errors))
 
 
 def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int = 300) -> dict[str, Any]:
-    symbol = symbol.upper()
-    timeframe = normalize_timeframe(timeframe)
-    interval = TIMEFRAME_TO_INTERVAL.get(timeframe, "1h")
-    raw_frame = fetch_ohlcv(symbol, interval, max(limit, 220))
+    symbol = validate_symbol(symbol)
+    timeframe = validate_timeframe(timeframe)
+    raw_frame = fetch_ohlcv(symbol, timeframe, max(limit, MIN_CANDLES_REQUIRED))
     indicator_frame = build_indicator_frame(raw_frame)
     if len(indicator_frame) < 200:
         raise HTTPException(503, "not enough data for indicators")
@@ -333,9 +336,11 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
 
 
 def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
+    normalized_symbol = validate_symbol(symbol)
+    normalized_timeframe = validate_timeframe(timeframe)
     return {
-        "symbol": symbol.upper(),
-        "timeframe": normalize_timeframe(timeframe),
+        "symbol": normalized_symbol,
+        "timeframe": normalized_timeframe,
         "trend": "Neutral",
         "momentum": "Weak",
         "risk": "Medium",
@@ -370,6 +375,8 @@ def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
 
 
 def analysis_payload(symbol: str, timeframe: str = "1h") -> dict[str, Any]:
+    symbol = validate_symbol(symbol)
+    timeframe = validate_timeframe(timeframe)
     try:
         payload = compute_analysis(symbol, timeframe)
         return {"ok": True, "data": json_sanitize(payload), "stale": False, **json_sanitize(payload)}
@@ -389,13 +396,14 @@ def analysis_payload(symbol: str, timeframe: str = "1h") -> dict[str, Any]:
 
 
 def last_indicators_snapshot(symbol: str, timeframe: str = "1h") -> dict[str, Any]:
-    interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
-    frame = build_indicator_frame(fetch_ohlcv(symbol.upper(), interval, 220))
+    symbol = validate_symbol(symbol)
+    timeframe = validate_timeframe(timeframe)
+    frame = build_indicator_frame(fetch_ohlcv(symbol, timeframe, MIN_CANDLES_REQUIRED))
     latest = frame.iloc[-1]
     snapshot = build_indicator_snapshot(latest)
     snapshot["price"] = safe_float(latest.get("close"), 2)
     snapshot["atr_pct"] = safe_float(latest.get("atr_pct"), 4)
-    snapshot["trend"] = build_analysis(frame, symbol=symbol.upper(), timeframe=timeframe)["trend"]
+    snapshot["trend"] = build_analysis(frame, symbol=symbol, timeframe=timeframe)["trend"]
     return json_sanitize(snapshot)
 
 
@@ -416,12 +424,19 @@ def get_symbols(top_n: int = 0, only_usdt: bool = True):
         if top_n > 0:
             for ticker in fetch_24h_tickers(None, top_n=top_n):
                 symbol = str(ticker.get("symbol", "")).upper()
+                if symbol not in SUPPORTED_SYMBOL_SET:
+                    continue
                 if only_usdt and not symbol.endswith("USDT"):
                     continue
                 symbols.append(symbol)
         return {"ok": True, "symbols": list(dict.fromkeys(symbols))}
     except Exception:
         return JSONResponse(status_code=200, content={"ok": False, "symbols": SUPPORTED_SYMBOLS})
+
+
+@app.get("/market/symbols")
+def market_symbols():
+    return {"ok": True, "provider": "binance", "symbols": SUPPORTED_SYMBOLS, "timeframes": list(SUPPORTED_TIMEFRAMES)}
 
 
 @app.get("/signals")
@@ -436,8 +451,7 @@ def predict_get(symbol: str = "BTCUSDT", timeframe: str = "1h"):
 
 @app.post("/predict")
 def predict(payload: dict[str, Any]):
-    symbol = str(payload.get("symbol", "BTCUSDT"))
-    timeframe = str(payload.get("timeframe") or payload.get("interval") or "1h")
+    symbol, timeframe = parse_predict_payload(payload)
     return analysis_payload(symbol, timeframe)
 
 
@@ -478,11 +492,12 @@ def backtest(
 
     try:
         del mode, bootstrap
-        interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
-        frame = fetch_ohlcv(symbol.upper(), interval, limit)
+        symbol = validate_symbol(symbol)
+        timeframe = validate_timeframe(timeframe)
+        frame = fetch_ohlcv(symbol, timeframe, limit)
         result = validate_analysis_history(
             frame,
-            symbol=symbol.upper(),
+            symbol=symbol,
             timeframe=timeframe,
             threshold=threshold,
             horizon=horizon,
@@ -514,12 +529,13 @@ def backtest_sweep_endpoint(
     if not threshold_values or not horizon_values:
         raise HTTPException(400, "thresholds and horizons must be non-empty")
 
-    interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
-    frame = fetch_ohlcv(symbol.upper(), interval, limit)
+    symbol = validate_symbol(symbol)
+    timeframe = validate_timeframe(timeframe)
+    frame = fetch_ohlcv(symbol, timeframe, limit)
     results = [
         validate_analysis_history(
             frame,
-            symbol=symbol.upper(),
+            symbol=symbol,
             timeframe=timeframe,
             threshold=threshold_value,
             horizon=horizon_value,
@@ -533,7 +549,7 @@ def backtest_sweep_endpoint(
 
     return json_sanitize(
         {
-            "symbol": symbol.upper(),
+            "symbol": symbol,
             "thresholds": threshold_values,
             "horizons": horizon_values,
             "limit": limit,
@@ -563,8 +579,9 @@ def optimize_endpoint(
     del mode, walkforward
     threshold_values = parse_float_list(thresholds)
     horizon_values = parse_int_list(horizons)
-    interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
-    frame = fetch_ohlcv(symbol.upper(), interval, limit)
+    symbol = validate_symbol(symbol)
+    timeframe = validate_timeframe(timeframe)
+    frame = fetch_ohlcv(symbol, timeframe, limit)
 
     best: dict[str, Any] | None = None
     closest: dict[str, Any] | None = None
@@ -574,7 +591,7 @@ def optimize_endpoint(
         for horizon_value in horizon_values:
             result = validate_analysis_history(
                 frame,
-                symbol=symbol.upper(),
+                symbol=symbol,
                 timeframe=timeframe,
                 threshold=threshold_value,
                 horizon=horizon_value,
@@ -603,8 +620,8 @@ def optimize_endpoint(
 
     return json_sanitize(
         {
-            "symbol": symbol.upper(),
-            "timeframe": normalize_timeframe(timeframe),
+            "symbol": symbol,
+            "timeframe": timeframe,
             "target_hit": target_hit,
             "min_trades": min_trades,
             "suggestion": best or closest,
@@ -615,7 +632,10 @@ def optimize_endpoint(
 @app.get("/market/summary")
 def market_summary(symbols: Optional[str] = None, top_n: int = 0, with_indicators: bool = True, timeframe: str = "1h"):
     try:
+        timeframe = validate_timeframe(timeframe)
         parsed_symbols = parse_symbol_list(symbols) if symbols else None
+        if parsed_symbols:
+            parsed_symbols = [validate_symbol(symbol) for symbol in parsed_symbols]
         tickers = fetch_24h_tickers(parsed_symbols, top_n if not parsed_symbols else None)
         results = []
         for ticker in tickers:
@@ -642,7 +662,8 @@ def market_summary(symbols: Optional[str] = None, top_n: int = 0, with_indicator
 
 @app.get("/signals/batch")
 def signals_batch(symbols: str, timeframe: str = "1h"):
-    parsed_symbols = parse_symbol_list(symbols)
+    timeframe = validate_timeframe(timeframe)
+    parsed_symbols = [validate_symbol(symbol) for symbol in parse_symbol_list(symbols)]
     if not parsed_symbols:
         raise HTTPException(400, "symbols must be non-empty")
     results = []
@@ -659,8 +680,9 @@ def signals_batch(symbols: str, timeframe: str = "1h"):
 @app.get("/readiness")
 def readiness(symbol: str = "BTCUSDT", timeframe: str = "1h"):
     try:
-        interval = TIMEFRAME_TO_INTERVAL.get(normalize_timeframe(timeframe), "1h")
-        df = fetch_ohlcv(symbol.upper(), interval, 220)
+        symbol = validate_symbol(symbol)
+        timeframe = validate_timeframe(timeframe)
+        df = fetch_ohlcv(symbol, timeframe, MIN_CANDLES_REQUIRED)
         return {"ok": bool(len(df) >= 200), "rows": int(len(df))}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
