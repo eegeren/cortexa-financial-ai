@@ -349,34 +349,33 @@ def apply_market_quality_filters(
 
     if higher_timeframe_stale:
         market_quality_adjustment -= 4
-        flags.append("higher_timeframe_stale")
 
     if volume_ratio is not None and volume_ratio < 0.85:
         market_quality_adjustment -= 10
-        flags.append("low_volume")
+        flags.append("weak_volume_confirmation")
     if volume_ratio is not None and volume_ratio < 0.65:
         confidence = min(confidence, 62)
-        flags.append("thin_liquidity_cap")
+        flags.append("low_volume")
 
     if atr_pct is not None and atr_pct >= 0.08:
         market_quality_adjustment -= 15
-        flags.append("extreme_volatility")
+        flags.append("high_volatility")
     elif atr_pct is not None and atr_pct >= 0.06:
         market_quality_adjustment -= 8
-        flags.append("elevated_volatility")
+        flags.append("high_volatility")
 
     if adx is not None and adx < 18:
         market_quality_adjustment -= 12
         confidence = min(confidence, 62)
-        flags.append("weak_adx")
+        flags.append("weak_trend_strength")
     elif adx is not None and adx < 22:
         market_quality_adjustment -= 6
-        flags.append("soft_trend_strength")
+        flags.append("weak_trend_strength")
 
     if regime in {"Range-Bound", "Low Participation"}:
         market_quality_adjustment -= 8
         confidence = min(confidence, 62)
-        flags.append("choppy_regime")
+        flags.append("choppy_structure")
 
     if higher_timeframe_trend:
         local_bias = trend_bias(str(analysis.get("trend", "Neutral")))
@@ -388,12 +387,11 @@ def apply_market_quality_filters(
             else:
                 mtf_adjustment -= 12
                 confidence = min(confidence, 62)
-                flags.append("mtf_disagreement")
+                flags.append("mtf_conflict")
         elif local_bias != 0 and higher_bias == 0:
             mtf_adjustment -= 4
-            flags.append("mtf_higher_neutral")
 
-    final_confidence = int(round(max(0, min(100, confidence + market_quality_adjustment + mtf_adjustment))))
+    final_confidence = int(round(max(5, min(95, confidence + market_quality_adjustment + mtf_adjustment))))
     analysis["confidence"] = final_confidence
     analysis["trend"] = trend_label(final_confidence)
     analysis["scenario"] = scenario_summary(
@@ -406,8 +404,19 @@ def apply_market_quality_filters(
     )
     analysis["scoring"]["market_quality"] = market_quality_adjustment
     analysis["scoring"]["multi_timeframe_confirmation"] = mtf_adjustment
-    analysis["quality_flags"] = flags
+    analysis["quality_flags"] = list(dict.fromkeys(flags))
     analysis["stale"] = stale
+
+    if "high_volatility" in analysis["quality_flags"] or "low_volume" in analysis["quality_flags"] or "stale_data" in analysis["quality_flags"]:
+        analysis["risk"] = "High"
+    elif (
+        "weak_volume_confirmation" in analysis["quality_flags"]
+        or "weak_trend_strength" in analysis["quality_flags"]
+        or "choppy_structure" in analysis["quality_flags"]
+        or "mtf_conflict" in analysis["quality_flags"]
+    ) and analysis.get("risk") == "Low":
+        analysis["risk"] = "Medium"
+
     return analysis
 
 

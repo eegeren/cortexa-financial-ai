@@ -1,5 +1,5 @@
 import { Helmet, HelmetProvider } from 'react-helmet-async';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import NavBar from './NavBar';
 import OnboardingTour from './OnboardingTour';
 import { ThemeProvider } from '@/context/ThemeContext';
@@ -7,6 +7,9 @@ import { I18nProvider } from '@/context/I18nContext';
 import { ToastProvider } from '@/components/ToastProvider';
 
 const Layout = () => {
+  const location = useLocation();
+  const isDashboardViewportRoute = location.pathname === '/assistant' || location.pathname === '/signals';
+
   return (
     <ThemeProvider>
       <I18nProvider>
@@ -28,7 +31,9 @@ const Layout = () => {
               <div className="pointer-events-none absolute inset-0 bg-glow-band opacity-40" />
               <div className="relative z-10 flex h-[100dvh] min-h-0 flex-col lg:flex-row">
                 <NavBar />
-                <main className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+                <main className={`flex-1 min-h-0 min-w-0 overflow-x-hidden px-4 py-4 sm:px-6 lg:px-8 lg:py-6 ${
+                  isDashboardViewportRoute ? 'overflow-y-hidden' : 'overflow-y-auto'
+                }`}>
                   <div className="mx-auto flex h-full min-h-0 w-full max-w-[1400px] flex-col">
                     <Outlet />
                   </div>

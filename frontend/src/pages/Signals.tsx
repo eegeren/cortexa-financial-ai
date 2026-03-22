@@ -198,8 +198,8 @@ const SignalsPage = () => {
         </div>
       </section>
 
-      <section className="grid flex-1 min-h-0 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,380px)]">
-        <article className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+      <section className="grid flex-1 min-h-0 gap-5 overflow-y-auto xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,380px)]">
+        <article className="flex min-h-0 flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">
@@ -214,7 +214,7 @@ const SignalsPage = () => {
             )}
           </header>
 
-          <div className="mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+          <div className="mt-6 min-h-0 flex-1 space-y-6">
             {signalLoading ? (
               <div className="h-40 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse" />
             ) : signal ? (
@@ -327,7 +327,7 @@ const SignalsPage = () => {
             )}
           </div>
 
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300 xl:overflow-y-auto">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
             <h3 className="text-lg font-semibold text-white">Need more context?</h3>
             <ul className="mt-3 space-y-2 list-disc pl-4">
               <li>

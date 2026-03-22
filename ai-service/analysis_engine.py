@@ -32,6 +32,13 @@ def clamp(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, value))
 
 
+def confidence_from_raw_score(raw_score: float) -> int:
+    # Keep the neutral midpoint intact while compressing extremes so
+    # bearish conviction does not collapse to zero too easily.
+    adjusted = 50.0 + ((raw_score - 50.0) * 0.85)
+    return int(round(clamp(adjusted, 5.0, 95.0)))
+
+
 def normalize_timeframe(timeframe: str | None) -> str:
     value = (timeframe or "1h").strip().lower()
     return value or "1h"
@@ -214,7 +221,7 @@ def score_row(row: pd.Series) -> dict[str, Any]:
             risk_adjustment += 3
 
     score += trend_points + momentum_points + strength_points + volume_points + risk_adjustment
-    confidence = int(round(clamp(score, 0, 100)))
+    confidence = confidence_from_raw_score(score)
 
     return {
         "confidence": confidence,
@@ -270,12 +277,38 @@ def momentum_label(row: pd.Series, scoring: dict[str, Any]) -> str:
 def risk_label(row: pd.Series) -> str:
     atr_pct = safe_float(row.get("atr_pct"))
     adx = safe_float(row.get("adx"))
+    volume_ratio = safe_float(row.get("volume_ratio"))
+    ema20 = safe_float(row.get("ema20"))
+    ema50 = safe_float(row.get("ema50"))
+    ema200 = safe_float(row.get("ema200"))
+    price = safe_float(row.get("close"))
+
+    bullish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 > ema50 > ema200
+    bearish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 < ema50 < ema200
+    aligned_structure = bullish_stack or bearish_stack
+    trend_side_confirmed = (
+        price is not None
+        and ema200 is not None
+        and ((bullish_stack and price >= ema200) or (bearish_stack and price <= ema200))
+    )
 
     if atr_pct is None:
         return "Medium"
-    if atr_pct >= 0.05:
+    if atr_pct >= 0.06:
         return "High"
-    if atr_pct <= 0.02 and (adx is None or adx >= 20):
+    if volume_ratio is not None and volume_ratio < 0.75:
+        return "High"
+    if adx is not None and adx < 18:
+        return "High"
+    if not aligned_structure and ((adx is not None and adx < 22) or (volume_ratio is not None and volume_ratio < 0.9)):
+        return "High"
+    if (
+        atr_pct <= 0.018
+        and (adx is None or adx >= 25)
+        and (volume_ratio is None or volume_ratio >= 0.95)
+        and aligned_structure
+        and trend_side_confirmed
+    ):
         return "Low"
     return "Medium"
 

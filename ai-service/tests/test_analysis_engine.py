@@ -14,6 +14,7 @@ if str(AI_SERVICE_DIR) not in sys.path:
 from analysis_engine import (  # noqa: E402
     build_analysis,
     build_indicator_frame,
+    confidence_from_raw_score,
     risk_label,
     score_row,
     trend_bias,
@@ -56,8 +57,13 @@ class AnalysisEngineTests(unittest.TestCase):
         frame = build_indicator_frame(sample_frame())
         latest = frame.iloc[-1]
         scoring = score_row(latest)
-        self.assertGreaterEqual(scoring["confidence"], 0)
-        self.assertLessEqual(scoring["confidence"], 100)
+        self.assertGreaterEqual(scoring["confidence"], 5)
+        self.assertLessEqual(scoring["confidence"], 95)
+
+    def test_confidence_mapping_preserves_non_zero_bearish_conviction(self):
+        self.assertEqual(confidence_from_raw_score(0), 8)
+        self.assertEqual(confidence_from_raw_score(50), 50)
+        self.assertEqual(confidence_from_raw_score(100), 92)
 
     def test_trend_label_mapping(self):
         self.assertEqual(trend_label(20), "Strong Bearish")
@@ -71,10 +77,14 @@ class AnalysisEngineTests(unittest.TestCase):
         row = frame.iloc[-1].copy()
         row["atr_pct"] = 0.01
         row["adx"] = 28
+        row["volume_ratio"] = 1.2
         self.assertEqual(risk_label(row), "Low")
         row["atr_pct"] = 0.03
         self.assertEqual(risk_label(row), "Medium")
         row["atr_pct"] = 0.07
+        self.assertEqual(risk_label(row), "High")
+        row["atr_pct"] = 0.01
+        row["volume_ratio"] = 0.6
         self.assertEqual(risk_label(row), "High")
 
     def test_response_structure_contains_required_keys(self):
@@ -145,7 +155,8 @@ class AnalysisEngineTests(unittest.TestCase):
         self.assertLessEqual(filtered["confidence"], 62)
         self.assertIn("low_volume", filtered["quality_flags"])
         self.assertIn("stale_data", filtered["quality_flags"])
-        self.assertIn("mtf_disagreement", filtered["quality_flags"])
+        self.assertIn("mtf_conflict", filtered["quality_flags"])
+        self.assertEqual(filtered["risk"], "High")
 
     def test_analysis_payload_uses_wrapped_schema(self):
         with patch(

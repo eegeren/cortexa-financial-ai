@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Paywall from '@/components/Paywall';
 import { sendChat, type ChatMessagePayload, type ChatResponse } from '@/services/api';
@@ -47,6 +47,13 @@ const AssistantPage = () => {
     next.delete('prompt');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  useLayoutEffect(() => {
+    if (!scrollRef.current) {
+      return;
+    }
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, pending]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -150,7 +157,7 @@ const AssistantPage = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="sticky bottom-0 shrink-0 space-y-3 border-t border-outline/30 bg-surface/95 px-4 py-4 backdrop-blur sm:px-6">
+          <form onSubmit={handleSubmit} className="shrink-0 space-y-3 border-t border-outline/30 bg-surface/95 px-4 py-4 backdrop-blur sm:px-6">
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
