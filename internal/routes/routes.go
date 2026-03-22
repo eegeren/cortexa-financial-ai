@@ -42,6 +42,7 @@ func Build(r *chi.Mux, cfg config.Config, db *sqlx.DB) *chi.Mux {
 		r.Get("/signals/{symbol}/stream", h.StreamSignal)
 		r.Get("/signals/{symbol}/backtest", h.GetSignalBacktest)
 		r.Get("/signals/{symbol}/backtest/sweep", h.GetSignalBacktestSweep)
+		r.Post("/insight", h.GetInsight)
 		r.Get("/portfolio", h.GetPortfolio)
 		r.Post("/portfolio/trade", h.CreateTrade)
 		r.Post("/signals/{symbol}/auto-trade", h.AutoTradeSignal)

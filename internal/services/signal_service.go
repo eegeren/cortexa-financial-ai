@@ -67,6 +67,18 @@ type predictResp struct {
 	} `json:"data"`
 }
 
+type insightResp struct {
+	Insight string `json:"insight"`
+}
+
+func (s *SignalService) aiBaseURL() string {
+	base := strings.TrimSuffix(s.cfg.AIServiceURL, "/predict")
+	if base == "" {
+		base = s.cfg.AIServiceURL
+	}
+	return strings.TrimRight(base, "/")
+}
+
 type sideBreakdownMetrics struct {
 	Trades       int     `json:"trades"`
 	NetReturnSum float64 `json:"net_return_sum"`
@@ -238,6 +250,32 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 	}, nil
 }
 
+func (s *SignalService) Insight(ctx context.Context, payload map[string]any) (string, error) {
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, s.aiBaseURL()+"/insight", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(resp.Body)
+		trimmed := strings.TrimSpace(string(msg))
+		if trimmed == "" {
+			trimmed = "ai insight service error"
+		}
+		return "", fmt.Errorf("ai insight service status %d: %s", resp.StatusCode, trimmed)
+	}
+
+	var ir insightResp
+	if err := json.NewDecoder(resp.Body).Decode(&ir); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(ir.Insight), nil
+}
+
 func (s *SignalService) Backtest(
 	ctx context.Context,
 	symbol string,
@@ -246,12 +284,7 @@ func (s *SignalService) Backtest(
 	commissionBps, slippageBps, positionSize float64,
 ) (backtestResp, error) {
 	var resp backtestResp
-	base := strings.TrimSuffix(s.cfg.AIServiceURL, "/predict")
-	if base == "" {
-		base = s.cfg.AIServiceURL
-	}
-	base = strings.TrimRight(base, "/")
-	endpoint, _ := url.Parse(base + "/backtest")
+	endpoint, _ := url.Parse(s.aiBaseURL() + "/backtest")
 	q := endpoint.Query()
 	q.Set("symbol", symbol)
 	q.Set("threshold", formatFloat(threshold))
@@ -285,12 +318,7 @@ func (s *SignalService) BacktestSweep(
 	commissionBps, slippageBps, positionSize float64,
 ) (backtestSweepResp, error) {
 	var resp backtestSweepResp
-	base := strings.TrimSuffix(s.cfg.AIServiceURL, "/predict")
-	if base == "" {
-		base = s.cfg.AIServiceURL
-	}
-	base = strings.TrimRight(base, "/")
-	endpoint, _ := url.Parse(base + "/backtest/sweep")
+	endpoint, _ := url.Parse(s.aiBaseURL() + "/backtest/sweep")
 	q := endpoint.Query()
 	q.Set("symbol", symbol)
 	q.Set("thresholds", joinFloat(thresholds))

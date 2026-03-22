@@ -7,10 +7,12 @@ export interface SignalResponse {
   momentum?: string;
   risk?: string;
   market_regime?: string;
+  quality_flags?: string[];
   side: 'BUY' | 'SELL' | 'HOLD';
   score: number;
   confidence?: number;
   scenario?: string;
+  insight?: string;
   explanation?: string;
   disclaimer?: string;
   horizon?: string;
@@ -217,6 +219,23 @@ export interface ChatResponse {
   reason?: string;
 }
 
+export interface InsightRequest {
+  trend?: string;
+  confidence?: number;
+  risk?: string;
+  market_regime?: string;
+  levels?: {
+    support?: number;
+    resistance?: number;
+  };
+  quality_flags?: string[];
+  scenario?: string;
+}
+
+export interface InsightResponse {
+  insight: string;
+}
+
 export interface PlanSummary {
   id: number;
   code: string;
@@ -292,6 +311,11 @@ export const setAuthToken = setAuthHeader;
 
 export const fetchSignal = async (symbol: string) => {
   const { data } = await http.get<SignalResponse>(`/api/signals/${symbol}`);
+  return data;
+};
+
+export const fetchInsight = async (payload: InsightRequest) => {
+  const { data } = await http.post<InsightResponse>('/api/insight', payload);
   return data;
 };
 

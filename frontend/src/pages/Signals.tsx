@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchSignal, fetchBacktest, type SignalResponse, type BacktestResponse } from '@/services/api';
+import { fetchSignal, fetchBacktest, fetchInsight, type SignalResponse, type BacktestResponse } from '@/services/api';
 import { useToast } from '@/components/ToastProvider';
 
 const PRIMARY_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'] as const;
@@ -23,12 +23,43 @@ const SYMBOL_LABELS: Record<string, string> = {
 
 const DEFAULT_SYMBOL = PRIMARY_SYMBOLS[0];
 
+const QUALITY_FLAG_LABELS: Record<string, string> = {
+  low_volume: 'Low volume',
+  weak_volume_confirmation: 'Weak volume confirmation',
+  high_volatility: 'High volatility',
+  stale_data: 'Stale data',
+  mtf_aligned: 'Multi-timeframe aligned',
+  mtf_conflict: 'Multi-timeframe conflict',
+  weak_trend_strength: 'Weak trend strength',
+  choppy_structure: 'Choppy structure',
+};
+
+const toneClassByTrend: Record<string, string> = {
+  'Strong Bullish': 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100',
+  Bullish: 'border-emerald-400/20 bg-emerald-500/8 text-emerald-100',
+  Neutral: 'border-slate-500/30 bg-slate-500/10 text-slate-100',
+  Bearish: 'border-amber-400/20 bg-amber-500/10 text-amber-100',
+  'Strong Bearish': 'border-rose-400/30 bg-rose-500/10 text-rose-100',
+};
+
+const toneClassByRisk: Record<string, string> = {
+  Low: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-100',
+  Medium: 'border-amber-400/25 bg-amber-500/10 text-amber-100',
+  High: 'border-rose-400/30 bg-rose-500/10 text-rose-100',
+};
+
+const formatNumber = (value?: number, digits = 2) =>
+  value !== undefined ? value.toLocaleString(undefined, { maximumFractionDigits: digits }) : '—';
+
 const SignalsPage = () => {
   const [activeSymbol, setActiveSymbol] = useState(DEFAULT_SYMBOL);
   const [searchValue, setSearchValue] = useState(DEFAULT_SYMBOL);
   const [signal, setSignal] = useState<SignalResponse | null>(null);
   const [signalLoading, setSignalLoading] = useState(false);
   const [signalError, setSignalError] = useState<string | null>(null);
+  const [insight, setInsight] = useState('');
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightError, setInsightError] = useState(false);
   const [validationThreshold, setValidationThreshold] = useState('0.60');
   const [backtest, setBacktest] = useState<BacktestResponse | null>(null);
   const [backtestLoading, setBacktestLoading] = useState(false);
@@ -42,15 +73,38 @@ const SignalsPage = () => {
     }
     setSignalLoading(true);
     setSignalError(null);
+    setInsight('');
+    setInsightLoading(false);
+    setInsightError(false);
     try {
       const data = await fetchSignal(symbol);
       setSignal(data);
       setActiveSymbol(symbol);
       setSearchValue(symbol);
+      setInsightLoading(true);
+      try {
+        const insightResponse = await fetchInsight({
+          trend: data.trend,
+          confidence: data.confidence,
+          risk: data.risk,
+          market_regime: data.market_regime,
+          levels: data.levels,
+          quality_flags: data.quality_flags,
+          scenario: data.scenario,
+        });
+        setInsight(insightResponse.insight?.trim() || data.insight || data.scenario || '');
+      } catch {
+        setInsight(data.insight || data.scenario || '');
+        setInsightError(true);
+      } finally {
+        setInsightLoading(false);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load signal';
       setSignal(null);
       setSignalError(message);
+      setInsight('');
+      setInsightError(false);
     } finally {
       setSignalLoading(false);
     }
@@ -88,34 +142,36 @@ const SignalsPage = () => {
     }
   };
 
-  const summaryMetrics = useMemo(() => {
+  const technicalMetrics = useMemo(() => {
     if (!signal) {
       return [];
     }
     return [
-      { label: 'Trend', value: signal.trend ?? '—' },
-      { label: 'Confidence', value: signal.confidence !== undefined ? `${signal.confidence}/100` : '—' },
-      { label: 'Momentum', value: signal.momentum ?? '—' },
-      { label: 'Regime', value: signal.market_regime ?? '—' }
-    ];
-  }, [signal]);
-
-  const techMetrics = useMemo(() => {
-    if (!signal) {
-      return [];
-    }
-    return [
-      { label: 'Price', value: signal.price?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
       { label: 'RSI', value: signal.indicators?.rsi?.toFixed(1) ?? signal.rsi?.toFixed(1) ?? '—' },
       { label: 'ATR', value: signal.indicators?.atr?.toFixed(2) ?? signal.atr?.toFixed(2) ?? '—' },
+      { label: 'ADX', value: signal.indicators?.adx?.toFixed(1) ?? signal.adx?.toFixed(1) ?? '—' },
+      { label: 'Volume ratio', value: signal.indicators?.volume_ratio?.toFixed(2) ?? '—' },
+      { label: 'EMA 20', value: signal.indicators?.ema20?.toFixed(2) ?? '—' },
+      { label: 'EMA 50', value: signal.indicators?.ema50?.toFixed(2) ?? '—' },
+      { label: 'EMA 200', value: signal.indicators?.ema200?.toFixed(2) ?? '—' },
       {
-        label: 'EMA 20 / 50',
+        label: 'MACD',
         value:
-          signal.indicators?.ema20 !== undefined && signal.indicators?.ema50 !== undefined
-            ? `${signal.indicators.ema20.toFixed(2)} / ${signal.indicators.ema50.toFixed(2)}`
+          signal.indicators?.macd?.macd !== undefined && signal.indicators?.macd?.signal !== undefined
+            ? `${signal.indicators.macd.macd.toFixed(2)} / ${signal.indicators.macd.signal.toFixed(2)}`
             : '—'
       }
     ];
+  }, [signal]);
+
+  const conditionFlags = useMemo(() => {
+    if (!signal?.quality_flags?.length) {
+      return [];
+    }
+    return signal.quality_flags.map((flag) => ({
+      key: flag,
+      label: QUALITY_FLAG_LABELS[flag] ?? flag.replace(/_/g, ' '),
+    }));
   }, [signal]);
 
   const structureMetrics = useMemo(() => {
@@ -123,10 +179,54 @@ const SignalsPage = () => {
       return [];
     }
     return [
-      { label: 'Risk', value: signal.risk ?? '—' },
       { label: 'Support', value: signal.levels?.support?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
       { label: 'Resistance', value: signal.levels?.resistance?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? '—' },
-      { label: 'Volume ratio', value: signal.indicators?.volume_ratio?.toFixed(2) ?? '—' }
+      { label: 'Momentum', value: signal.momentum ?? '—' },
+      { label: 'Timeframe', value: signal.timeframe?.toUpperCase() ?? '—' }
+    ];
+  }, [signal]);
+
+  const summaryCards = useMemo(() => {
+    if (!signal) {
+      return [];
+    }
+    return [
+      {
+        label: 'Trend',
+        helper: 'Direction of the current market structure',
+        value: signal.trend ?? '—',
+        className: toneClassByTrend[signal.trend ?? ''] ?? 'border-outline/30 bg-muted/60 text-white',
+      },
+      {
+        label: 'Confidence',
+        helper: 'How strong the current structure looks',
+        value: signal.confidence !== undefined ? `${signal.confidence}/100` : '—',
+        className: 'border-cyan-400/25 bg-cyan-500/10 text-cyan-50',
+      },
+      {
+        label: 'Risk',
+        helper: 'Volatility, liquidity, and structural risk',
+        value: signal.risk ?? '—',
+        className: toneClassByRisk[signal.risk ?? ''] ?? 'border-outline/30 bg-muted/60 text-white',
+      },
+      {
+        label: 'Market regime',
+        helper: 'Current market condition',
+        value: signal.market_regime ?? '—',
+        className: 'border-outline/30 bg-muted/60 text-white',
+      }
+    ];
+  }, [signal]);
+
+  const marketSnapshot = useMemo(() => {
+    if (!signal) {
+      return [];
+    }
+    return [
+      { label: 'RSI', value: signal.indicators?.rsi?.toFixed(1) ?? signal.rsi?.toFixed(1) ?? '—' },
+      { label: 'ATR', value: signal.indicators?.atr?.toFixed(2) ?? signal.atr?.toFixed(2) ?? '—' },
+      { label: 'Support', value: formatNumber(signal.levels?.support, 2) },
+      { label: 'Resistance', value: formatNumber(signal.levels?.resistance, 2) },
     ];
   }, [signal]);
 
@@ -218,63 +318,155 @@ const SignalsPage = () => {
             {signalLoading ? (
               <div className="h-40 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse" />
             ) : signal ? (
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-3">
-              <h3 className="text-xs uppercase tracking-[0.28em] text-slate-500">Summary</h3>
-                  <dl className="space-y-3 text-sm text-slate-300">
-                    {summaryMetrics.map((metric) => (
-                      <div key={metric.label} className="flex items-center justify-between">
-                        <dt>{metric.label}</dt>
-                        <dd className="text-white">{metric.value}</dd>
+              <>
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,360px)]">
+                  <div className={`rounded-3xl border p-5 ${toneClassByTrend[signal.trend ?? ''] ?? 'border-outline/30 bg-muted/60 text-white'}`}>
+                    <p className="text-[11px] uppercase tracking-[0.28em] opacity-70">Signal summary</p>
+                    <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+                      <div>
+                        <h3 className="text-3xl font-semibold text-white">{signal.trend ?? '—'}</h3>
+                        <p className="mt-2 max-w-xl text-sm text-slate-200/90">
+                          {signal.market_regime ?? 'Market regime unavailable'} with {signal.momentum?.toLowerCase() ?? 'limited'} momentum across the current structure.
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-right">
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-slate-300">Current price</p>
+                        <p className="mt-2 text-2xl font-semibold text-white">
+                          {signal.price !== undefined ? formatNumber(signal.price, 2) : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                    {summaryCards.slice(1).map((card) => (
+                      <div key={card.label} className={`rounded-2xl border p-4 ${card.className}`}>
+                        <p className="text-[11px] uppercase tracking-[0.24em] opacity-70">{card.label}</p>
+                        <p className="mt-3 text-2xl font-semibold text-white">{card.value}</p>
+                        <p className="mt-2 text-xs text-slate-300">{card.helper}</p>
                       </div>
                     ))}
-                  </dl>
-                </div>
-                <div className="space-y-3">
-                  <h3 className="text-xs uppercase tracking-[0.28em] text-slate-500">Technicals</h3>
-                  <dl className="space-y-3 text-sm text-slate-300">
-                    {techMetrics.map((metric) => (
-                      <div key={metric.label} className="flex items-center justify-between">
-                        <dt>{metric.label}</dt>
-                        <dd className="text-white">{metric.value}</dd>
+                  </div>
+                </section>
+
+                <section className="grid gap-4 lg:grid-cols-4">
+                  {summaryCards.slice(0, 1).map((card) => (
+                    <div key={card.label} className={`rounded-2xl border p-4 ${card.className}`}>
+                      <p className="text-[11px] uppercase tracking-[0.24em] opacity-70">{card.label}</p>
+                      <p className="mt-3 text-xl font-semibold text-white">{card.value}</p>
+                      <p className="mt-2 text-xs text-slate-300">{card.helper}</p>
+                    </div>
+                  ))}
+                  {marketSnapshot.map((metric) => (
+                    <div key={metric.label} className="rounded-2xl border border-outline/30 bg-muted/60 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{metric.label}</p>
+                      <p className="mt-3 text-lg font-semibold text-white">{metric.value}</p>
+                    </div>
+                  ))}
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,360px)]">
+                  <div className="space-y-4">
+                    {signal?.scenario && (
+                      <div className="rounded-2xl border border-outline/30 bg-muted/60 p-5">
+                        <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Scenario</p>
+                        <p className="mt-3 text-sm leading-7 text-slate-100">{signal.scenario}</p>
                       </div>
-                    ))}
-                  </dl>
-                </div>
-              </div>
+                    )}
+
+                    {(signal || insightLoading) && (
+                      <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/80">AI Insight</p>
+                          {insightError && (
+                            <span className="text-[11px] text-slate-400">Fallback applied</span>
+                          )}
+                        </div>
+                        {insightLoading ? (
+                          <div className="mt-3 h-16 animate-pulse rounded-2xl border border-cyan-400/10 bg-cyan-500/5" />
+                        ) : insight ? (
+                          <p className="mt-3 text-sm leading-7 text-slate-100">{insight}</p>
+                        ) : (
+                          <p className="mt-3 text-sm leading-7 text-slate-300">
+                            Additional AI interpretation is unavailable right now.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {signal?.explanation && (
+                      <div className="rounded-2xl border border-outline/30 bg-muted/60 p-5">
+                        <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Explanation</p>
+                        <p className="mt-3 text-sm leading-7 text-slate-200">{signal.explanation}</p>
+                        {signal.disclaimer && <p className="mt-4 text-xs text-slate-500">{signal.disclaimer}</p>}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-outline/30 bg-muted/60 p-5">
+                      <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Key levels</p>
+                      <dl className="mt-4 space-y-3 text-sm text-slate-300">
+                        {structureMetrics.map((metric) => (
+                          <div key={metric.label} className="flex items-center justify-between gap-4">
+                            <dt>{metric.label}</dt>
+                            <dd className="text-white">{metric.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+
+                    <div className="rounded-2xl border border-outline/30 bg-muted/60 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Market warnings / conditions</p>
+                          <p className="mt-2 text-xs text-slate-400">
+                            Specific confirmations or warnings around liquidity, volatility, and structure.
+                          </p>
+                        </div>
+                      </div>
+                      {conditionFlags.length ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {conditionFlags.map((flag) => (
+                            <span
+                              key={flag.key}
+                              className="rounded-full border border-outline/30 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-100"
+                            >
+                              {flag.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-4 text-sm text-slate-400">No additional market warnings at the moment.</p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              </>
             ) : (
                 <p className="rounded-2xl border border-outline/30 bg-muted/60 p-4 text-sm text-slate-300">
                   No signal available right now. Try another symbol.
                 </p>
             )}
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {structureMetrics.map((metric) => (
-                <div key={metric.label} className="rounded-2xl border border-outline/30 bg-muted/60 p-4">
-                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">{metric.label}</p>
-                  <p className="mt-2 text-sm text-white">{metric.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {signal?.scenario && (
-              <div className="rounded-2xl border border-outline/30 bg-muted/60 p-4">
-                <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Scenario</p>
-                <p className="mt-2 text-sm text-slate-200">{signal.scenario}</p>
-              </div>
-            )}
-
-            {signal?.explanation && (
-              <div className="rounded-2xl border border-outline/30 bg-muted/60 p-4">
-                <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Explanation</p>
-                <p className="mt-2 text-sm text-slate-200">{signal.explanation}</p>
-                {signal.disclaimer && <p className="mt-3 text-xs text-slate-500">{signal.disclaimer}</p>}
-              </div>
-            )}
           </div>
         </article>
 
         <aside className="grid min-h-0 gap-5 xl:grid-rows-[auto_auto_minmax(0,1fr)]">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+            <h3 className="text-lg font-semibold text-white">Technical context</h3>
+            <p className="mt-1 text-sm text-slate-400">
+              Compact view of the deterministic indicators behind the current structure.
+            </p>
+            <dl className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-2 xl:grid-cols-1">
+              {technicalMetrics.map((metric) => (
+                <div key={metric.label} className="flex items-center justify-between gap-4 rounded-2xl border border-outline/20 bg-muted/50 px-4 py-3">
+                  <dt>{metric.label}</dt>
+                  <dd className="text-white">{metric.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
             <h3 className="text-lg font-semibold text-white">Validation threshold</h3>
             <p className="mt-1 text-sm text-slate-400">

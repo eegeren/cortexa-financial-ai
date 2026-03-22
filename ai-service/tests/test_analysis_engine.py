@@ -20,6 +20,7 @@ from analysis_engine import (  # noqa: E402
     trend_bias,
     trend_label,
 )
+from explanation_engine import generate_endpoint_insight, templated_insight  # noqa: E402
 from signal_api import (  # noqa: E402
     SUPPORTED_SYMBOLS,
     SUPPORTED_TIMEFRAMES,
@@ -57,16 +58,18 @@ class AnalysisEngineTests(unittest.TestCase):
         frame = build_indicator_frame(sample_frame())
         latest = frame.iloc[-1]
         scoring = score_row(latest)
-        self.assertGreaterEqual(scoring["confidence"], 5)
-        self.assertLessEqual(scoring["confidence"], 95)
+        self.assertGreaterEqual(scoring["confidence"], 16)
+        self.assertLessEqual(scoring["confidence"], 90)
 
     def test_confidence_mapping_preserves_non_zero_bearish_conviction(self):
-        self.assertEqual(confidence_from_raw_score(0), 8)
+        self.assertEqual(confidence_from_raw_score(0), 16)
         self.assertEqual(confidence_from_raw_score(50), 50)
-        self.assertEqual(confidence_from_raw_score(100), 92)
+        self.assertEqual(confidence_from_raw_score(100), 84)
 
     def test_trend_label_mapping(self):
-        self.assertEqual(trend_label(20), "Strong Bearish")
+        self.assertEqual(trend_label(16), "Strong Bearish")
+        self.assertEqual(trend_label(18), "Bearish")
+        self.assertEqual(trend_label(20), "Bearish")
         self.assertEqual(trend_label(35), "Bearish")
         self.assertEqual(trend_label(45), "Neutral")
         self.assertEqual(trend_label(72), "Bullish")
@@ -82,9 +85,13 @@ class AnalysisEngineTests(unittest.TestCase):
         row["atr_pct"] = 0.03
         self.assertEqual(risk_label(row), "Medium")
         row["atr_pct"] = 0.07
+        self.assertEqual(risk_label(row), "Medium")
+        row["atr_pct"] = 0.08
         self.assertEqual(risk_label(row), "High")
         row["atr_pct"] = 0.01
         row["volume_ratio"] = 0.6
+        self.assertEqual(risk_label(row), "Medium")
+        row["volume_ratio"] = 0.55
         self.assertEqual(risk_label(row), "High")
 
     def test_response_structure_contains_required_keys(self):
@@ -102,6 +109,7 @@ class AnalysisEngineTests(unittest.TestCase):
             "indicators",
             "levels",
             "scenario",
+            "insight",
             "explanation",
             "disclaimer",
         ):
@@ -152,11 +160,26 @@ class AnalysisEngineTests(unittest.TestCase):
         analysis["trend"] = trend_label(analysis["confidence"])
 
         filtered = apply_market_quality_filters(analysis, latest, stale=True, higher_timeframe_trend="Bearish")
-        self.assertLessEqual(filtered["confidence"], 62)
+        self.assertLessEqual(filtered["confidence"], 60)
+        self.assertGreaterEqual(filtered["confidence"], 16)
         self.assertIn("low_volume", filtered["quality_flags"])
         self.assertIn("stale_data", filtered["quality_flags"])
         self.assertIn("mtf_conflict", filtered["quality_flags"])
         self.assertEqual(filtered["risk"], "High")
+
+    def test_1h_strong_bearish_is_softened_when_volume_is_main_drag(self):
+        frame = build_indicator_frame(sample_frame())
+        analysis = build_analysis(frame, symbol="BTCUSDT", timeframe="1h")
+        latest = frame.iloc[-1].copy()
+        latest["volume_ratio"] = 0.7
+        latest["atr_pct"] = 0.03
+        latest["adx"] = 23
+        analysis["market_regime"] = "Trending"
+        analysis["confidence"] = 16
+        analysis["trend"] = "Strong Bearish"
+
+        filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend=None)
+        self.assertEqual(filtered["trend"], "Bearish")
 
     def test_analysis_payload_uses_wrapped_schema(self):
         with patch(
@@ -191,6 +214,34 @@ class AnalysisEngineTests(unittest.TestCase):
         self.assertIn("data", payload)
         self.assertIn("stale", payload)
         self.assertNotIn("trend", payload)
+
+    def test_generate_endpoint_insight_returns_text(self):
+        insight = generate_endpoint_insight(
+            {
+                "trend": "Bearish",
+                "confidence": 31,
+                "risk": "Medium",
+                "market_regime": "Range-Bound",
+                "levels": {"support": 61234, "resistance": 62810},
+                "quality_flags": ["weak_volume_confirmation", "choppy_structure"],
+                "scenario": "Price remains below its short-term trend anchors.",
+            }
+        )
+        self.assertTrue(isinstance(insight, str) and insight.strip())
+
+    def test_templated_insight_avoids_confidence_score_language(self):
+        insight = templated_insight(
+            {
+                "trend": "Bearish",
+                "confidence": 31,
+                "risk": "Medium",
+                "market_regime": "Range-Bound",
+                "levels": {"support": 61234, "resistance": 62810},
+                "quality_flags": ["weak_volume_confirmation", "choppy_structure"],
+            }
+        )
+        self.assertNotIn("/100", insight)
+        self.assertNotIn("confidence score", insight.lower())
 
 
 if __name__ == "__main__":

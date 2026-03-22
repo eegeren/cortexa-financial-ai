@@ -33,10 +33,10 @@ def clamp(value: float, lower: float, upper: float) -> float:
 
 
 def confidence_from_raw_score(raw_score: float) -> int:
-    # Keep the neutral midpoint intact while compressing extremes so
-    # bearish conviction does not collapse to zero too easily.
-    adjusted = 50.0 + ((raw_score - 50.0) * 0.85)
-    return int(round(clamp(adjusted, 5.0, 95.0)))
+    # Keep the midpoint anchored while compressing extremes and lifting the
+    # practical floor so weak bearish structure still has usable separation.
+    adjusted = 50.0 + ((raw_score - 50.0) * 0.68)
+    return int(round(clamp(adjusted, 16.0, 90.0)))
 
 
 def normalize_timeframe(timeframe: str | None) -> str:
@@ -236,11 +236,11 @@ def score_row(row: pd.Series) -> dict[str, Any]:
 
 
 def trend_label(confidence: int) -> str:
-    if confidence <= 25:
+    if confidence <= 16:
         return "Strong Bearish"
-    if confidence <= 42:
+    if confidence <= 40:
         return "Bearish"
-    if confidence <= 62:
+    if confidence <= 58:
         return "Neutral"
     if confidence <= 78:
         return "Bullish"
@@ -294,13 +294,13 @@ def risk_label(row: pd.Series) -> str:
 
     if atr_pct is None:
         return "Medium"
-    if atr_pct >= 0.06:
+    if atr_pct >= 0.075:
         return "High"
-    if volume_ratio is not None and volume_ratio < 0.75:
+    if volume_ratio is not None and volume_ratio < 0.58:
         return "High"
-    if adx is not None and adx < 18:
+    if adx is not None and adx < 15:
         return "High"
-    if not aligned_structure and ((adx is not None and adx < 22) or (volume_ratio is not None and volume_ratio < 0.9)):
+    if not aligned_structure and ((adx is not None and adx < 18) or (volume_ratio is not None and volume_ratio < 0.72)):
         return "High"
     if (
         atr_pct <= 0.018
@@ -310,6 +310,10 @@ def risk_label(row: pd.Series) -> str:
         and trend_side_confirmed
     ):
         return "Low"
+    if volume_ratio is not None and volume_ratio < 0.82:
+        return "Medium"
+    if adx is not None and adx < 20:
+        return "Medium"
     return "Medium"
 
 
@@ -433,6 +437,7 @@ def build_analysis(
             "resistance": levels.resistance,
         },
         "scenario": scenario,
+        "insight": explanation or scenario,
         "explanation": explanation or scenario,
         "disclaimer": DISCLAIMER,
         "scoring": {

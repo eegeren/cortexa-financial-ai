@@ -31,7 +31,7 @@ from analysis_engine import (
     trend_bias,
     trend_label,
 )
-from explanation_engine import generate_explanation
+from explanation_engine import generate_endpoint_insight, generate_explanation, generate_insight
 from validation import validate_analysis_history
 
 
@@ -329,6 +329,7 @@ def apply_market_quality_filters(
     analysis: dict[str, Any],
     latest_row: pd.Series,
     *,
+    timeframe: str | None = None,
     stale: bool,
     higher_timeframe_trend: str | None = None,
     higher_timeframe_stale: bool = False,
@@ -344,37 +345,38 @@ def apply_market_quality_filters(
     regime = str(analysis.get("market_regime", "Range-Bound"))
 
     if stale:
-        market_quality_adjustment -= 15
+        market_quality_adjustment -= 8
         flags.append("stale_data")
 
     if higher_timeframe_stale:
-        market_quality_adjustment -= 4
+        market_quality_adjustment -= 1
 
-    if volume_ratio is not None and volume_ratio < 0.85:
-        market_quality_adjustment -= 10
+    if volume_ratio is not None and volume_ratio < 0.82:
+        market_quality_adjustment -= 3
         flags.append("weak_volume_confirmation")
-    if volume_ratio is not None and volume_ratio < 0.65:
-        confidence = min(confidence, 62)
+    if volume_ratio is not None and volume_ratio < 0.58:
+        market_quality_adjustment -= 5
+        confidence = min(confidence, 58)
         flags.append("low_volume")
 
-    if atr_pct is not None and atr_pct >= 0.08:
-        market_quality_adjustment -= 15
+    if atr_pct is not None and atr_pct >= 0.085:
+        market_quality_adjustment -= 10
         flags.append("high_volatility")
-    elif atr_pct is not None and atr_pct >= 0.06:
-        market_quality_adjustment -= 8
+    elif atr_pct is not None and atr_pct >= 0.065:
+        market_quality_adjustment -= 4
         flags.append("high_volatility")
 
-    if adx is not None and adx < 18:
-        market_quality_adjustment -= 12
-        confidence = min(confidence, 62)
+    if adx is not None and adx < 15:
+        market_quality_adjustment -= 7
+        confidence = min(confidence, 58)
         flags.append("weak_trend_strength")
-    elif adx is not None and adx < 22:
-        market_quality_adjustment -= 6
+    elif adx is not None and adx < 20:
+        market_quality_adjustment -= 2
         flags.append("weak_trend_strength")
 
     if regime in {"Range-Bound", "Low Participation"}:
-        market_quality_adjustment -= 8
-        confidence = min(confidence, 62)
+        market_quality_adjustment -= 3
+        confidence = min(confidence, 60)
         flags.append("choppy_structure")
 
     if higher_timeframe_trend:
@@ -385,15 +387,27 @@ def apply_market_quality_filters(
                 mtf_adjustment += 8
                 flags.append("mtf_aligned")
             else:
-                mtf_adjustment -= 12
-                confidence = min(confidence, 62)
+                mtf_adjustment -= 6
+                confidence = min(confidence, 60)
                 flags.append("mtf_conflict")
         elif local_bias != 0 and higher_bias == 0:
-            mtf_adjustment -= 4
+            mtf_adjustment -= 1
 
-    final_confidence = int(round(max(5, min(95, confidence + market_quality_adjustment + mtf_adjustment))))
+    final_confidence = int(round(max(16, min(90, confidence + market_quality_adjustment + mtf_adjustment))))
     analysis["confidence"] = final_confidence
     analysis["trend"] = trend_label(final_confidence)
+    if regime in {"Range-Bound", "Low Participation"} and analysis["trend"] == "Strong Bearish":
+        analysis["trend"] = "Bearish"
+    if regime in {"Range-Bound", "Low Participation"} and analysis["trend"] == "Strong Bullish":
+        analysis["trend"] = "Bullish"
+    if "weak_trend_strength" in flags and analysis["trend"] == "Strong Bearish":
+        analysis["trend"] = "Bearish"
+    if "weak_trend_strength" in flags and analysis["trend"] == "Strong Bullish":
+        analysis["trend"] = "Bullish"
+    if timeframe == "1h" and analysis["trend"] == "Strong Bearish" and (
+        "weak_volume_confirmation" in flags or "low_volume" in flags
+    ) and "weak_trend_strength" not in flags and "high_volatility" not in flags:
+        analysis["trend"] = "Bearish"
     analysis["scenario"] = scenario_summary(
         trend=analysis["trend"],
         price=analysis.get("price"),
@@ -407,15 +421,21 @@ def apply_market_quality_filters(
     analysis["quality_flags"] = list(dict.fromkeys(flags))
     analysis["stale"] = stale
 
-    if "high_volatility" in analysis["quality_flags"] or "low_volume" in analysis["quality_flags"] or "stale_data" in analysis["quality_flags"]:
+    severe_risk_issues = sum(
+        1
+        for flag in analysis["quality_flags"]
+        if flag in {"high_volatility", "low_volume", "stale_data", "mtf_conflict", "weak_trend_strength"}
+    )
+    if severe_risk_issues >= 3 or ("high_volatility" in analysis["quality_flags"] and "low_volume" in analysis["quality_flags"]):
         analysis["risk"] = "High"
     elif (
         "weak_volume_confirmation" in analysis["quality_flags"]
         or "weak_trend_strength" in analysis["quality_flags"]
         or "choppy_structure" in analysis["quality_flags"]
         or "mtf_conflict" in analysis["quality_flags"]
-    ) and analysis.get("risk") == "Low":
-        analysis["risk"] = "Medium"
+    ):
+        if analysis.get("risk") == "Low":
+            analysis["risk"] = "Medium"
 
     return analysis
 
@@ -447,10 +467,12 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
     analysis = apply_market_quality_filters(
         analysis,
         indicator_frame.iloc[-1],
+        timeframe=timeframe,
         stale=stale,
         higher_timeframe_trend=higher_timeframe_trend,
         higher_timeframe_stale=higher_timeframe_stale,
     )
+    analysis["insight"] = generate_insight(analysis)
     analysis["explanation"] = generate_explanation(analysis)
 
     indicators = analysis["indicators"]
@@ -490,6 +512,7 @@ def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
         },
         "levels": {"support": None, "resistance": None},
         "scenario": "Fresh market structure is unavailable right now. Recheck after data connectivity recovers.",
+        "insight": "Market structure is temporarily unavailable, so directional conviction is limited until fresh data is restored.",
         "explanation": "Fresh market structure is unavailable right now. Recheck after data connectivity recovers.",
         "disclaimer": "This is not financial advice. It is an informational market analysis.",
         "rsi": None,
@@ -590,6 +613,11 @@ def predict_get(symbol: str = "BTCUSDT", timeframe: str = "1h"):
 def predict(payload: dict[str, Any]):
     symbol, timeframe = parse_predict_payload(payload)
     return analysis_payload(symbol, timeframe)
+
+
+@app.post("/insight")
+def insight(payload: dict[str, Any]):
+    return {"insight": generate_endpoint_insight(payload)}
 
 
 @app.get("/debug/predict")

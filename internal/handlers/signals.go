@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,6 +20,24 @@ func (h *Handlers) GetSignals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
+}
+
+func (h *Handlers) GetInsight(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var payload map[string]any
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&payload); err != nil {
+		http.Error(w, "invalid insight payload", http.StatusBadRequest)
+		return
+	}
+
+	insight, err := h.Signal.Insight(r.Context(), payload)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"insight": insight})
 }
 
 func (h *Handlers) GetSignalBacktest(w http.ResponseWriter, r *http.Request) {
