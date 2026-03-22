@@ -191,7 +191,7 @@ type backtestSweepResp struct {
 func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Signal, error) {
 	body, _ := json.Marshal(predictReq{Symbol: symbol})
 	predictURL := s.aiBaseURL() + "/predict"
-	log.Printf("signal predict upstream url for %s: %s", symbol, predictURL)
+	log.Printf("signal predict upstream url=%s symbol=%s", predictURL, symbol)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, predictURL, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
