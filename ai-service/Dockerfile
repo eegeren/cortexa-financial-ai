@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY signal_api.py .
+COPY . .
 
 EXPOSE 8001
 
-CMD ["uvicorn", "signal_api:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "2"]
+CMD ["sh", "-c", "uvicorn signal_api:app --host 0.0.0.0 --port ${PORT:-8001} --workers 2"]

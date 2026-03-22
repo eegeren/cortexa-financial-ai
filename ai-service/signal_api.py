@@ -577,6 +577,11 @@ def healthz():
     return {"status": "ok"}
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/symbols")
 def get_symbols(top_n: int = 0, only_usdt: bool = True):
     try:
