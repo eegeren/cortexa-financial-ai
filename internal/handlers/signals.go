@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,7 +17,8 @@ func (h *Handlers) GetSignals(w http.ResponseWriter, r *http.Request) {
 	symbol := chi.URLParam(r, "symbol")
 	res, err := h.Signal.Predict(r.Context(), symbol)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("GetSignals failed for %s: %v", symbol, err)
+		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)

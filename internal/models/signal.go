@@ -29,8 +29,10 @@ type Signal struct {
 	Momentum     string           `json:"momentum,omitempty"`
 	Risk         string           `json:"risk,omitempty"`
 	MarketRegime string           `json:"market_regime,omitempty"`
+	QualityFlags []string         `json:"quality_flags,omitempty"`
 	Confidence   int              `json:"confidence,omitempty"`
 	Scenario     string           `json:"scenario,omitempty"`
+	Insight      string           `json:"insight,omitempty"`
 	Explanation  string           `json:"explanation,omitempty"`
 	Disclaimer   string           `json:"disclaimer,omitempty"`
 	Indicators   SignalIndicators `json:"indicators"`

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -29,15 +30,19 @@ type predictReq struct {
 }
 
 type predictResp struct {
-	Data struct {
+	OK    bool `json:"ok"`
+	Stale bool `json:"stale"`
+	Data  *struct {
 		Symbol       string `json:"symbol"`
 		Timeframe    string `json:"timeframe"`
 		Trend        string `json:"trend"`
 		Momentum     string `json:"momentum"`
 		Risk         string `json:"risk"`
 		MarketRegime string `json:"market_regime"`
+		QualityFlags []string `json:"quality_flags"`
 		Confidence   int    `json:"confidence"`
 		Scenario     string `json:"scenario"`
+		Insight      string `json:"insight"`
 		Explanation  string `json:"explanation"`
 		Disclaimer   string `json:"disclaimer"`
 		Indicators   struct {
@@ -65,6 +70,8 @@ type predictResp struct {
 			RawScore *float64 `json:"raw_score"`
 		} `json:"scoring"`
 	} `json:"data"`
+	Error string `json:"error"`
+	Path  string `json:"path"`
 }
 
 type insightResp struct {
@@ -188,7 +195,8 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return models.Signal{}, err
+		log.Printf("signal predict request failed for %s: %v", symbol, err)
+		return models.Signal{}, fmt.Errorf("signal upstream request failed: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -197,12 +205,30 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 		if trimmed == "" {
 			trimmed = "ai service error"
 		}
+		log.Printf("signal predict non-200 for %s: status=%d body=%s", symbol, resp.StatusCode, trimmed)
 		return models.Signal{}, fmt.Errorf("ai service status %d: %s", resp.StatusCode, trimmed)
 	}
 
 	var pr predictResp
 	if err := json.NewDecoder(resp.Body).Decode(&pr); err != nil {
-		return models.Signal{}, err
+		log.Printf("signal predict decode failed for %s: %v", symbol, err)
+		return models.Signal{}, fmt.Errorf("ai service decode failed: %w", err)
+	}
+	if !pr.OK {
+		message := strings.TrimSpace(pr.Error)
+		if message == "" {
+			message = "ai service returned ok=false"
+		}
+		log.Printf("signal predict upstream not ok for %s: error=%s path=%s stale=%v", symbol, message, pr.Path, pr.Stale)
+		return models.Signal{}, fmt.Errorf("ai service unavailable: %s", message)
+	}
+	if pr.Data == nil {
+		log.Printf("signal predict returned empty data for %s: ok=%v stale=%v", symbol, pr.OK, pr.Stale)
+		return models.Signal{}, fmt.Errorf("ai service returned empty data")
+	}
+	if strings.TrimSpace(pr.Data.Symbol) == "" {
+		log.Printf("signal predict returned blank symbol for %s: data=%+v", symbol, *pr.Data)
+		return models.Signal{}, fmt.Errorf("ai service returned invalid signal payload")
 	}
 	score := float64(pr.Data.Confidence) / 100.0
 	side := "HOLD"
@@ -220,8 +246,10 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 		Momentum:     pr.Data.Momentum,
 		Risk:         pr.Data.Risk,
 		MarketRegime: pr.Data.MarketRegime,
+		QualityFlags: pr.Data.QualityFlags,
 		Confidence:   pr.Data.Confidence,
 		Scenario:     pr.Data.Scenario,
+		Insight:      pr.Data.Insight,
 		Explanation:  pr.Data.Explanation,
 		Disclaimer:   pr.Data.Disclaimer,
 		Indicators: models.SignalIndicators{
@@ -257,6 +285,7 @@ func (s *SignalService) Insight(ctx context.Context, payload map[string]any) (st
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		log.Printf("signal insight request failed: %v", err)
 		return "", err
 	}
 	defer resp.Body.Close()
@@ -266,11 +295,13 @@ func (s *SignalService) Insight(ctx context.Context, payload map[string]any) (st
 		if trimmed == "" {
 			trimmed = "ai insight service error"
 		}
+		log.Printf("signal insight non-200: status=%d body=%s", resp.StatusCode, trimmed)
 		return "", fmt.Errorf("ai insight service status %d: %s", resp.StatusCode, trimmed)
 	}
 
 	var ir insightResp
 	if err := json.NewDecoder(resp.Body).Decode(&ir); err != nil {
+		log.Printf("signal insight decode failed: %v", err)
 		return "", err
 	}
 	return strings.TrimSpace(ir.Insight), nil
