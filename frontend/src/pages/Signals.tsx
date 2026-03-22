@@ -143,8 +143,8 @@ const SignalsPage = () => {
   }, [backtest]);
 
   return (
-    <div className="space-y-16">
-      <section className="text-center">
+    <div className="flex h-full min-h-0 flex-col gap-6 lg:gap-5">
+      <section className="shrink-0 text-center">
         <header className="space-y-4">
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Live signal studio</span>
           <h1 className="text-4xl font-semibold text-white sm:text-5xl">
@@ -198,8 +198,8 @@ const SignalsPage = () => {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <article className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+      <section className="grid flex-1 min-h-0 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,380px)]">
+        <article className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">
@@ -214,7 +214,7 @@ const SignalsPage = () => {
             )}
           </header>
 
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
             {signalLoading ? (
               <div className="h-40 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse" />
             ) : signal ? (
@@ -274,7 +274,7 @@ const SignalsPage = () => {
           </div>
         </article>
 
-        <aside className="space-y-6">
+        <aside className="grid min-h-0 gap-5 xl:grid-rows-[auto_auto_minmax(0,1fr)]">
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
             <h3 className="text-lg font-semibold text-white">Validation threshold</h3>
             <p className="mt-1 text-sm text-slate-400">
@@ -327,7 +327,7 @@ const SignalsPage = () => {
             )}
           </div>
 
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300 xl:overflow-y-auto">
             <h3 className="text-lg font-semibold text-white">Need more context?</h3>
             <ul className="mt-3 space-y-2 list-disc pl-4">
               <li>

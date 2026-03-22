@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -15,11 +16,14 @@ from analysis_engine import (  # noqa: E402
     build_indicator_frame,
     risk_label,
     score_row,
+    trend_bias,
     trend_label,
 )
 from signal_api import (  # noqa: E402
     SUPPORTED_SYMBOLS,
     SUPPORTED_TIMEFRAMES,
+    apply_market_quality_filters,
+    analysis_payload,
     parse_predict_payload,
     validate_symbol,
     validate_timeframe,
@@ -56,7 +60,8 @@ class AnalysisEngineTests(unittest.TestCase):
         self.assertLessEqual(scoring["confidence"], 100)
 
     def test_trend_label_mapping(self):
-        self.assertEqual(trend_label(20), "Bearish")
+        self.assertEqual(trend_label(20), "Strong Bearish")
+        self.assertEqual(trend_label(35), "Bearish")
         self.assertEqual(trend_label(45), "Neutral")
         self.assertEqual(trend_label(72), "Bullish")
         self.assertEqual(trend_label(91), "Strong Bullish")
@@ -108,11 +113,73 @@ class AnalysisEngineTests(unittest.TestCase):
     def test_timeframe_validation_allows_supported_timeframe(self):
         self.assertEqual(validate_timeframe("1H"), "1h")
         self.assertIn("1h", SUPPORTED_TIMEFRAMES)
+        self.assertNotIn("15m", SUPPORTED_TIMEFRAMES)
+
+    def test_supported_symbols_are_restricted_to_major_liquid_pairs(self):
+        self.assertEqual(SUPPORTED_SYMBOLS, ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"])
 
     def test_predict_payload_parses_symbol_and_timeframe(self):
         symbol, timeframe = parse_predict_payload({"symbol": "ethusdt", "timeframe": "4H"})
         self.assertEqual(symbol, "ETHUSDT")
         self.assertEqual(timeframe, "4h")
+
+    def test_trend_bias_mapping(self):
+        self.assertEqual(trend_bias("Strong Bearish"), -2)
+        self.assertEqual(trend_bias("Bearish"), -1)
+        self.assertEqual(trend_bias("Neutral"), 0)
+        self.assertEqual(trend_bias("Bullish"), 1)
+        self.assertEqual(trend_bias("Strong Bullish"), 2)
+
+    def test_market_quality_filter_caps_choppy_low_volume_conditions(self):
+        frame = build_indicator_frame(sample_frame())
+        analysis = build_analysis(frame, symbol="BTCUSDT", timeframe="1h")
+        latest = frame.iloc[-1].copy()
+        latest["volume_ratio"] = 0.55
+        latest["atr_pct"] = 0.081
+        latest["adx"] = 16
+        analysis["market_regime"] = "Range-Bound"
+        analysis["confidence"] = 79
+        analysis["trend"] = trend_label(analysis["confidence"])
+
+        filtered = apply_market_quality_filters(analysis, latest, stale=True, higher_timeframe_trend="Bearish")
+        self.assertLessEqual(filtered["confidence"], 62)
+        self.assertIn("low_volume", filtered["quality_flags"])
+        self.assertIn("stale_data", filtered["quality_flags"])
+        self.assertIn("mtf_disagreement", filtered["quality_flags"])
+
+    def test_analysis_payload_uses_wrapped_schema(self):
+        with patch(
+            "signal_api.compute_analysis",
+            return_value={
+                "symbol": "BTCUSDT",
+                "timeframe": "1h",
+                "trend": "Neutral",
+                "momentum": "Moderate",
+                "risk": "Medium",
+                "confidence": 50,
+                "market_regime": "Range-Bound",
+                "price": 100.0,
+                "indicators": {},
+                "levels": {"support": 95.0, "resistance": 105.0},
+                "scenario": "Range conditions persist.",
+                "explanation": "Range conditions persist.",
+                "disclaimer": "This is not financial advice. It is an informational market analysis.",
+                "scoring": {
+                    "trend": 0,
+                    "momentum": 0,
+                    "trend_strength": 0,
+                    "volume_confirmation": 0,
+                    "risk_adjustment": 0,
+                    "raw_score": 50.0,
+                },
+                "stale": False,
+            },
+        ):
+            payload = analysis_payload("BTCUSDT", "1h")
+        self.assertTrue(payload["ok"])
+        self.assertIn("data", payload)
+        self.assertIn("stale", payload)
+        self.assertNotIn("trend", payload)
 
 
 if __name__ == "__main__":

@@ -89,9 +89,9 @@ const AssistantPage = () => {
 
   if (loading || !initialized) {
     return (
-      <div className="space-y-6">
+      <div className="flex h-full min-h-0 flex-col space-y-6">
         <div className="h-5 w-40 rounded-full bg-muted/80 animate-pulse" />
-        <div className="h-[520px] rounded-3xl border border-outline/40 bg-surface animate-pulse" />
+        <div className="flex-1 rounded-3xl border border-outline/40 bg-surface animate-pulse" />
       </div>
     );
   }
@@ -101,10 +101,10 @@ const AssistantPage = () => {
   }
 
   return (
-    <div className="flex w-full flex-1">
-      <section className="flex flex-1 flex-col">
-        <article className="flex min-h-screen flex-1 flex-col border-l border-outline/40 bg-surface px-4 py-6 shadow-elevation-soft sm:px-6">
-          <div ref={scrollRef} className="flex-1 overflow-y-auto pr-1">
+    <div className="flex h-full min-h-0 w-full flex-1">
+      <section className="flex min-h-0 flex-1 flex-col">
+        <article className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-outline/40 bg-surface shadow-elevation-soft">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
             <div className="space-y-6">
               {messages.map((message) => (
                 <div key={message.id} className={`flex gap-3 ${message.role === 'assistant' ? '' : 'justify-end'}`}>
@@ -150,7 +150,7 @@ const AssistantPage = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-3">
+          <form onSubmit={handleSubmit} className="sticky bottom-0 shrink-0 space-y-3 border-t border-outline/30 bg-surface/95 px-4 py-4 backdrop-blur sm:px-6">
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}

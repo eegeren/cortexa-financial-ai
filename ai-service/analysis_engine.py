@@ -144,42 +144,74 @@ def score_row(row: pd.Series) -> dict[str, Any]:
     adx = safe_float(row.get("adx"))
     atr_pct = safe_float(row.get("atr_pct"))
     volume_ratio = safe_float(row.get("volume_ratio"))
+    reversal_context = False
 
-    if ema20 is not None and ema50 is not None and ema20 > ema50:
-        trend_points += 10
-    if ema50 is not None and ema200 is not None and ema50 > ema200:
-        trend_points += 15
-    if price is not None and ema200 is not None and price > ema200:
-        trend_points += 15
+    bullish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 > ema50 > ema200
+    bearish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 < ema50 < ema200
+
+    if bullish_stack:
+        trend_points += 30
+    elif bearish_stack:
+        trend_points -= 30
+    else:
+        if ema20 is not None and ema50 is not None:
+            trend_points += 8 if ema20 > ema50 else -8
+        if ema50 is not None and ema200 is not None:
+            trend_points += 10 if ema50 > ema200 else -10
+
+    if price is not None and ema20 is not None:
+        trend_points += 6 if price > ema20 else -6
+    if price is not None and ema200 is not None:
+        trend_points += 8 if price > ema200 else -8
 
     if rsi is not None:
-        if 50 <= rsi <= 70:
-            momentum_points += 10
-        elif rsi > 70:
-            momentum_points -= 5
+        if 55 <= rsi <= 68:
+            momentum_points += 8
+        elif 45 <= rsi < 55:
+            momentum_points += 0
+        elif 30 <= rsi < 45:
+            momentum_points -= 6
         elif rsi < 30:
-            momentum_points += 10
+            momentum_points -= 8
+            reversal_context = True
+        elif rsi > 68:
+            momentum_points -= 6
 
     if macd is not None and macd_signal is not None:
-        if macd > macd_signal:
-            momentum_points += 15
-        elif macd < macd_signal:
-            momentum_points -= 15
+        if macd > macd_signal and macd >= 0:
+            momentum_points += 12
+        elif macd > macd_signal and macd < 0:
+            momentum_points += 4
+        elif macd < macd_signal and macd < 0:
+            momentum_points -= 12
+        elif macd < macd_signal and macd >= 0:
+            momentum_points -= 8
 
     if adx is not None:
-        if adx > 25:
+        if adx >= 28:
             strength_points += 10
-        elif adx < 20:
-            strength_points -= 5
+        elif adx >= 22:
+            strength_points += 4
+        elif adx < 18:
+            strength_points -= 12
+        elif adx < 22:
+            strength_points -= 6
 
-    if volume_ratio is not None and volume_ratio > 1:
-        volume_points += 10
+    if volume_ratio is not None:
+        if volume_ratio >= 1.1:
+            volume_points += 6
+        elif volume_ratio < 0.65:
+            volume_points -= 16
+        elif volume_ratio < 0.85:
+            volume_points -= 10
 
     if atr_pct is not None:
-        if atr_pct > 0.05:
-            risk_adjustment -= 10
-        elif atr_pct <= 0.03:
-            risk_adjustment += 5
+        if atr_pct >= 0.07:
+            risk_adjustment -= 14
+        elif atr_pct >= 0.05:
+            risk_adjustment -= 8
+        elif atr_pct <= 0.025:
+            risk_adjustment += 3
 
     score += trend_points + momentum_points + strength_points + volume_points + risk_adjustment
     confidence = int(round(clamp(score, 0, 100)))
@@ -192,17 +224,32 @@ def score_row(row: pd.Series) -> dict[str, Any]:
         "volume_points": volume_points,
         "risk_adjustment": risk_adjustment,
         "raw_score": score,
+        "reversal_context": reversal_context,
     }
 
 
 def trend_label(confidence: int) -> str:
-    if confidence <= 30:
+    if confidence <= 25:
+        return "Strong Bearish"
+    if confidence <= 42:
         return "Bearish"
-    if confidence <= 59:
+    if confidence <= 62:
         return "Neutral"
-    if confidence <= 79:
+    if confidence <= 78:
         return "Bullish"
     return "Strong Bullish"
+
+
+def trend_bias(trend: str) -> int:
+    if trend == "Strong Bullish":
+        return 2
+    if trend == "Bullish":
+        return 1
+    if trend == "Strong Bearish":
+        return -2
+    if trend == "Bearish":
+        return -1
+    return 0
 
 
 def momentum_label(row: pd.Series, scoring: dict[str, Any]) -> str:
@@ -273,7 +320,7 @@ def scenario_summary(
         )
         return base + continuation + pullback
 
-    if trend == "Bearish":
+    if trend in {"Bearish", "Strong Bearish"}:
         base = "Price is trading below its higher-timeframe trend anchors and momentum remains fragile."
         downside = (
             f" Sustained weakness below {support:.2f} would keep downside pressure in focus"
@@ -362,7 +409,10 @@ def build_analysis(
             "volume_confirmation": scoring["volume_points"],
             "risk_adjustment": scoring["risk_adjustment"],
             "raw_score": safe_float(scoring["raw_score"], 2),
+            "market_quality": 0,
+            "multi_timeframe_confirmation": 0,
         },
+        "quality_flags": [],
     }
     return response
 

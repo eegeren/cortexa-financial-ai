@@ -124,7 +124,7 @@ const NavBar = () => {
 
   return (
     <>
-      <aside className="hidden w-60 flex-col border-r border-slate-700/40 bg-slate-950/35 px-3 pb-6 pt-7 backdrop-blur lg:flex">
+      <aside className="sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-700/40 bg-slate-950/35 px-3 pb-6 pt-7 backdrop-blur lg:flex">
         <button
           type="button"
           onClick={() => navigate(token ? '/assistant' : '/')}

@@ -25,10 +25,11 @@ from analysis_engine import (
     build_analysis,
     build_indicator_frame,
     build_indicator_snapshot,
-    legacy_score_from_confidence,
-    legacy_side_from_trend,
     normalize_timeframe,
     safe_float,
+    scenario_summary,
+    trend_bias,
+    trend_label,
 )
 from explanation_engine import generate_explanation
 from validation import validate_analysis_history
@@ -86,21 +87,20 @@ SUPPORTED_SYMBOLS = [
     "SOLUSDT",
     "BNBUSDT",
     "XRPUSDT",
-    "ADAUSDT",
-    "AVAXUSDT",
-    "LINKUSDT",
-    "DOGEUSDT",
-    "TONUSDT",
 ]
 SUPPORTED_SYMBOL_SET = frozenset(SUPPORTED_SYMBOLS)
 
 TIMEFRAME_TO_INTERVAL = {
-    "15m": "15m",
     "1h": "1h",
     "4h": "4h",
     "1d": "1d",
 }
 SUPPORTED_TIMEFRAMES = tuple(TIMEFRAME_TO_INTERVAL.keys())
+TIMEFRAME_TO_SECONDS = {
+    "1h": 3600,
+    "4h": 4 * 3600,
+    "1d": 24 * 3600,
+}
 MIN_CANDLES_REQUIRED = 220
 
 app = FastAPI()
@@ -245,14 +245,14 @@ def fetch_24h_tickers(symbols: Optional[list[str]] = None, top_n: Optional[int] 
         raise HTTPException(502, "failed to fetch 24h tickers")
 
 
-def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 300) -> pd.DataFrame:
+def fetch_ohlcv_with_meta(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 300) -> tuple[pd.DataFrame, bool]:
     symbol = validate_symbol(symbol)
     timeframe = validate_timeframe(interval)
     interval = TIMEFRAME_TO_INTERVAL[timeframe]
     limit = max(int(limit), MIN_CANDLES_REQUIRED)
     cached = _cache_get(symbol, interval, limit)
     if cached is not None:
-        return cached
+        return cached, False
 
     errors: list[str] = []
     for attempt in range(3):
@@ -294,24 +294,154 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 300)
             errors.append(f"binance insufficient rows ({len(frame)}) [{attempt + 1}/3]")
             continue
         _cache_put(symbol, interval, limit, frame)
-        return frame
+        return frame, False
 
     stale = _cache_get_stale(symbol, interval, limit)
     if stale is not None:
         logger.warning("serving stale Binance cache for %s %s after errors: %s", symbol, interval, " | ".join(errors))
-        return stale
+        return stale, True
     raise HTTPException(502, "binance market data unavailable: " + " | ".join(errors))
+
+
+def fetch_ohlcv(symbol: str = "BTCUSDT", interval: str = "1h", limit: int = 300) -> pd.DataFrame:
+    frame, _ = fetch_ohlcv_with_meta(symbol, interval, limit)
+    return frame
+
+
+def data_age_seconds(frame: pd.DataFrame) -> float | None:
+    if frame.empty or "time" not in frame.columns:
+        return None
+    try:
+        latest_time = float(frame.iloc[-1]["time"]) / 1000.0
+    except (TypeError, ValueError):
+        return None
+    return max(0.0, time.time() - latest_time)
+
+
+def is_data_stale(frame: pd.DataFrame, timeframe: str) -> bool:
+    age_seconds = data_age_seconds(frame)
+    if age_seconds is None:
+        return False
+    return age_seconds > TIMEFRAME_TO_SECONDS[timeframe] * 2.25
+
+
+def apply_market_quality_filters(
+    analysis: dict[str, Any],
+    latest_row: pd.Series,
+    *,
+    stale: bool,
+    higher_timeframe_trend: str | None = None,
+    higher_timeframe_stale: bool = False,
+) -> dict[str, Any]:
+    confidence = int(analysis["confidence"])
+    market_quality_adjustment = 0
+    mtf_adjustment = 0
+    flags: list[str] = []
+
+    volume_ratio = safe_float(latest_row.get("volume_ratio"))
+    atr_pct = safe_float(latest_row.get("atr_pct"))
+    adx = safe_float(latest_row.get("adx"))
+    regime = str(analysis.get("market_regime", "Range-Bound"))
+
+    if stale:
+        market_quality_adjustment -= 15
+        flags.append("stale_data")
+
+    if higher_timeframe_stale:
+        market_quality_adjustment -= 4
+        flags.append("higher_timeframe_stale")
+
+    if volume_ratio is not None and volume_ratio < 0.85:
+        market_quality_adjustment -= 10
+        flags.append("low_volume")
+    if volume_ratio is not None and volume_ratio < 0.65:
+        confidence = min(confidence, 62)
+        flags.append("thin_liquidity_cap")
+
+    if atr_pct is not None and atr_pct >= 0.08:
+        market_quality_adjustment -= 15
+        flags.append("extreme_volatility")
+    elif atr_pct is not None and atr_pct >= 0.06:
+        market_quality_adjustment -= 8
+        flags.append("elevated_volatility")
+
+    if adx is not None and adx < 18:
+        market_quality_adjustment -= 12
+        confidence = min(confidence, 62)
+        flags.append("weak_adx")
+    elif adx is not None and adx < 22:
+        market_quality_adjustment -= 6
+        flags.append("soft_trend_strength")
+
+    if regime in {"Range-Bound", "Low Participation"}:
+        market_quality_adjustment -= 8
+        confidence = min(confidence, 62)
+        flags.append("choppy_regime")
+
+    if higher_timeframe_trend:
+        local_bias = trend_bias(str(analysis.get("trend", "Neutral")))
+        higher_bias = trend_bias(higher_timeframe_trend)
+        if local_bias != 0 and higher_bias != 0:
+            if (local_bias > 0 and higher_bias > 0) or (local_bias < 0 and higher_bias < 0):
+                mtf_adjustment += 8
+                flags.append("mtf_aligned")
+            else:
+                mtf_adjustment -= 12
+                confidence = min(confidence, 62)
+                flags.append("mtf_disagreement")
+        elif local_bias != 0 and higher_bias == 0:
+            mtf_adjustment -= 4
+            flags.append("mtf_higher_neutral")
+
+    final_confidence = int(round(max(0, min(100, confidence + market_quality_adjustment + mtf_adjustment))))
+    analysis["confidence"] = final_confidence
+    analysis["trend"] = trend_label(final_confidence)
+    analysis["scenario"] = scenario_summary(
+        trend=analysis["trend"],
+        price=analysis.get("price"),
+        support=analysis.get("levels", {}).get("support"),
+        resistance=analysis.get("levels", {}).get("resistance"),
+        regime=str(analysis.get("market_regime", "Range-Bound")),
+        momentum=str(analysis.get("momentum", "Weak")),
+    )
+    analysis["scoring"]["market_quality"] = market_quality_adjustment
+    analysis["scoring"]["multi_timeframe_confirmation"] = mtf_adjustment
+    analysis["quality_flags"] = flags
+    analysis["stale"] = stale
+    return analysis
 
 
 def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int = 300) -> dict[str, Any]:
     symbol = validate_symbol(symbol)
     timeframe = validate_timeframe(timeframe)
-    raw_frame = fetch_ohlcv(symbol, timeframe, max(limit, MIN_CANDLES_REQUIRED))
+    raw_frame, served_from_stale_cache = fetch_ohlcv_with_meta(symbol, timeframe, max(limit, MIN_CANDLES_REQUIRED))
     indicator_frame = build_indicator_frame(raw_frame)
     if len(indicator_frame) < 200:
         raise HTTPException(503, "not enough data for indicators")
 
     analysis = build_analysis(indicator_frame, symbol=symbol, timeframe=timeframe)
+    stale = served_from_stale_cache or is_data_stale(raw_frame, timeframe)
+
+    higher_timeframe_trend: str | None = None
+    higher_timeframe_stale = False
+    if timeframe == "1h":
+        try:
+            higher_frame_raw, higher_served_from_stale_cache = fetch_ohlcv_with_meta(symbol, "4h", max(limit, MIN_CANDLES_REQUIRED))
+            higher_frame = build_indicator_frame(higher_frame_raw)
+            if len(higher_frame) >= 200:
+                higher_analysis = build_analysis(higher_frame, symbol=symbol, timeframe="4h")
+                higher_timeframe_trend = str(higher_analysis["trend"])
+                higher_timeframe_stale = higher_served_from_stale_cache or is_data_stale(higher_frame_raw, "4h")
+        except HTTPException as exc:
+            logger.warning("skipping 4h confirmation for %s: %s", symbol, exc.detail)
+
+    analysis = apply_market_quality_filters(
+        analysis,
+        indicator_frame.iloc[-1],
+        stale=stale,
+        higher_timeframe_trend=higher_timeframe_trend,
+        higher_timeframe_stale=higher_timeframe_stale,
+    )
     analysis["explanation"] = generate_explanation(analysis)
 
     indicators = analysis["indicators"]
@@ -322,14 +452,6 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
         indicator_frame.iloc[-1]["atr_pct"],
         4,
     )
-    analysis["ema_fast"] = indicators["ema20"]
-    analysis["ema_slow"] = indicators["ema50"]
-    analysis["score"] = legacy_score_from_confidence(analysis["confidence"])
-    analysis["side"] = legacy_side_from_trend(analysis["trend"])
-    analysis["sl"] = None
-    analysis["tp"] = None
-    analysis["stale"] = False
-    analysis["ok"] = True
 
     _analysis_cache_put(symbol, timeframe, json_sanitize(analysis))
     return analysis
@@ -361,16 +483,22 @@ def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
         "scenario": "Fresh market structure is unavailable right now. Recheck after data connectivity recovers.",
         "explanation": "Fresh market structure is unavailable right now. Recheck after data connectivity recovers.",
         "disclaimer": "This is not financial advice. It is an informational market analysis.",
-        "score": 0.5,
-        "side": "HOLD",
         "rsi": None,
         "atr": None,
         "adx": None,
         "atr_pct": None,
-        "ema_fast": None,
-        "ema_slow": None,
-        "sl": None,
-        "tp": None,
+        "scoring": {
+            "trend": 0,
+            "momentum": 0,
+            "trend_strength": 0,
+            "volume_confirmation": 0,
+            "risk_adjustment": 0,
+            "raw_score": 50.0,
+            "market_quality": -15,
+            "multi_timeframe_confirmation": 0,
+        },
+        "quality_flags": ["stale_data"],
+        "stale": True,
     }
 
 
@@ -379,20 +507,20 @@ def analysis_payload(symbol: str, timeframe: str = "1h") -> dict[str, Any]:
     timeframe = validate_timeframe(timeframe)
     try:
         payload = compute_analysis(symbol, timeframe)
-        return {"ok": True, "data": json_sanitize(payload), "stale": False, **json_sanitize(payload)}
+        return {"ok": True, "data": json_sanitize(payload), "stale": False}
     except HTTPException:
         cached = _analysis_cache_get(symbol, timeframe)
         if cached is not None:
-            return {"ok": True, "data": cached, "stale": True, **cached}
+            return {"ok": True, "data": cached, "stale": True}
         fallback = json_sanitize(_fallback_analysis(symbol, timeframe))
-        return {"ok": True, "data": fallback, "stale": True, **fallback}
+        return {"ok": True, "data": fallback, "stale": True}
     except Exception as exc:
         logger.error("analysis payload failed for %s %s: %s", symbol, timeframe, exc)
         cached = _analysis_cache_get(symbol, timeframe)
         if cached is not None:
-            return {"ok": True, "data": cached, "stale": True, **cached}
+            return {"ok": True, "data": cached, "stale": True}
         fallback = json_sanitize(_fallback_analysis(symbol, timeframe))
-        return {"ok": True, "data": fallback, "stale": True, **fallback}
+        return {"ok": True, "data": fallback, "stale": True}
 
 
 def last_indicators_snapshot(symbol: str, timeframe: str = "1h") -> dict[str, Any]:

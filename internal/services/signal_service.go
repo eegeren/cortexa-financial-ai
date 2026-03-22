@@ -29,43 +29,42 @@ type predictReq struct {
 }
 
 type predictResp struct {
-	Symbol       string `json:"symbol"`
-	Timeframe    string `json:"timeframe"`
-	Trend        string `json:"trend"`
-	Momentum     string `json:"momentum"`
-	Risk         string `json:"risk"`
-	MarketRegime string `json:"market_regime"`
-	Confidence   int    `json:"confidence"`
-	Scenario     string `json:"scenario"`
-	Explanation  string `json:"explanation"`
-	Disclaimer   string `json:"disclaimer"`
-	Indicators   struct {
-		EMA20       *float64 `json:"ema20"`
-		EMA50       *float64 `json:"ema50"`
-		EMA200      *float64 `json:"ema200"`
-		RSI         *float64 `json:"rsi"`
-		ADX         *float64 `json:"adx"`
-		ATR         *float64 `json:"atr"`
-		VolumeRatio *float64 `json:"volume_ratio"`
-		MACD        struct {
-			MACD      *float64 `json:"macd"`
-			Signal    *float64 `json:"signal"`
-			Histogram *float64 `json:"histogram"`
-		} `json:"macd"`
-	} `json:"indicators"`
-	Levels struct {
-		Support    *float64 `json:"support"`
-		Resistance *float64 `json:"resistance"`
-	} `json:"levels"`
-	Side    string   `json:"side"`
-	Score   float64  `json:"score"`
-	Price   *float64 `json:"price"`
-	RSI     *float64 `json:"rsi"`
-	ATR     *float64 `json:"atr"`
-	EMAFast *float64 `json:"ema_fast"`
-	EMASlow *float64 `json:"ema_slow"`
-	SL      *float64 `json:"sl"`
-	TP      *float64 `json:"tp"`
+	Data struct {
+		Symbol       string `json:"symbol"`
+		Timeframe    string `json:"timeframe"`
+		Trend        string `json:"trend"`
+		Momentum     string `json:"momentum"`
+		Risk         string `json:"risk"`
+		MarketRegime string `json:"market_regime"`
+		Confidence   int    `json:"confidence"`
+		Scenario     string `json:"scenario"`
+		Explanation  string `json:"explanation"`
+		Disclaimer   string `json:"disclaimer"`
+		Indicators   struct {
+			EMA20       *float64 `json:"ema20"`
+			EMA50       *float64 `json:"ema50"`
+			EMA200      *float64 `json:"ema200"`
+			RSI         *float64 `json:"rsi"`
+			ADX         *float64 `json:"adx"`
+			ATR         *float64 `json:"atr"`
+			VolumeRatio *float64 `json:"volume_ratio"`
+			MACD        struct {
+				MACD      *float64 `json:"macd"`
+				Signal    *float64 `json:"signal"`
+				Histogram *float64 `json:"histogram"`
+			} `json:"macd"`
+		} `json:"indicators"`
+		Levels struct {
+			Support    *float64 `json:"support"`
+			Resistance *float64 `json:"resistance"`
+		} `json:"levels"`
+		Price   *float64 `json:"price"`
+		RSI     *float64 `json:"rsi"`
+		ATR     *float64 `json:"atr"`
+		Scoring struct {
+			RawScore *float64 `json:"raw_score"`
+		} `json:"scoring"`
+	} `json:"data"`
 }
 
 type sideBreakdownMetrics struct {
@@ -193,45 +192,49 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 	if err := json.NewDecoder(resp.Body).Decode(&pr); err != nil {
 		return models.Signal{}, err
 	}
+	score := float64(pr.Data.Confidence) / 100.0
+	side := "HOLD"
+	switch pr.Data.Trend {
+	case "Bullish", "Strong Bullish":
+		side = "BUY"
+	case "Bearish", "Strong Bearish":
+		side = "SELL"
+	}
 
 	return models.Signal{
-		Symbol:       pr.Symbol,
-		Timeframe:    pr.Timeframe,
-		Trend:        pr.Trend,
-		Momentum:     pr.Momentum,
-		Risk:         pr.Risk,
-		MarketRegime: pr.MarketRegime,
-		Confidence:   pr.Confidence,
-		Scenario:     pr.Scenario,
-		Explanation:  pr.Explanation,
-		Disclaimer:   pr.Disclaimer,
+		Symbol:       pr.Data.Symbol,
+		Timeframe:    pr.Data.Timeframe,
+		Trend:        pr.Data.Trend,
+		Momentum:     pr.Data.Momentum,
+		Risk:         pr.Data.Risk,
+		MarketRegime: pr.Data.MarketRegime,
+		Confidence:   pr.Data.Confidence,
+		Scenario:     pr.Data.Scenario,
+		Explanation:  pr.Data.Explanation,
+		Disclaimer:   pr.Data.Disclaimer,
 		Indicators: models.SignalIndicators{
-			EMA20:       pr.Indicators.EMA20,
-			EMA50:       pr.Indicators.EMA50,
-			EMA200:      pr.Indicators.EMA200,
-			RSI:         pr.Indicators.RSI,
-			ADX:         pr.Indicators.ADX,
-			ATR:         pr.Indicators.ATR,
-			VolumeRatio: pr.Indicators.VolumeRatio,
+			EMA20:       pr.Data.Indicators.EMA20,
+			EMA50:       pr.Data.Indicators.EMA50,
+			EMA200:      pr.Data.Indicators.EMA200,
+			RSI:         pr.Data.Indicators.RSI,
+			ADX:         pr.Data.Indicators.ADX,
+			ATR:         pr.Data.Indicators.ATR,
+			VolumeRatio: pr.Data.Indicators.VolumeRatio,
 			MACD: models.SignalMACD{
-				MACD:      pr.Indicators.MACD.MACD,
-				Signal:    pr.Indicators.MACD.Signal,
-				Histogram: pr.Indicators.MACD.Histogram,
+				MACD:      pr.Data.Indicators.MACD.MACD,
+				Signal:    pr.Data.Indicators.MACD.Signal,
+				Histogram: pr.Data.Indicators.MACD.Histogram,
 			},
 		},
 		Levels: models.SignalLevels{
-			Support:    pr.Levels.Support,
-			Resistance: pr.Levels.Resistance,
+			Support:    pr.Data.Levels.Support,
+			Resistance: pr.Data.Levels.Resistance,
 		},
-		Side:    pr.Side,
-		Score:   pr.Score,
-		Price:   pr.Price,
-		RSI:     pr.RSI,
-		ATR:     pr.ATR,
-		EMAFast: pr.EMAFast,
-		EMASlow: pr.EMASlow,
-		SL:      pr.SL,
-		TP:      pr.TP,
+		Side:  side,
+		Score: score,
+		Price: pr.Data.Price,
+		RSI:   pr.Data.RSI,
+		ATR:   pr.Data.ATR,
 	}, nil
 }
 
