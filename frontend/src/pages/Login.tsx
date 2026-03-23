@@ -142,7 +142,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-canvas text-ink">
+    <div className="relative min-h-[100dvh] bg-canvas text-ink">
       <video
         className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-40"
         autoPlay
@@ -154,10 +154,10 @@ const LoginPage = () => {
         aria-hidden
       />
       <div className="pointer-events-none fixed inset-0 bg-black/35" />
-      <div className="relative mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-12 sm:px-6">
-        <div className="relative grid w-full items-center gap-10 lg:grid-cols-[1.25fr_1fr]">
-          <section className="space-y-10">
-            <div className="relative overflow-hidden rounded-[2.5rem] border border-outline/30 p-10 shadow-inner-glow">
+      <div className="relative mx-auto flex min-h-[100dvh] max-w-6xl items-start justify-center px-4 py-6 sm:px-6 sm:py-10 lg:items-center lg:py-12">
+        <div className="relative grid w-full items-start gap-6 sm:gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-center lg:gap-10">
+          <section className="order-2 space-y-5 sm:space-y-8 lg:order-1 lg:space-y-10">
+            <div className="relative overflow-hidden rounded-[2rem] border border-outline/30 p-6 shadow-inner-glow sm:rounded-[2.25rem] sm:p-8 lg:rounded-[2.5rem] lg:p-10">
               <video
                 className="absolute inset-0 h-full w-full object-cover opacity-60"
                 src="/videoplayback.mp4"
@@ -169,42 +169,42 @@ const LoginPage = () => {
                 aria-hidden
               />
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/70 via-slate-900/70 to-emerald-700/60" />
-              <div className="relative space-y-4">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs uppercase tracking-[0.35em] text-slate-200">
+              <div className="relative space-y-3 sm:space-y-4">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.28em] text-slate-200 sm:px-4 sm:py-1.5 sm:text-xs sm:tracking-[0.35em]">
                   Cortexa Trade
                 </span>
-                <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
+                <h1 className="max-w-xl text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
                   Sign in. Unlock signal intelligence in minutes.
                 </h1>
-                <p className="max-w-xl text-sm text-slate-200/80">
+                <p className="max-w-xl text-sm leading-6 text-slate-200/80 sm:text-[15px]">
                   Live signals, disciplined automation, and a trading assistant that speaks your desk’s language.
                 </p>
               </div>
               <SparklineGraphic />
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-6">
               {FEATURE_BULLETS.map((item) => (
-                <div key={item.title} className="rounded-3xl border border-outline/30 bg-surface/70 p-5 text-sm text-slate-300 shadow-elevation-soft">
-                  <h3 className="text-base font-semibold text-white">{item.title}</h3>
+                <div key={item.title} className="rounded-2xl border border-outline/30 bg-surface/70 p-4 text-sm text-slate-300 shadow-elevation-soft sm:rounded-3xl sm:p-5">
+                  <h3 className="text-sm font-semibold text-white sm:text-base">{item.title}</h3>
                   <p className="mt-2 text-xs text-slate-400">{item.description}</p>
                 </div>
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:gap-4">
               {INFO_POINTS.map((stat) => (
-                <div key={stat.label} className="flex min-w-[120px] flex-col rounded-2xl border border-outline/30 bg-surface/60 px-5 py-4 text-center text-slate-200">
-                  <span className="text-2xl font-semibold text-white">{stat.label}</span>
-                  <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">{stat.sub}</span>
+                <div key={stat.label} className="flex min-w-0 flex-col rounded-2xl border border-outline/30 bg-surface/60 px-3 py-3 text-center text-slate-200 sm:min-w-[120px] sm:px-5 sm:py-4">
+                  <span className="text-lg font-semibold text-white sm:text-2xl">{stat.label}</span>
+                  <span className="mt-1 text-[10px] uppercase tracking-wide text-slate-400 sm:text-xs">{stat.sub}</span>
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="rounded-3xl border border-outline/40 bg-surface/85 p-8 shadow-elevation-soft">
-            <header className="mb-6 space-y-2 text-left">
-              <h2 className="text-2xl font-semibold text-white">Welcome back</h2>
+          <section className="order-1 mx-auto w-full max-w-md rounded-[1.75rem] border border-outline/40 bg-surface/85 p-5 shadow-elevation-soft sm:p-6 lg:order-2 lg:max-w-none lg:rounded-3xl lg:p-8">
+            <header className="mb-5 space-y-2 text-left sm:mb-6">
+              <h2 className="text-xl font-semibold text-white sm:text-2xl">Welcome back</h2>
               <p className="text-sm text-slate-400">Use your workspace credentials to continue.</p>
             </header>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -247,7 +247,7 @@ const LoginPage = () => {
                   className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-3 text-sm text-ink outline-none transition focus:border-outline focus:ring-1 focus:ring-primary"
                 />
               </label>
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex flex-col gap-3 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
                 <label className="inline-flex items-center gap-2">
                   <input type="checkbox" className="size-4 rounded border-outline/40 bg-canvas" />
                   Remember me
@@ -276,7 +276,7 @@ const LoginPage = () => {
               </Link>
             </div>
 
-            <footer className="mt-8 space-y-2 text-xs text-slate-500">
+            <footer className="mt-6 space-y-2 text-xs text-slate-500 sm:mt-8">
               <p>
                 Working with an enterprise desk?{' '}
                 <a href="mailto:info@cortexaai.net" className="text-slate-300 hover:text-white">
@@ -296,8 +296,8 @@ const LoginPage = () => {
       </div>
 
       {forgotOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
-          <div className="relative w-full max-w-md rounded-2xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur">
+          <div className="relative w-full max-w-md rounded-2xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
             <button
               type="button"
               onClick={closeResetModal}
@@ -332,7 +332,7 @@ const LoginPage = () => {
                   .
                 </p>
               )}
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   type="submit"
                   className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
