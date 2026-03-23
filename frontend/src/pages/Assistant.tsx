@@ -108,10 +108,10 @@ const AssistantPage = () => {
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-1">
+    <div className="flex min-h-0 w-full flex-1 lg:h-full">
       <section className="flex min-h-0 flex-1 flex-col">
-        <article className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-outline/40 bg-surface shadow-elevation-soft">
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+        <article className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-outline/40 bg-surface shadow-elevation-soft sm:rounded-[28px]">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-6">
             <div className="space-y-6">
               {messages.map((message) => (
                 <div key={message.id} className={`flex gap-3 ${message.role === 'assistant' ? '' : 'justify-end'}`}>
@@ -124,7 +124,7 @@ const AssistantPage = () => {
                     </div>
                   )}
                   <div
-                    className={`max-w-4xl rounded-3xl border px-5 py-4 text-sm leading-relaxed shadow-inner-glow transition ${
+                    className={`max-w-[85%] rounded-3xl border px-4 py-3 text-sm leading-relaxed shadow-inner-glow transition sm:max-w-[78%] sm:px-5 sm:py-4 lg:max-w-4xl ${
                       message.role === 'assistant'
                         ? 'border-outline/40 bg-muted/60 text-slate-200'
                         : 'border-white/60 bg-white/90 text-black'
@@ -147,7 +147,7 @@ const AssistantPage = () => {
                   <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline/50 bg-surface text-xs font-semibold uppercase text-white">
                     AI
                   </div>
-                  <div className="flex w-full max-w-lg items-center gap-1 rounded-2xl border border-outline/40 bg-muted/60 px-4 py-3 text-sm text-slate-200">
+                  <div className="flex w-full max-w-[85%] items-center gap-1 rounded-2xl border border-outline/40 bg-muted/60 px-4 py-3 text-sm text-slate-200 sm:max-w-lg">
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white" />
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white [animation-delay:120ms]" />
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white [animation-delay:240ms]" />
@@ -157,7 +157,7 @@ const AssistantPage = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="shrink-0 space-y-3 border-t border-outline/30 bg-surface/95 px-4 py-4 backdrop-blur sm:px-6">
+          <form onSubmit={handleSubmit} className="shrink-0 space-y-3 border-t border-outline/30 bg-surface/95 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -169,7 +169,7 @@ const AssistantPage = () => {
               <p>Assistant responses are guidance, not investment advice.</p>
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 self-start rounded-full bg-white px-4 py-2 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-2 self-start rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 disabled={pending || !input.trim()}
               >
                 {pending ? (

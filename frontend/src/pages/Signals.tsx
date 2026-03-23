@@ -364,19 +364,19 @@ const SignalsPage = () => {
     <div className="flex flex-col gap-5 lg:gap-6">
       <section
         className={`hero rounded-[2rem] border border-outline/20 bg-gradient-to-b from-surface via-surface to-transparent px-4 text-center transition-all duration-300 ease-out sm:px-6 ${
-          hasData ? 'hero-compact py-4 sm:py-5' : 'py-10 lg:py-12'
+          hasData ? 'hero-compact py-4 sm:py-5' : 'py-8 sm:py-10 lg:py-12'
         }`}
       >
         <header className={`${hasData ? 'space-y-2.5' : 'space-y-4'}`}>
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Live signal studio</span>
-          <h1 className={`font-semibold text-white transition-all duration-300 ${hasData ? 'text-2xl sm:text-3xl' : 'text-4xl sm:text-5xl'}`}>
+          <h1 className={`font-semibold text-white transition-all duration-300 ${hasData ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-5xl'}`}>
             Scan structure, validate edge, and read the market with context.
           </h1>
           <p className={`mx-auto max-w-2xl text-slate-400 transition-all duration-300 ${hasData ? 'text-xs sm:text-sm' : 'text-sm'}`}>
             Pick a market, inspect deterministic scoring, and use the AI layer for explanation only. The output is built for decision support, not trade commands.
           </p>
         </header>
-        <form onSubmit={handleSearch} className={`flex flex-wrap justify-center gap-3 text-sm transition-all duration-300 ${hasData ? 'mt-4' : 'mt-8'}`}>
+        <form onSubmit={handleSearch} className={`flex flex-col justify-center gap-3 text-sm transition-all duration-300 sm:flex-row sm:flex-wrap ${hasData ? 'mt-4' : 'mt-6 sm:mt-8'}`}>
           <div ref={symbolPickerRef} className={`relative w-full ${hasData ? 'max-w-md' : 'max-w-sm'}`}>
             <div className="flex items-center rounded-[1.6rem] border border-outline/50 bg-surface/95 shadow-elevation-soft transition focus-within:border-outline focus-within:ring-2 focus-within:ring-primary">
               <input
@@ -411,7 +411,7 @@ const SignalsPage = () => {
             </div>
 
             {symbolMenuOpen && (
-              <div className="absolute left-0 right-0 top-[calc(100%+0.65rem)] z-20 overflow-hidden rounded-[1.4rem] border border-outline/40 bg-slate-950/95 text-left shadow-elevation-soft backdrop-blur">
+              <div className="absolute left-0 right-0 top-[calc(100%+0.65rem)] z-20 overflow-hidden rounded-[1.4rem] border border-outline/40 bg-slate-950/95 text-left shadow-elevation-soft">
                 <div className="border-b border-outline/20 px-4 py-3 text-[11px] uppercase tracking-[0.24em] text-slate-500">
                   {symbolsLoading
                     ? 'Loading symbol universe'
@@ -450,7 +450,7 @@ const SignalsPage = () => {
           <button
             type="submit"
             disabled={!hasSelectedSymbol || signalLoading}
-            className={`inline-flex items-center gap-2 rounded-full px-5 font-medium shadow-inner-glow transition-all duration-300 ${hasData ? 'py-2' : 'py-2.5'} ${
+            className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-5 font-medium shadow-inner-glow transition-all duration-300 sm:w-auto ${hasData ? 'py-2.5' : 'py-3'} ${
               hasSelectedSymbol && !signalLoading
                 ? 'bg-white text-black hover:bg-slate-200'
                 : 'cursor-not-allowed bg-slate-700/70 text-slate-300 opacity-60'
@@ -473,7 +473,7 @@ const SignalsPage = () => {
         ref={resultsRef}
         className="grid scroll-mt-24 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,380px)]"
       >
-        <article className="flex flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+        <article className="flex flex-col rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">
@@ -494,11 +494,11 @@ const SignalsPage = () => {
             ) : signal ? (
               <>
                 <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,360px)]">
-                  <div className={`rounded-3xl border p-5 ${toneClassByTrend[signal.trend ?? ''] ?? 'border-outline/30 bg-muted/60 text-white'}`}>
+                  <div className={`rounded-3xl border p-4 sm:p-5 ${toneClassByTrend[signal.trend ?? ''] ?? 'border-outline/30 bg-muted/60 text-white'}`}>
                     <p className="text-[11px] uppercase tracking-[0.28em] opacity-70">Signal summary</p>
                     <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
                       <div>
-                        <h3 className="text-3xl font-semibold text-white">{signal.trend ?? '—'}</h3>
+                        <h3 className="text-2xl font-semibold text-white sm:text-3xl">{signal.trend ?? '—'}</h3>
                         <p className="mt-2 max-w-xl text-sm text-slate-200/90">
                           {signal.market_regime ?? 'Market regime unavailable'} with {signal.momentum?.toLowerCase() ?? 'limited'} momentum across the current structure.
                         </p>
@@ -626,7 +626,7 @@ const SignalsPage = () => {
         </article>
 
         <aside className="grid gap-5 content-start">
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
             <h3 className="text-lg font-semibold text-white">Technical context</h3>
             <p className="mt-1 text-sm text-slate-400">
               Compact view of the deterministic indicators behind the current structure.
@@ -641,7 +641,7 @@ const SignalsPage = () => {
             </dl>
           </div>
 
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
             <h3 className="text-lg font-semibold text-white">Validation threshold</h3>
             <p className="mt-1 text-sm text-slate-400">
               Set the confidence threshold used when validating the deterministic engine on historical candles.
@@ -661,13 +661,13 @@ const SignalsPage = () => {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">Quick backtest</h3>
               <button
                 type="button"
                 onClick={runBacktest}
-                className="rounded-full border border-outline/40 px-3 py-1 text-xs text-slate-300 transition hover:border-outline hover:text-white"
+                className="rounded-full border border-outline/40 px-3 py-1.5 text-xs text-slate-300 transition hover:border-outline hover:text-white"
               >
                 Run
               </button>
@@ -693,7 +693,7 @@ const SignalsPage = () => {
             )}
           </div>
 
-          <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
+          <div className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft text-xs text-slate-300 sm:p-6">
             <h3 className="text-lg font-semibold text-white">Need more context?</h3>
             <ul className="mt-3 space-y-2 list-disc pl-4">
               <li>

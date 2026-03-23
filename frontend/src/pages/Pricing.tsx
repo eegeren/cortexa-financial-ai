@@ -128,7 +128,7 @@ const PricingPage = () => {
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8 sm:space-y-10 lg:space-y-12">
       <PageHeader
         title="Pricing"
         description="Choose the plan that matches your desk. Upgrade instantly and unlock premium intelligence."
@@ -142,12 +142,12 @@ const PricingPage = () => {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
             <button
               type="button"
               onClick={() => setBillingInterval('monthly')}
               className={clsx(
-                'rounded-full border px-4 py-1 text-xs font-semibold transition',
+                'rounded-full border px-4 py-2 text-xs font-semibold transition sm:py-1',
                 billingInterval === 'monthly'
                   ? 'border-primary bg-primary/20 text-primary'
                   : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-primary/40 hover:text-white'
@@ -159,7 +159,7 @@ const PricingPage = () => {
               type="button"
               onClick={() => setBillingInterval('annual')}
               className={clsx(
-                'rounded-full border px-4 py-1 text-xs font-semibold transition',
+                'rounded-full border px-4 py-2 text-xs font-semibold transition sm:py-1',
                 billingInterval === 'annual'
                   ? 'border-primary bg-primary/20 text-primary'
                   : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-primary/40 hover:text-white'
@@ -184,7 +184,7 @@ const PricingPage = () => {
             return (
               <Card
                 key={plan.id}
-                className={`relative border border-slate-800/60 bg-slate-900/70 p-6 transition hover:-translate-y-1 hover:border-primary/40 ${
+                className={`relative border border-slate-800/60 bg-slate-900/70 p-5 transition hover:-translate-y-1 hover:border-primary/40 sm:p-6 ${
                   isPopular ? 'shadow-lg shadow-primary/20' : ''
                 }`}
               >
@@ -199,8 +199,8 @@ const PricingPage = () => {
                     <p className="mt-1 text-sm text-slate-400">{highlight.description}</p>
                   </div>
                   <div>
-                    <div className="flex items-end gap-3">
-                      <span className="text-3xl font-bold text-white">
+                    <div className="flex flex-wrap items-end gap-3">
+                      <span className="text-2xl font-bold text-white sm:text-3xl">
                         {formatPrice(plan.amount_cents, plan.currency, billingInterval, highlight.monthly, highlight.annual)}
                       </span>
                       {highlight.annual && billingInterval === 'annual' && (
@@ -256,7 +256,8 @@ const PricingPage = () => {
 
       <Card className="border border-slate-800/60 bg-slate-900/80 p-6 text-sm text-slate-300">
         <h4 className="text-lg font-semibold text-white">Compare plans</h4>
-        <table className="mt-4 w-full text-xs text-left">
+        <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[640px] text-xs text-left">
           <thead className="uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-3 py-2">Capability</th>
@@ -282,6 +283,7 @@ const PricingPage = () => {
             ))}
           </tbody>
         </table>
+        </div>
       </Card>
 
       <Card className="border border-slate-800/60 bg-slate-900/80 p-6 text-sm text-slate-300">

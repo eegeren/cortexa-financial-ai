@@ -103,33 +103,33 @@ const BillingPage = () => {
   }
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-8 sm:space-y-12 lg:space-y-16">
       <section className="text-center">
         <header className="space-y-4">
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Billing & plans</span>
-          <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+          <h1 className="text-3xl font-semibold text-white sm:text-5xl">
             Manage your subscription, billing profile, and invoices in one place.
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-400">
             Update payment methods, download invoices, and keep your billing profile synced with finance.
           </p>
         </header>
-        <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
+        <div className="mt-6 flex flex-col justify-center gap-3 text-sm sm:mt-8 sm:flex-row">
           <button
             type="button"
             onClick={handlePortal}
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-medium text-black shadow-inner-glow transition hover:bg-slate-200"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 font-medium text-black shadow-inner-glow transition hover:bg-slate-200 sm:w-auto sm:py-2"
           >
             Open customer portal
           </button>
           <a
             href="#invoices"
-            className="inline-flex items-center gap-2 rounded-full border border-outline/50 px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-outline/50 px-4 py-3 text-slate-200 transition hover:border-outline hover:text-white sm:w-auto sm:py-2"
           >
             View invoices ↗
           </a>
         </div>
-        <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
+        <div className="mt-5 grid gap-2 text-xs text-slate-400 sm:flex sm:flex-wrap sm:justify-center">
           <a className="rounded-2xl border border-outline/40 bg-surface px-4 py-2 transition hover:border-outline hover:text-white" href="#subscription">
             Review subscription status ↗
           </a>
@@ -201,7 +201,7 @@ const BillingPage = () => {
       </section>
 
       <section id="subscription" className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <article className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+        <article className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
           <h2 className="text-lg font-semibold text-white">Subscription details</h2>
           <p className="mt-2 text-sm text-slate-400">{statusCopy}</p>
           {subscription && (
@@ -233,14 +233,14 @@ const BillingPage = () => {
           </button>
         </article>
 
-        <aside className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft text-xs text-slate-300">
+        <aside className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft text-xs text-slate-300 sm:p-6">
           <h3 className="text-lg font-semibold text-white">Need to downgrade?</h3>
           <p className="mt-2">Use the customer portal to switch plans or cancel. Changes apply immediately and you only pay pro-rated amounts.</p>
           <p className="mt-4">Looking for invoices older than 12 months? Reach out to <a className="text-primary underline" href="mailto:finance@cortexaai.net">finance@cortexaai.net</a>.</p>
         </aside>
       </section>
 
-      <section id="profile" className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+      <section id="profile" className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
         <h2 className="text-lg font-semibold text-white">Billing profile</h2>
         <p className="mt-2 text-sm text-slate-400">Keep company and tax details up to date so invoices remain compliant.</p>
         <form onSubmit={handleProfileSubmit} className="mt-4 grid gap-3 sm:grid-cols-2 text-sm text-slate-200">
@@ -316,7 +316,7 @@ const BillingPage = () => {
         </form>
       </section>
 
-      <section id="invoices" className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+      <section id="invoices" className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
         <h2 className="text-lg font-semibold text-white">Invoices</h2>
         <p className="mt-2 text-sm text-slate-400">Download past invoices for your records.</p>
         <div className="mt-4 overflow-x-auto">

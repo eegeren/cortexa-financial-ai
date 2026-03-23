@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import Layout from './components/Layout';
 import SplashScreen from '@/components/SplashScreen';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import PublicPageTransition from '@/components/PublicPageTransition';
 import LandingPage from '@/pages/Landing';
 import LoginPage from '@/pages/Login';
 import RegisterPage from '@/pages/Register';
@@ -66,50 +68,68 @@ const HomeRoute = () => {
   if (token) {
     return <Navigate to="/overview" replace />;
   }
-  return <LandingPage />;
+  return (
+    <PublicPageTransition>
+      <LandingPage />
+    </PublicPageTransition>
+  );
 };
 
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
+  const location = useLocation();
 
   return (
     <>
       {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       <AuthBootstrap />
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <LoginPage />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicOnlyRoute>
-              <RegisterPage />
-            </PublicOnlyRoute>
-          }
-        />
+      <AnimatePresence mode="wait" initial={false}>
+        <Routes location={location} key={location.pathname}>
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <PublicPageTransition>
+                  <LoginPage />
+                </PublicPageTransition>
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicOnlyRoute>
+                <PublicPageTransition>
+                  <RegisterPage />
+                </PublicPageTransition>
+              </PublicOnlyRoute>
+            }
+          />
 
-        <Route element={<Layout />}>
-          <Route index element={<HomeRoute />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/overview" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<Navigate to="/overview" replace />} />
-          <Route path="/signals" element={<ProtectedRoute><SignalsPage /></ProtectedRoute>} />
-          <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
-          <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
-          <Route path="/forum" element={<ProtectedRoute><ForumPage /></ProtectedRoute>} />
-          <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-        </Route>
+          <Route element={<Layout />}>
+            <Route index element={<HomeRoute />} />
+            <Route
+              path="/pricing"
+              element={
+                <PublicPageTransition>
+                  <PricingPage />
+                </PublicPageTransition>
+              }
+            />
+            <Route path="/overview" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<Navigate to="/overview" replace />} />
+            <Route path="/signals" element={<ProtectedRoute><SignalsPage /></ProtectedRoute>} />
+            <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
+            <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+            <Route path="/forum" element={<ProtectedRoute><ForumPage /></ProtectedRoute>} />
+            <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AnimatePresence>
     </>
   );
 };

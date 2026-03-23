@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 
 const Icon = {
@@ -69,10 +69,10 @@ const NavBar = () => {
   }));
   const isPublicNav = !token;
   const navigate = useNavigate();
+  const location = useLocation();
   const [accountOpen, setAccountOpen] = useState(false);
-  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
-  const mobileAccountRef = useRef<HTMLDivElement | null>(null);
 
   const authedLinks: { to: string; label: string; icon: IconKey }[] = [
     { to: '/overview', label: 'Overview', icon: 'overview' },
@@ -100,14 +100,16 @@ const NavBar = () => {
       if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
         setAccountOpen(false);
       }
-      if (mobileAccountRef.current && !mobileAccountRef.current.contains(event.target as Node)) {
-        setMobileAccountOpen(false);
-      }
     };
 
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setAccountOpen(false);
+  }, [location.pathname]);
 
   const desktopLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-colors ${
@@ -117,10 +119,10 @@ const NavBar = () => {
     }`;
 
   const mobileLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition ${
+    `flex items-center gap-2 rounded-2xl border px-3.5 py-3 text-sm transition ${
       isActive
         ? 'border-primary/60 bg-primary/15 text-slate-100'
-        : 'border-slate-600/40 bg-slate-900/35 text-slate-300 hover:text-white'
+        : 'border-slate-700/50 bg-slate-900/35 text-slate-300 hover:text-white'
     }`;
 
   return (
@@ -234,7 +236,7 @@ const NavBar = () => {
         </div>
       </aside>
 
-      <nav className={`sticky top-0 z-20 border-b border-slate-700/40 px-4 py-3 lg:hidden ${
+      <nav className={`sticky top-0 z-30 border-b border-slate-700/40 px-3 py-3 sm:px-4 lg:hidden ${
         isPublicNav ? 'bg-slate-950/96' : 'bg-slate-950/85 backdrop-blur'
       }`}>
         <div className="flex items-center justify-between gap-2">
@@ -249,76 +251,120 @@ const NavBar = () => {
             <span className="text-sm font-semibold text-slate-100">Cortexa</span>
           </button>
 
-          {token && (
-            <div ref={mobileAccountRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setMobileAccountOpen((prev) => !prev)}
-                className="flex items-center gap-1.5 rounded-full border border-slate-600/60 bg-slate-900/50 px-2.5 py-1 text-slate-300 transition hover:border-slate-400 hover:text-white"
-                aria-haspopup="menu"
-                aria-expanded={mobileAccountOpen}
-              >
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[9px] font-bold text-primary uppercase">
-                  {(email ?? 'A')[0]}
-                </div>
-                <svg aria-hidden viewBox="0 0 12 8" className={`h-2.5 w-2.5 transition-transform ${mobileAccountOpen ? 'rotate-180' : ''}`} fill="none">
-                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-
-              {mobileAccountOpen && (
-                <div role="menu" className="absolute right-0 mt-2 w-44 rounded-xl border border-slate-700/40 bg-slate-950/95 p-1.5 text-sm text-slate-200 shadow-elevation-soft">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate('/settings');
-                      setMobileAccountOpen(false);
-                    }}
-                    className="flex w-full items-center rounded-lg px-3 py-2 transition hover:bg-slate-800/70"
-                  >
-                    Settings
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate('/billing');
-                      setMobileAccountOpen(false);
-                    }}
-                    className="flex w-full items-center rounded-lg px-3 py-2 transition hover:bg-slate-800/70"
-                  >
-                    Billing
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileAccountOpen(false);
-                      handleLogout();
-                    }}
-                    className="flex w-full items-center rounded-lg px-3 py-2 text-rose-300 transition hover:bg-rose-500/10"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-3 overflow-x-auto">
-          <div className="flex min-w-max items-center gap-2 pb-1">
-            {activeLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                onClick={() => setMobileAccountOpen(false)}
-                className={mobileLinkClass}
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/55 px-3 py-1.5 text-sm text-slate-200 transition hover:border-slate-500"
+            aria-haspopup="dialog"
+            aria-expanded={mobileMenuOpen}
+            aria-label="Toggle navigation menu"
+          >
+            {token && (
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[9px] font-bold text-primary uppercase">
+                {(email ?? 'A')[0]}
+              </div>
+            )}
+            <span>Menu</span>
+          </button>
         </div>
       </nav>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close navigation menu"
+          />
+          <div className="absolute inset-x-3 top-16 rounded-[1.75rem] border border-slate-700/50 bg-slate-950/96 p-4 shadow-[0_24px_60px_rgba(2,6,23,0.55)]">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Navigation</p>
+                {token && <p className="mt-1 text-sm text-slate-300">{email ?? 'Account'}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-full border border-slate-700/60 px-3 py-1 text-xs text-slate-300"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+              {activeLinks.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={mobileLinkClass}
+                >
+                  {Icon[link.icon]}
+                  <span>{link.label}</span>
+                </NavLink>
+              ))}
+            </div>
+
+            {token ? (
+              <div className="mt-4 grid gap-2 border-t border-slate-800 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate('/settings');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-2xl border border-slate-700/50 bg-slate-900/35 px-3.5 py-3 text-left text-sm text-slate-200"
+                >
+                  Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate('/billing');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-2xl border border-slate-700/50 bg-slate-900/35 px-3.5 py-3 text-left text-sm text-slate-200"
+                >
+                  Billing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-3.5 py-3 text-left text-sm text-rose-200"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-2 border-t border-slate-800 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate('/login');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-2xl border border-slate-700/50 bg-slate-900/35 px-3.5 py-3 text-left text-sm text-slate-200"
+                >
+                  Log in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate('/register');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-2xl border border-primary/30 bg-primary/10 px-3.5 py-3 text-left text-sm text-primary"
+                >
+                  Sign up
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };

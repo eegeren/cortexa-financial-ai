@@ -183,32 +183,32 @@ const PortfolioPage = () => {
   }
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-8 sm:space-y-12 lg:space-y-16">
       <section className="text-center">
         <header className="space-y-4">
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Portfolio updates</span>
-          <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+          <h1 className="text-3xl font-semibold text-white sm:text-5xl">
             Log trades, monitor risk, stay in sync with automation.
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-400">
             Keep a ledger aligned with Cortexa signals and automation flows. Record external fills, filter performance, and export whenever you need.
           </p>
         </header>
-        <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
+        <div className="mt-6 flex flex-col justify-center gap-3 text-sm sm:mt-8 sm:flex-row">
           <Link
             to="/signals"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-medium text-black shadow-inner-glow transition hover:bg-slate-200"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 font-medium text-black shadow-inner-glow transition hover:bg-slate-200 sm:w-auto sm:py-2"
           >
             Go to signals
           </Link>
           <Link
             to="/assistant"
-            className="inline-flex items-center gap-2 rounded-full border border-outline/50 px-4 py-2 text-slate-200 transition hover:border-outline hover:text-white"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-outline/50 px-4 py-3 text-slate-200 transition hover:border-outline hover:text-white sm:w-auto sm:py-2"
           >
             Open the assistant ↗
           </Link>
         </div>
-        <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
+        <div className="mt-5 grid gap-2 text-xs text-slate-400 sm:flex sm:flex-wrap sm:justify-center">
           {HERO_SUGGESTIONS.map((item) => {
             if (item.action === 'export') {
               return (
@@ -258,7 +258,7 @@ const PortfolioPage = () => {
       )}
 
       <section className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-        <article id="add-trade" className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+        <article id="add-trade" className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
           <header className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-white">Add a trade</h2>
@@ -315,11 +315,11 @@ const PortfolioPage = () => {
                 className="mt-1 w-full rounded-xl border border-outline/50 bg-canvas px-4 py-2 text-sm text-ink focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
-            <div className="sm:col-span-2 flex items-center justify-between text-xs text-slate-500">
+            <div className="sm:col-span-2 flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
               <span>Log fills executed outside of automation to keep the ledger complete.</span>
               <button
                 type="submit"
-                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200"
+                className="w-full rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-black shadow-inner-glow transition hover:bg-slate-200 sm:w-auto sm:py-2"
               >
                 Save trade
               </button>
@@ -329,7 +329,7 @@ const PortfolioPage = () => {
         </article>
 
         <aside className="space-y-6">
-          <div id="filters" className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+          <div id="filters" className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
             <h3 className="text-lg font-semibold text-white">Filters</h3>
             <div className="mt-4 grid gap-3 text-sm text-slate-300">
               <label className="text-xs uppercase tracking-[0.28em] text-slate-500">
@@ -378,14 +378,14 @@ const PortfolioPage = () => {
               <button
                 type="button"
                 onClick={() => setFilters(defaultFilters)}
-                className="rounded-full border border-outline/50 px-4 py-2 text-xs text-slate-300 transition hover:border-outline hover:text-white"
+                className="w-full rounded-full border border-outline/50 px-4 py-2.5 text-xs text-slate-300 transition hover:border-outline hover:text-white"
               >
                 Reset
               </button>
               <button
                 type="button"
                 onClick={handleExport}
-                className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-inner-glow transition hover:bg-slate-200"
+                className="w-full rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-black shadow-inner-glow transition hover:bg-slate-200"
               >
                 Export CSV
               </button>
@@ -409,14 +409,43 @@ const PortfolioPage = () => {
         </aside>
       </section>
 
-      <section className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+      <section className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft sm:p-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-white">Trade history</h2>
             <p className="text-sm text-slate-400">Filtered results appear below. The newest entries sit at the end of the list.</p>
           </div>
         </header>
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 space-y-3 sm:hidden">
+          {filteredTrades.length ? (
+            filteredTrades.map((trade) => (
+              <article key={trade.id} className="rounded-2xl border border-outline/20 bg-muted/50 p-4 text-sm text-slate-300">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-white">{trade.symbol}</p>
+                    <p className="mt-1 text-xs text-slate-500">{trade.created_at ? new Date(trade.created_at).toLocaleString() : '—'}</p>
+                  </div>
+                  <span className="rounded-full border border-outline/30 px-3 py-1 text-xs text-white">{trade.side}</span>
+                </div>
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <dt className="text-slate-500">Qty</dt>
+                    <dd className="mt-1 text-white">{trade.qty.toFixed(4)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Price</dt>
+                    <dd className="mt-1 text-white">{trade.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-outline/20 bg-muted/50 px-4 py-6 text-center text-sm text-slate-400">
+              No trades match the current filters.
+            </div>
+          )}
+        </div>
+        <div className="mt-4 hidden overflow-x-auto sm:block">
           <table className="min-w-full text-sm text-slate-300">
             <thead>
               <tr className="border-b border-outline/30 text-xs uppercase tracking-[0.28em] text-slate-500">

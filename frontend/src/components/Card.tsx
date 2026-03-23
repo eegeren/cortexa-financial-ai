@@ -9,7 +9,7 @@ interface CardProps {
 const Card = ({ children, className, glow = true }: PropsWithChildren<CardProps>) => (
   <div
     className={clsx(
-      'ui-surface relative overflow-hidden rounded-2xl p-5',
+      'ui-surface relative overflow-hidden rounded-2xl p-4 sm:p-5',
       glow && 'card-glow',
       className
     )}

@@ -104,9 +104,9 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-canvas text-ink">
+    <div className="relative min-h-[100dvh] bg-canvas text-ink">
       <video
-        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-30"
+        className="pointer-events-none fixed inset-0 hidden h-full w-full object-cover opacity-30 sm:block"
         autoPlay
         loop
         muted
@@ -117,13 +117,13 @@ const RegisterPage = () => {
       />
       <div className="pointer-events-none fixed inset-0 bg-black/50" />
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-16 lg:flex-row lg:items-center lg:gap-16">
-        <section className="w-full space-y-8 text-slate-200 lg:w-1/2">
-          <div className="relative overflow-hidden rounded-3xl border border-outline/40 bg-surface/80 p-10 shadow-elevation-soft">
+      <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col px-4 py-6 sm:px-6 sm:py-10 lg:flex-row lg:items-center lg:gap-12 lg:py-12">
+        <section className="order-2 w-full space-y-6 text-slate-200 lg:order-1 lg:w-1/2 lg:space-y-8">
+          <div className="relative overflow-hidden rounded-[2rem] border border-outline/40 bg-surface/80 p-6 shadow-elevation-soft sm:p-8 lg:p-10">
             <span className="inline-flex items-center gap-2 rounded-full border border-outline/50 bg-surface px-4 py-2 text-[11px] uppercase tracking-[0.45em] text-slate-400">
               Join Cortexa
             </span>
-            <h1 className="mt-6 text-3xl font-semibold text-white sm:text-4xl">Build your edge with institutional grade intelligence.</h1>
+            <h1 className="mt-5 text-2xl font-semibold text-white sm:text-4xl">Build your edge with institutional grade intelligence.</h1>
             <p className="mt-3 max-w-xl text-sm text-slate-300">
               Cortexa surfaces AI-calibrated trade ideas, live risk analytics, and automated execution in a single workspace. Create an account to unlock tailored strategies and concierge onboarding.
             </p>
@@ -133,7 +133,7 @@ const RegisterPage = () => {
             <div className="scan-line pointer-events-none absolute left-0 top-0 h-full w-1/3 opacity-30" />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
             <Card className="border border-outline/40 bg-surface/80 p-5">
               <h3 className="text-sm font-semibold text-white">Signals with provenance</h3>
               <p className="mt-2 text-xs text-slate-400">Multi-timeframe models, audited backtests, and live hit-rate tracking keep you ahead of market drift.</p>
@@ -151,15 +151,15 @@ const RegisterPage = () => {
               <p className="mt-2 text-xs text-slate-400">Role-based access, audit logs, and custom SLAs for desks running multi-seat operations.</p>
             </Card>
           </div>
-          <div className="flex flex-wrap gap-4 text-xs text-slate-400">
+          <div className="flex flex-wrap gap-2.5 text-xs text-slate-400">
             <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-emerald-200">99.9% uptime</span>
             <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-blue-200">AES-256 encryption</span>
             <span className="rounded-full border border-outline/40 px-4 py-2">SOC2 controls</span>
           </div>
         </section>
 
-        <section className="w-full lg:w-1/2">
-          <Card className="border border-slate-800/70 bg-slate-950/90 p-8 shadow-2xl">
+        <section className="order-1 w-full lg:order-2 lg:w-1/2">
+          <Card className="border border-slate-800/70 bg-slate-950/90 p-5 shadow-2xl sm:p-6 lg:p-8">
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold text-white">Create your account</h2>
@@ -359,7 +359,7 @@ const RegisterPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Creating account…' : 'Create account'}
               </button>

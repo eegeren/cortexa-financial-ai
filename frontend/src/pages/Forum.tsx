@@ -57,12 +57,12 @@ const LIVE_UPDATES = [
 const formatTime = (iso: string) => new Date(iso).toLocaleString();
 
 const ForumPage = () => {
-  const [topic, setTopic] = useState<TopicFilter>('Tümü');
+  const [topic, setTopic] = useState<TopicFilter>('All');
   const [query, setQuery] = useState('');
 
   const filteredThreads = useMemo(() => {
     return THREADS.filter((thread) => {
-      const matchesTopic = topic === 'Tümü' || thread.topic === topic;
+      const matchesTopic = topic === 'All' || thread.topic === topic;
       const matchesQuery =
         query.trim() === '' || thread.title.toLowerCase().includes(query.trim().toLowerCase());
       return matchesTopic && matchesQuery;
@@ -70,11 +70,11 @@ const ForumPage = () => {
   }, [topic, query]);
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-8 sm:space-y-12 lg:space-y-16">
       <section className="text-center">
         <header className="space-y-4">
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Updates & forum</span>
-          <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+          <h1 className="text-3xl font-semibold text-white sm:text-5xl">
             Catch desk notes, strategy drops, and support threads in one feed.
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-400">
@@ -87,7 +87,7 @@ const ForumPage = () => {
               key={entry}
               type="button"
               onClick={() => setTopic(entry)}
-              className={`rounded-full border px-3 py-1.5 transition ${
+                className={`rounded-full border px-3 py-2 transition ${
                 topic === entry
                   ? 'border-primary bg-primary/20 text-white'
                   : 'border-outline/50 bg-surface text-slate-300 hover:border-outline'
@@ -112,7 +112,7 @@ const ForumPage = () => {
           {filteredThreads.map((thread) => (
             <article
               key={thread.id}
-              className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft transition hover:border-outline"
+              className="rounded-3xl border border-outline/40 bg-surface p-5 shadow-elevation-soft transition hover:border-outline sm:p-6"
             >
               <header className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
                 <div className="flex items-center gap-2">

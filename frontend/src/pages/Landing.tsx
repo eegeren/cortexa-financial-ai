@@ -299,7 +299,7 @@ const MobileOnboarding = () => {
 
   return (
     <section className="md:hidden">
-      <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(10,16,29,0.92),rgba(7,11,20,0.96))] p-5">
+      <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(180deg,rgba(10,16,29,0.92),rgba(7,11,20,0.96))] p-4 sm:p-5">
         <AnimatePresence mode="wait">
           <motion.div
             key={index}
@@ -307,11 +307,11 @@ const MobileOnboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -16 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="min-h-[14rem]"
+            className="min-h-[12.5rem] sm:min-h-[14rem]"
           >
             <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/70">Mobile Onboarding</p>
-            <h2 className="mt-4 text-3xl font-semibold leading-tight text-white">{mobileScreens[index].title}</h2>
-            <p className="mt-4 text-sm leading-7 text-slate-300">{mobileScreens[index].body}</p>
+            <h2 className="mt-4 text-[1.85rem] font-semibold leading-tight text-white sm:text-3xl">{mobileScreens[index].title}</h2>
+            <p className="mt-4 text-sm leading-6 text-slate-300 sm:leading-7">{mobileScreens[index].body}</p>
           </motion.div>
         </AnimatePresence>
 
@@ -375,10 +375,10 @@ const LandingPage = () => {
   const trustCards = useMemo(() => trustMetrics, []);
 
   return (
-    <div className="space-y-8 py-2 sm:space-y-10 sm:py-4 lg:space-y-12 lg:py-6">
+    <div className="space-y-6 py-2 sm:space-y-10 sm:py-4 lg:space-y-12 lg:py-6">
       <MobileOnboarding />
 
-      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(10,16,29,0.92),rgba(6,10,19,0.98))] px-5 py-6 shadow-[0_30px_90px_rgba(2,8,23,0.45)] sm:px-7 sm:py-8 lg:min-h-[calc(100dvh-4.5rem)] lg:px-10 lg:py-10">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(10,16,29,0.92),rgba(6,10,19,0.98))] px-4 py-5 shadow-[0_30px_90px_rgba(2,8,23,0.45)] sm:px-7 sm:py-8 lg:min-h-[calc(100dvh-4.5rem)] lg:px-10 lg:py-10">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_22%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.12),transparent_24%)]" />
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.14]"
@@ -389,7 +389,7 @@ const LandingPage = () => {
           }}
         />
 
-        <div className="relative grid items-center gap-8 md:grid-cols-[minmax(0,0.92fr)_minmax(420px,560px)] lg:gap-12">
+        <div className="relative grid items-center gap-6 md:grid-cols-[minmax(0,0.92fr)_minmax(420px,560px)] lg:gap-12">
           <div className="space-y-6 lg:space-y-7">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -401,10 +401,10 @@ const LandingPage = () => {
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ ...sectionTransition, delay: 0.08 }}>
-              <h1 className="max-w-3xl text-[2.9rem] font-semibold leading-[0.94] tracking-[-0.05em] text-white sm:text-5xl lg:text-[5rem]">
+              <h1 className="max-w-3xl text-[2.35rem] font-semibold leading-[0.96] tracking-[-0.05em] text-white sm:text-5xl lg:text-[5rem]">
                 See the market before it moves.
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
+              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">
                 One screen. Trend, confidence, risk, and AI insight.
               </p>
             </motion.div>
@@ -438,7 +438,7 @@ const LandingPage = () => {
               className="grid gap-3 sm:grid-cols-3"
             >
               {valuePoints.map((card) => (
-                <div key={card.title} className="rounded-2xl border border-white/8 bg-white/[0.04] p-4 backdrop-blur-xl">
+                <div key={card.title} className="rounded-2xl border border-white/8 bg-white/[0.04] p-4">
                   <p className="text-sm font-semibold text-white">{card.title}</p>
                   <p className="mt-2 text-xs leading-6 text-slate-400">{card.body}</p>
                 </div>

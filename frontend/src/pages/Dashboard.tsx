@@ -120,22 +120,22 @@ const DashboardPage = () => {
   }, [portfolio, portfolioLoading]);
 
   return (
-    <div className="space-y-8 lg:space-y-10">
-      <section className="animate-fade-up ui-surface rounded-3xl px-6 py-8 text-center sm:px-8">
+    <div className="space-y-6 sm:space-y-8 lg:space-y-10">
+      <section className="animate-fade-up ui-surface rounded-3xl px-4 py-6 text-center sm:px-6 sm:py-7 lg:px-8 lg:py-8">
         <header className="space-y-3">
           <span className="text-[10px] font-medium uppercase tracking-[0.45em] text-slate-400">Cortexa Trade</span>
-          <h1 className="text-3xl font-semibold text-slate-100 sm:text-4xl lg:text-5xl">
+          <h1 className="text-2xl font-semibold text-slate-100 sm:text-4xl lg:text-5xl">
             Act on signals, manage automation, keep your desk sharp.
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-300">
             Your command center for signals, automation runway, and rapid research support from the Cortexa assistant.
           </p>
         </header>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link to="/signals" className="btn btn-primary">
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:mt-7 sm:flex-row">
+          <Link to="/signals" className="btn btn-primary w-full sm:w-auto">
             Get started
           </Link>
-          <Link to="/assistant" className="btn btn-ghost">
+          <Link to="/assistant" className="btn btn-ghost w-full sm:w-auto">
             Open assistant
           </Link>
         </div>
@@ -143,12 +143,12 @@ const DashboardPage = () => {
 
       <section className="space-y-4">
         <h2 className="text-left text-[10px] font-medium uppercase tracking-[0.4em] text-slate-500">Quick actions</h2>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {SUGGESTIONS.map((item) => (
             <Link
               key={item.label}
               to={item.href}
-              className="ui-surface card-glow min-w-[220px] flex-1 rounded-2xl px-4 py-3 text-left text-sm text-slate-300 transition hover:text-white"
+              className="ui-surface card-glow rounded-2xl px-4 py-3 text-left text-sm text-slate-300 transition hover:text-white"
             >
               {item.label}
             </Link>
