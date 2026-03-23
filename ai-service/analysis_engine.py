@@ -259,6 +259,188 @@ def trend_bias(trend: str) -> int:
     return 0
 
 
+def _dedupe_flags(flags: list[str]) -> list[str]:
+    return list(dict.fromkeys(flags))
+
+
+def apply_quality_first_signal_filter(
+    analysis: dict[str, Any],
+    latest_row: pd.Series,
+    *,
+    timeframe: str | None = None,
+    stale: bool,
+    higher_timeframe_trend: str | None = None,
+    higher_timeframe_stale: bool = False,
+) -> dict[str, Any]:
+    updated = {
+        **analysis,
+        "scoring": dict(analysis.get("scoring", {})),
+        "quality_flags": list(analysis.get("quality_flags", [])),
+    }
+
+    confidence = int(updated["confidence"])
+    flags = list(updated["quality_flags"])
+    market_quality_adjustment = 0
+    mtf_adjustment = 0
+
+    ema20 = safe_float(latest_row.get("ema20"))
+    ema50 = safe_float(latest_row.get("ema50"))
+    ema200 = safe_float(latest_row.get("ema200"))
+    price = safe_float(latest_row.get("close"))
+    rsi = safe_float(latest_row.get("rsi"))
+    macd = safe_float(latest_row.get("macd"))
+    macd_signal = safe_float(latest_row.get("macd_signal"))
+    macd_histogram = safe_float(latest_row.get("macd_histogram"))
+    adx = safe_float(latest_row.get("adx"))
+    volume_ratio = safe_float(latest_row.get("volume_ratio"))
+    regime = str(updated.get("market_regime", "Range-Bound"))
+    risk = str(updated.get("risk", "Medium"))
+
+    bullish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 > ema50 > ema200
+    bearish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 < ema50 < ema200
+    choppy_structure = not bullish_stack and not bearish_stack and adx is not None and adx < 25
+
+    if stale:
+        market_quality_adjustment -= 8
+        flags.append("stale_data")
+
+    if higher_timeframe_stale:
+        market_quality_adjustment -= 1
+
+    if volume_ratio is not None and volume_ratio < 0.95:
+        market_quality_adjustment -= 3
+        flags.append("weak_volume_confirmation")
+    if volume_ratio is not None and volume_ratio < 0.85:
+        market_quality_adjustment -= 7
+        flags.append("low_volume")
+
+    if adx is not None and adx < 22:
+        market_quality_adjustment -= 10
+        flags.append("weak_trend_strength")
+    elif adx is not None and adx < 25:
+        market_quality_adjustment -= 4
+
+    if regime in {"Range-Bound", "Low Participation"}:
+        market_quality_adjustment -= 8
+        flags.append("choppy_structure")
+    elif choppy_structure:
+        market_quality_adjustment -= 4
+        flags.append("choppy_structure")
+
+    higher_is_bullish = higher_timeframe_trend in {"Bullish", "Strong Bullish"}
+    higher_is_bearish = higher_timeframe_trend in {"Bearish", "Strong Bearish"}
+
+    bullish_confirmations = 0
+    bearish_confirmations = 0
+
+    if ema20 is not None and ema50 is not None and ema20 > ema50:
+        bullish_confirmations += 1
+    if ema50 is not None and ema200 is not None and ema50 > ema200:
+        bullish_confirmations += 1
+    if price is not None and ema20 is not None and price > ema20:
+        bullish_confirmations += 1
+    if macd is not None and macd_signal is not None and macd > macd_signal:
+        bullish_confirmations += 1
+    if macd_histogram is not None and macd_histogram > 0:
+        bullish_confirmations += 1
+    if rsi is not None and 52 <= rsi <= 68:
+        bullish_confirmations += 1
+    if higher_is_bullish:
+        bullish_confirmations += 1
+    if volume_ratio is not None and volume_ratio >= 0.95:
+        bullish_confirmations += 1
+
+    if ema20 is not None and ema50 is not None and ema20 < ema50:
+        bearish_confirmations += 1
+    if ema50 is not None and ema200 is not None and ema50 < ema200:
+        bearish_confirmations += 1
+    if price is not None and ema20 is not None and price < ema20:
+        bearish_confirmations += 1
+    if macd is not None and macd_signal is not None and macd < macd_signal:
+        bearish_confirmations += 1
+    if macd_histogram is not None and macd_histogram < 0:
+        bearish_confirmations += 1
+    if rsi is not None and 32 <= rsi <= 48:
+        bearish_confirmations += 1
+    if higher_is_bearish:
+        bearish_confirmations += 1
+    if volume_ratio is not None and volume_ratio >= 0.95:
+        bearish_confirmations += 1
+
+    if higher_is_bullish and bearish_confirmations > bullish_confirmations:
+        mtf_adjustment -= 8
+        flags.append("mtf_conflict")
+    elif higher_is_bearish and bullish_confirmations > bearish_confirmations:
+        mtf_adjustment -= 8
+        flags.append("mtf_conflict")
+    elif higher_is_bullish and bullish_confirmations >= bearish_confirmations and bullish_confirmations >= 4:
+        mtf_adjustment += 6
+        flags.append("mtf_aligned")
+    elif higher_is_bearish and bearish_confirmations >= bullish_confirmations and bearish_confirmations >= 4:
+        mtf_adjustment += 6
+        flags.append("mtf_aligned")
+
+    confidence = int(round(max(16, min(90, confidence + market_quality_adjustment + mtf_adjustment))))
+    flags = _dedupe_flags(flags)
+
+    bullish_exhausted = rsi is not None and rsi > 72
+    bearish_exhausted = rsi is not None and rsi < 28
+    no_trade = (
+        (adx is not None and adx < 22)
+        or (volume_ratio is not None and volume_ratio < 0.85)
+        or regime in {"Range-Bound", "Low Participation"}
+        or "mtf_conflict" in flags
+        or "choppy_structure" in flags
+        or "weak_trend_strength" in flags
+    )
+
+    bull_candidate = bullish_confirmations >= 4 and not bullish_exhausted
+    bear_candidate = bearish_confirmations >= 4 and not bearish_exhausted
+    bull_strong = bull_candidate and bullish_confirmations >= 5 and adx is not None and adx >= 25 and "mtf_aligned" in flags
+    bear_strong = bear_candidate and bearish_confirmations >= 5 and adx is not None and adx >= 25 and "mtf_aligned" in flags
+
+    trend = "Neutral"
+    if not no_trade and confidence >= 45 and not (risk == "High" and confidence < 65):
+        if bull_candidate and bullish_confirmations > bearish_confirmations:
+            trend = "Strong Bullish" if bull_strong and confidence >= 75 else "Bullish"
+        elif bear_candidate and bearish_confirmations > bullish_confirmations:
+            trend = "Strong Bearish" if bear_strong and confidence >= 75 else "Bearish"
+
+    if confidence < 45:
+        trend = "Neutral"
+    if risk == "High" and confidence < 65:
+        trend = "Neutral"
+    if bullish_exhausted and trend in {"Bullish", "Strong Bullish"}:
+        trend = "Neutral"
+    if bearish_exhausted and trend in {"Bearish", "Strong Bearish"}:
+        trend = "Neutral"
+
+    updated["confidence"] = confidence
+    updated["trend"] = trend
+    updated["quality_flags"] = flags
+    updated["stale"] = stale
+    updated["scoring"]["market_quality"] = market_quality_adjustment
+    updated["scoring"]["multi_timeframe_confirmation"] = mtf_adjustment
+    updated["scoring"]["bullish_confirmations"] = bullish_confirmations
+    updated["scoring"]["bearish_confirmations"] = bearish_confirmations
+
+    if trend == "Neutral" and risk == "Low" and confidence < 65:
+        updated["risk"] = "Medium"
+    else:
+        updated["risk"] = risk
+
+    updated["scenario"] = scenario_summary(
+        trend=updated["trend"],
+        price=updated.get("price"),
+        support=updated.get("levels", {}).get("support"),
+        resistance=updated.get("levels", {}).get("resistance"),
+        regime=str(updated.get("market_regime", "Range-Bound")),
+        momentum=str(updated.get("momentum", "Weak")),
+    )
+
+    return updated
+
+
 def momentum_label(row: pd.Series, scoring: dict[str, Any]) -> str:
     rsi = safe_float(row.get("rsi"))
     macd = safe_float(row.get("macd"))

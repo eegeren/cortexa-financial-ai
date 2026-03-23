@@ -22,6 +22,7 @@ import logging
 import traceback
 
 from analysis_engine import (
+    apply_quality_first_signal_filter,
     build_analysis,
     build_indicator_frame,
     build_indicator_snapshot,
@@ -334,110 +335,14 @@ def apply_market_quality_filters(
     higher_timeframe_trend: str | None = None,
     higher_timeframe_stale: bool = False,
 ) -> dict[str, Any]:
-    confidence = int(analysis["confidence"])
-    market_quality_adjustment = 0
-    mtf_adjustment = 0
-    flags: list[str] = []
-
-    volume_ratio = safe_float(latest_row.get("volume_ratio"))
-    atr_pct = safe_float(latest_row.get("atr_pct"))
-    adx = safe_float(latest_row.get("adx"))
-    regime = str(analysis.get("market_regime", "Range-Bound"))
-
-    if stale:
-        market_quality_adjustment -= 8
-        flags.append("stale_data")
-
-    if higher_timeframe_stale:
-        market_quality_adjustment -= 1
-
-    if volume_ratio is not None and volume_ratio < 0.82:
-        market_quality_adjustment -= 3
-        flags.append("weak_volume_confirmation")
-    if volume_ratio is not None and volume_ratio < 0.58:
-        market_quality_adjustment -= 5
-        confidence = min(confidence, 58)
-        flags.append("low_volume")
-
-    if atr_pct is not None and atr_pct >= 0.085:
-        market_quality_adjustment -= 10
-        flags.append("high_volatility")
-    elif atr_pct is not None and atr_pct >= 0.065:
-        market_quality_adjustment -= 4
-        flags.append("high_volatility")
-
-    if adx is not None and adx < 15:
-        market_quality_adjustment -= 7
-        confidence = min(confidence, 58)
-        flags.append("weak_trend_strength")
-    elif adx is not None and adx < 20:
-        market_quality_adjustment -= 2
-        flags.append("weak_trend_strength")
-
-    if regime in {"Range-Bound", "Low Participation"}:
-        market_quality_adjustment -= 3
-        confidence = min(confidence, 60)
-        flags.append("choppy_structure")
-
-    if higher_timeframe_trend:
-        local_bias = trend_bias(str(analysis.get("trend", "Neutral")))
-        higher_bias = trend_bias(higher_timeframe_trend)
-        if local_bias != 0 and higher_bias != 0:
-            if (local_bias > 0 and higher_bias > 0) or (local_bias < 0 and higher_bias < 0):
-                mtf_adjustment += 8
-                flags.append("mtf_aligned")
-            else:
-                mtf_adjustment -= 6
-                confidence = min(confidence, 60)
-                flags.append("mtf_conflict")
-        elif local_bias != 0 and higher_bias == 0:
-            mtf_adjustment -= 1
-
-    final_confidence = int(round(max(16, min(90, confidence + market_quality_adjustment + mtf_adjustment))))
-    analysis["confidence"] = final_confidence
-    analysis["trend"] = trend_label(final_confidence)
-    if regime in {"Range-Bound", "Low Participation"} and analysis["trend"] == "Strong Bearish":
-        analysis["trend"] = "Bearish"
-    if regime in {"Range-Bound", "Low Participation"} and analysis["trend"] == "Strong Bullish":
-        analysis["trend"] = "Bullish"
-    if "weak_trend_strength" in flags and analysis["trend"] == "Strong Bearish":
-        analysis["trend"] = "Bearish"
-    if "weak_trend_strength" in flags and analysis["trend"] == "Strong Bullish":
-        analysis["trend"] = "Bullish"
-    if timeframe == "1h" and analysis["trend"] == "Strong Bearish" and (
-        "weak_volume_confirmation" in flags or "low_volume" in flags
-    ) and "weak_trend_strength" not in flags and "high_volatility" not in flags:
-        analysis["trend"] = "Bearish"
-    analysis["scenario"] = scenario_summary(
-        trend=analysis["trend"],
-        price=analysis.get("price"),
-        support=analysis.get("levels", {}).get("support"),
-        resistance=analysis.get("levels", {}).get("resistance"),
-        regime=str(analysis.get("market_regime", "Range-Bound")),
-        momentum=str(analysis.get("momentum", "Weak")),
+    return apply_quality_first_signal_filter(
+        analysis,
+        latest_row,
+        timeframe=timeframe,
+        stale=stale,
+        higher_timeframe_trend=higher_timeframe_trend,
+        higher_timeframe_stale=higher_timeframe_stale,
     )
-    analysis["scoring"]["market_quality"] = market_quality_adjustment
-    analysis["scoring"]["multi_timeframe_confirmation"] = mtf_adjustment
-    analysis["quality_flags"] = list(dict.fromkeys(flags))
-    analysis["stale"] = stale
-
-    severe_risk_issues = sum(
-        1
-        for flag in analysis["quality_flags"]
-        if flag in {"high_volatility", "low_volume", "stale_data", "mtf_conflict", "weak_trend_strength"}
-    )
-    if severe_risk_issues >= 3 or ("high_volatility" in analysis["quality_flags"] and "low_volume" in analysis["quality_flags"]):
-        analysis["risk"] = "High"
-    elif (
-        "weak_volume_confirmation" in analysis["quality_flags"]
-        or "weak_trend_strength" in analysis["quality_flags"]
-        or "choppy_structure" in analysis["quality_flags"]
-        or "mtf_conflict" in analysis["quality_flags"]
-    ):
-        if analysis.get("risk") == "Low":
-            analysis["risk"] = "Medium"
-
-    return analysis
 
 
 def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int = 300) -> dict[str, Any]:

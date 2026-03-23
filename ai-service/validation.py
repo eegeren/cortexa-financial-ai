@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from analysis_engine import build_analysis, build_indicator_frame, clamp
+from analysis_engine import apply_quality_first_signal_filter, build_analysis, build_indicator_frame, clamp
 
 SUPPORTED_VALIDATION_HORIZONS = (1, 4, 12)
 CONFIDENCE_BUCKETS = ((0, 20), (20, 40), (40, 60), (60, 80), (80, 100))
@@ -35,79 +35,15 @@ def _trend_bias(trend: str) -> int:
     return 0
 
 
-def _trend_from_confidence(confidence: int) -> str:
-    if confidence <= 16:
-        return "Strong Bearish"
-    if confidence <= 40:
-        return "Bearish"
-    if confidence <= 58:
-        return "Neutral"
-    if confidence <= 78:
-        return "Bullish"
-    return "Strong Bullish"
-
-
-def _risk_from_flags(base_risk: str, flags: list[str]) -> str:
-    severe = {"high_volatility", "low_volume", "stale_data", "mtf_conflict", "weak_trend_strength"}
-    if sum(flag in severe for flag in flags) >= 3 or ("high_volatility" in flags and "low_volume" in flags):
-        return "High"
-    if any(flag in flags for flag in ("weak_volume_confirmation", "weak_trend_strength", "choppy_structure", "mtf_conflict")):
-        return "Medium" if base_risk == "Low" else base_risk
-    return base_risk
-
-
 def _apply_validation_quality_filters(analysis: dict[str, Any], latest_row: pd.Series) -> dict[str, Any]:
-    updated = {
-        **analysis,
-        "scoring": dict(analysis.get("scoring", {})),
-        "quality_flags": list(analysis.get("quality_flags", [])),
-    }
-
-    confidence = int(updated["confidence"])
-    market_quality_adjustment = 0
-    flags: list[str] = list(updated["quality_flags"])
-
-    volume_ratio = float(latest_row["volume_ratio"]) if pd.notna(latest_row.get("volume_ratio")) else None
-    atr_pct = float(latest_row["atr_pct"]) if pd.notna(latest_row.get("atr_pct")) else None
-    adx = float(latest_row["adx"]) if pd.notna(latest_row.get("adx")) else None
-    regime = str(updated.get("market_regime", "Range-Bound"))
-
-    if volume_ratio is not None and volume_ratio < 0.82:
-        market_quality_adjustment -= 3
-        flags.append("weak_volume_confirmation")
-    if volume_ratio is not None and volume_ratio < 0.58:
-        market_quality_adjustment -= 5
-        confidence = min(confidence, 58)
-        flags.append("low_volume")
-
-    if atr_pct is not None and atr_pct >= 0.085:
-        market_quality_adjustment -= 10
-        flags.append("high_volatility")
-    elif atr_pct is not None and atr_pct >= 0.065:
-        market_quality_adjustment -= 4
-        flags.append("high_volatility")
-
-    if adx is not None and adx < 15:
-        market_quality_adjustment -= 7
-        confidence = min(confidence, 58)
-        flags.append("weak_trend_strength")
-    elif adx is not None and adx < 20:
-        market_quality_adjustment -= 2
-        flags.append("weak_trend_strength")
-
-    if regime in {"Range-Bound", "Low Participation"}:
-        market_quality_adjustment -= 3
-        confidence = min(confidence, 60)
-        flags.append("choppy_structure")
-
-    updated["confidence"] = int(round(max(16, min(90, confidence + market_quality_adjustment))))
-    updated["trend"] = _trend_from_confidence(updated["confidence"])
-    updated["risk"] = _risk_from_flags(str(updated.get("risk", "Medium")), list(dict.fromkeys(flags)))
-    updated["quality_flags"] = list(dict.fromkeys(flags))
-    updated["scoring"]["market_quality"] = market_quality_adjustment
-    updated["scoring"]["multi_timeframe_confirmation"] = 0
-
-    return updated
+    return apply_quality_first_signal_filter(
+        analysis,
+        latest_row,
+        timeframe=str(analysis.get("timeframe", "1h")),
+        stale=False,
+        higher_timeframe_trend=None,
+        higher_timeframe_stale=False,
+    )
 
 
 def _directional_final_score(analysis: dict[str, Any]) -> float:

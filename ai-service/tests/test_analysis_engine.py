@@ -160,26 +160,71 @@ class AnalysisEngineTests(unittest.TestCase):
         analysis["trend"] = trend_label(analysis["confidence"])
 
         filtered = apply_market_quality_filters(analysis, latest, stale=True, higher_timeframe_trend="Bearish")
-        self.assertLessEqual(filtered["confidence"], 60)
+        self.assertEqual(filtered["trend"], "Neutral")
         self.assertGreaterEqual(filtered["confidence"], 16)
         self.assertIn("low_volume", filtered["quality_flags"])
         self.assertIn("stale_data", filtered["quality_flags"])
-        self.assertIn("mtf_conflict", filtered["quality_flags"])
-        self.assertEqual(filtered["risk"], "High")
+        self.assertIn("weak_trend_strength", filtered["quality_flags"])
 
-    def test_1h_strong_bearish_is_softened_when_volume_is_main_drag(self):
+    def test_low_edge_direction_is_neutralized_by_quality_first_rules(self):
         frame = build_indicator_frame(sample_frame())
         analysis = build_analysis(frame, symbol="BTCUSDT", timeframe="1h")
         latest = frame.iloc[-1].copy()
         latest["volume_ratio"] = 0.7
         latest["atr_pct"] = 0.03
-        latest["adx"] = 23
+        latest["adx"] = 21
         analysis["market_regime"] = "Trending"
-        analysis["confidence"] = 16
-        analysis["trend"] = "Strong Bearish"
+        analysis["confidence"] = 74
+        analysis["trend"] = "Bullish"
 
         filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend=None)
-        self.assertEqual(filtered["trend"], "Bearish")
+        self.assertEqual(filtered["trend"], "Neutral")
+        self.assertIn("low_volume", filtered["quality_flags"])
+        self.assertIn("weak_trend_strength", filtered["quality_flags"])
+
+    def test_strong_bullish_requires_strict_confirmation_set(self):
+        frame = build_indicator_frame(sample_frame())
+        analysis = build_analysis(frame, symbol="BTCUSDT", timeframe="1h")
+        latest = frame.iloc[-1].copy()
+        latest["ema20"] = 108
+        latest["ema50"] = 104
+        latest["ema200"] = 99
+        latest["close"] = 110
+        latest["macd"] = 2.1
+        latest["macd_signal"] = 1.2
+        latest["macd_histogram"] = 0.9
+        latest["rsi"] = 61
+        latest["adx"] = 28
+        latest["volume_ratio"] = 1.08
+        analysis["confidence"] = 81
+        analysis["risk"] = "Low"
+        analysis["market_regime"] = "Trending"
+
+        filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend="Bullish")
+        self.assertEqual(filtered["trend"], "Strong Bullish")
+        self.assertGreaterEqual(filtered["scoring"]["bullish_confirmations"], 5)
+        self.assertIn("mtf_aligned", filtered["quality_flags"])
+
+    def test_exhaustion_guard_blocks_bullish_output(self):
+        frame = build_indicator_frame(sample_frame())
+        analysis = build_analysis(frame, symbol="BTCUSDT", timeframe="1h")
+        latest = frame.iloc[-1].copy()
+        latest["ema20"] = 108
+        latest["ema50"] = 104
+        latest["ema200"] = 99
+        latest["close"] = 110
+        latest["macd"] = 2.1
+        latest["macd_signal"] = 1.2
+        latest["macd_histogram"] = 0.9
+        latest["rsi"] = 74
+        latest["adx"] = 28
+        latest["volume_ratio"] = 1.08
+        analysis["confidence"] = 81
+        analysis["risk"] = "Low"
+        analysis["market_regime"] = "Trending"
+
+        filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend="Bullish")
+        self.assertEqual(filtered["trend"], "Neutral")
 
     def test_analysis_payload_uses_wrapped_schema(self):
         with patch(
