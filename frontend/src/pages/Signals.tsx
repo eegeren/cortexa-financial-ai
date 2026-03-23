@@ -35,6 +35,31 @@ const formatNumber = (value?: number, digits = 2) =>
 
 const formatSymbolDisplay = (symbol: string) => symbol.replace(/USDT$/, ' / USDT');
 
+const LoadingState = () => (
+  <div className="flex min-h-[21rem] flex-col items-center justify-center rounded-[2rem] border border-outline/25 bg-muted/40 px-6 py-10 text-center">
+    <div className="relative flex h-20 w-20 items-center justify-center">
+      <div className="absolute inset-0 rounded-full border border-cyan-400/15 bg-cyan-500/5" />
+      <div className="signal-spinner h-12 w-12 rounded-full border border-cyan-400/20 border-t-cyan-300/80" />
+    </div>
+    <div className="mt-6 flex items-center gap-2 text-lg font-medium text-white">
+      <span className="signal-loading-text">Loading</span>
+      <span className="signal-loading-dots" aria-hidden>
+        <span />
+        <span />
+        <span />
+      </span>
+    </div>
+    <p className="mt-3 max-w-md text-sm text-slate-400">
+      Pulling the latest market structure, confidence, risk, and AI context for the selected symbol.
+    </p>
+    <div className="mt-8 grid w-full max-w-3xl gap-3 sm:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="h-24 rounded-2xl border border-outline/20 bg-slate-900/40 animate-pulse" />
+      ))}
+    </div>
+  </div>
+);
+
 const SignalsPage = () => {
   const [activeSymbol, setActiveSymbol] = useState('');
   const [searchValue, setSearchValue] = useState('');
@@ -187,6 +212,9 @@ const SignalsPage = () => {
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (signalLoading) {
+      return;
+    }
     const normalizedSymbol = searchValue.trim().toUpperCase();
     if (!normalizedSymbol) {
       pushToast('Choose a symbol to load a signal.', 'warning');
@@ -428,7 +456,7 @@ const SignalsPage = () => {
                 : 'cursor-not-allowed bg-slate-700/70 text-slate-300 opacity-60'
             }`}
           >
-            Load signal
+            {signalLoading ? 'Loading...' : 'Load signal'}
           </button>
         </form>
         <p className={`text-xs transition-all duration-300 ${hasData ? 'mt-3 text-slate-500' : 'mt-4 text-slate-400'}`}>
@@ -460,9 +488,9 @@ const SignalsPage = () => {
             )}
           </header>
 
-          <div className="mt-6 space-y-6">
+          <div className={`mt-6 transition-opacity duration-300 ${signalLoading ? 'opacity-100' : 'opacity-100'}`}>
             {signalLoading ? (
-              <div className="h-40 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse" />
+              <LoadingState />
             ) : signal ? (
               <>
                 <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,360px)]">

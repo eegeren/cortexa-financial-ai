@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const valueCards = [
@@ -25,6 +26,27 @@ const priceRows = [
   { label: 'Support', value: '68,200' },
   { label: 'Resistance', value: '70,050' },
   { label: 'Regime', value: 'Trend Day' },
+];
+
+const workflowSteps = [
+  {
+    label: 'Structure first',
+    body: 'Start from regime, trend, and levels before noise from disconnected indicators creeps in.',
+  },
+  {
+    label: 'Risk framed fast',
+    body: 'Confidence and risk are surfaced together so every read comes with context, not just direction.',
+  },
+  {
+    label: 'Explanation attached',
+    body: 'AI summarizes what matters in plain language without replacing your own execution process.',
+  },
+];
+
+const surfaceCards = [
+  { title: 'Trend', value: 'Higher highs still intact' },
+  { title: 'Invalidation', value: 'Lose 68,200 and momentum fades' },
+  { title: 'Use case', value: 'Fast directional context before execution' },
 ];
 
 const ChartMock = () => (
@@ -102,8 +124,30 @@ const ChartMock = () => (
 );
 
 const LandingPage = () => {
+  useEffect(() => {
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
+    if (!nodes.length || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.18, rootMargin: '0px 0px -10% 0px' }
+    );
+
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="flex min-h-full flex-col justify-center py-2 sm:py-4 lg:py-6">
+    <div className="space-y-6 py-2 sm:space-y-8 sm:py-4 lg:space-y-10 lg:py-6">
       <section className="relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b14] px-5 py-6 shadow-[0_24px_70px_rgba(2,8,23,0.45)] sm:px-7 sm:py-7 lg:min-h-[calc(100dvh-4.5rem)] lg:px-10 lg:py-9">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.85),rgba(5,11,20,0.96))]" />
         <div
@@ -118,20 +162,20 @@ const LandingPage = () => {
 
         <div className="relative grid gap-8 lg:h-full lg:grid-cols-[minmax(0,0.96fr)_minmax(420px,560px)] lg:items-center lg:gap-10">
           <div className="space-y-6 lg:space-y-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/15 bg-cyan-400/6 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.28em] text-cyan-100/85">
+            <div className="hero-fade-in inline-flex items-center gap-2 rounded-full border border-cyan-400/15 bg-cyan-400/6 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.28em] text-cyan-100/85">
               Cortexa Trade
             </div>
 
             <div className="space-y-4">
-              <h1 className="max-w-3xl text-[2.5rem] font-semibold leading-[0.96] tracking-[-0.04em] text-white sm:text-5xl lg:text-[4.4rem]">
+              <h1 className="hero-fade-in max-w-3xl text-[2.5rem] font-semibold leading-[0.96] tracking-[-0.04em] text-white sm:text-5xl lg:text-[4.4rem]" data-delay="1">
                 Read crypto structure before the market reads you.
               </h1>
-              <p className="max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
+              <p className="hero-fade-in max-w-xl text-sm leading-7 text-slate-300 sm:text-base" data-delay="2">
                 Cortexa gives you structured crypto market intelligence with trend, confidence, risk, and AI explanation in one dense screen built for clarity over indicator noise.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="hero-fade-in flex flex-col gap-3 sm:flex-row" data-delay="2">
               <Link
                 to="/register"
                 className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-slate-200"
@@ -148,7 +192,7 @@ const LandingPage = () => {
 
             <div className="grid gap-3 sm:grid-cols-3">
               {valueCards.map((card) => (
-                <div key={card.title} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <div key={card.title} className="hero-fade-in rounded-2xl border border-slate-800 bg-slate-950/70 p-4" data-delay="2">
                   <p className="text-sm font-semibold text-white">{card.title}</p>
                   <p className="mt-2 text-xs leading-6 text-slate-400">{card.body}</p>
                 </div>
@@ -156,7 +200,7 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <aside className="rounded-[1.8rem] border border-slate-800 bg-[#07101c] p-4 shadow-[0_18px_48px_rgba(2,8,23,0.42)] sm:p-5">
+          <aside className="hero-fade-in hero-float rounded-[1.8rem] border border-slate-800 bg-[#07101c] p-4 shadow-[0_18px_48px_rgba(2,8,23,0.42)] sm:p-5" data-delay="1">
             <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Signal Console</p>
@@ -196,6 +240,61 @@ const LandingPage = () => {
               ))}
             </div>
           </aside>
+        </div>
+      </section>
+
+      <section data-reveal className="reveal-on-scroll grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,360px)]">
+        <div className="rounded-[1.8rem] border border-slate-800 bg-slate-950/80 p-5 sm:p-6">
+          <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">How Cortexa Reads the Tape</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {workflowSteps.map((step) => (
+              <div key={step.label} className="rounded-2xl border border-slate-800 bg-[#08101c] p-4">
+                <p className="text-sm font-semibold text-white">{step.label}</p>
+                <p className="mt-2 text-xs leading-6 text-slate-400">{step.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[1.8rem] border border-slate-800 bg-slate-950/80 p-5 sm:p-6">
+          <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Built for Clarity</p>
+          <div className="mt-4 space-y-3">
+            {surfaceCards.map((card) => (
+              <div key={card.title} className="rounded-2xl border border-slate-800 bg-[#08101c] p-4">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{card.title}</p>
+                <p className="mt-2 text-sm font-medium text-white">{card.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section data-reveal className="reveal-on-scroll rounded-[1.8rem] border border-slate-800 bg-[#060d18] px-5 py-6 sm:px-7 sm:py-7">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Why Traders Use It</p>
+            <h2 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">
+              Direction, risk, and explanation on one screen.
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-400 sm:text-base">
+              Cortexa is not an execution bot and not a raw indicator dump. It is a clean read on market structure designed to shorten the path from observation to decision.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              to="/register"
+              className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-slate-200"
+            >
+              Get started
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/70 px-6 py-3 text-sm font-semibold text-slate-100 transition-colors hover:border-cyan-400/40 hover:bg-slate-900"
+            >
+              Sign in
+            </Link>
+          </div>
         </div>
       </section>
     </div>
