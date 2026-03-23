@@ -251,6 +251,9 @@ class AnalysisEngineTests(unittest.TestCase):
                     "risk_adjustment": 0,
                     "raw_score": 50.0,
                 },
+                "ai_validated": None,
+                "ai_validation_reason": "AI validation unavailable; deterministic fallback used.",
+                "ai_confidence_adjustment": 0,
                 "stale": False,
             },
         ):
@@ -259,6 +262,30 @@ class AnalysisEngineTests(unittest.TestCase):
         self.assertIn("data", payload)
         self.assertIn("stale", payload)
         self.assertNotIn("trend", payload)
+
+    def test_ai_validation_can_reject_setup_without_breaking_payload(self):
+        frame = build_indicator_frame(sample_frame())
+        with patch(
+            "signal_api.validate_signal_setup",
+            return_value={"valid_setup": False, "confidence_adjustment": -8, "reason": "Low participation and mixed confirmation."},
+        ):
+            with patch("signal_api.fetch_ohlcv_with_meta", return_value=(sample_frame(), False)):
+                analysis = __import__("signal_api").compute_analysis("BTCUSDT", "1h")
+        self.assertEqual(analysis["trend"], "Neutral")
+        self.assertFalse(analysis["ai_validated"])
+        self.assertEqual(analysis["ai_confidence_adjustment"], -8)
+        self.assertIn("mixed confirmation", analysis["ai_validation_reason"].lower())
+
+    def test_ai_validation_can_accept_and_slightly_adjust_confidence(self):
+        with patch(
+            "signal_api.validate_signal_setup",
+            return_value={"valid_setup": True, "confidence_adjustment": 3, "reason": "Structure remains internally consistent."},
+        ):
+            with patch("signal_api.fetch_ohlcv_with_meta", return_value=(sample_frame(), False)):
+                analysis = __import__("signal_api").compute_analysis("BTCUSDT", "1h")
+        self.assertTrue(analysis["ai_validated"])
+        self.assertEqual(analysis["ai_confidence_adjustment"], 3)
+        self.assertIn("consistent", analysis["ai_validation_reason"].lower())
 
     def test_generate_endpoint_insight_returns_text(self):
         insight = generate_endpoint_insight(

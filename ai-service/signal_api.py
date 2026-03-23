@@ -32,7 +32,7 @@ from analysis_engine import (
     trend_bias,
     trend_label,
 )
-from explanation_engine import generate_endpoint_insight, generate_explanation, generate_insight
+from explanation_engine import generate_endpoint_insight, generate_explanation, generate_insight, validate_signal_setup
 from validation import validate_analysis_history
 
 
@@ -377,6 +377,31 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
         higher_timeframe_trend=higher_timeframe_trend,
         higher_timeframe_stale=higher_timeframe_stale,
     )
+
+    validation_input = {
+        "symbol": analysis.get("symbol"),
+        "timeframe": analysis.get("timeframe"),
+        "trend": analysis.get("trend"),
+        "confidence": analysis.get("confidence"),
+        "risk": analysis.get("risk"),
+        "market_regime": analysis.get("market_regime"),
+        "quality_flags": analysis.get("quality_flags"),
+        "indicators": analysis.get("indicators"),
+        "levels": analysis.get("levels"),
+        "scenario": analysis.get("scenario"),
+    }
+    ai_validation = validate_signal_setup(validation_input)
+    analysis["ai_validated"] = ai_validation.get("valid_setup")
+    analysis["ai_validation_reason"] = ai_validation.get("reason")
+    analysis["ai_confidence_adjustment"] = int(ai_validation.get("confidence_adjustment", 0))
+
+    if ai_validation.get("valid_setup") is False:
+        analysis["trend"] = "Neutral"
+        analysis["confidence"] = min(int(analysis["confidence"]) + int(ai_validation["confidence_adjustment"]), 42)
+        analysis["confidence"] = max(16, analysis["confidence"])
+    elif ai_validation.get("valid_setup") is True:
+        analysis["confidence"] = max(16, min(90, int(analysis["confidence"]) + int(ai_validation["confidence_adjustment"])))
+
     analysis["insight"] = generate_insight(analysis)
     analysis["explanation"] = generate_explanation(analysis)
 
@@ -436,6 +461,9 @@ def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
         },
         "quality_flags": ["stale_data"],
         "stale": True,
+        "ai_validated": None,
+        "ai_validation_reason": "AI validation unavailable; deterministic fallback used.",
+        "ai_confidence_adjustment": 0,
     }
 
 

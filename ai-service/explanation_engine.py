@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from typing import Any
 
 import requests
@@ -120,14 +121,19 @@ def _llm_enabled() -> bool:
     return bool(os.getenv("OPENAI_API_KEY"))
 
 
+def _openai_settings() -> tuple[str, str, str]:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    return api_key, base_url, model
+
+
 def _generate_text(analysis: dict[str, Any], *, mode: str) -> str:
     fallback = templated_insight(analysis) if mode == "insight" else templated_explanation(analysis)
     if not _llm_enabled():
         return fallback
 
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    api_key, base_url, model = _openai_settings()
 
     task = "market insight" if mode == "insight" else "market analysis explanation"
     prompt = (
@@ -187,9 +193,7 @@ def generate_endpoint_insight(analysis: dict[str, Any]) -> str:
     if not _llm_enabled():
         return fallback
 
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    api_key, base_url, model = _openai_settings()
 
     prompt = (
         "You are writing a short professional crypto market insight from structured analysis. "
@@ -241,3 +245,75 @@ def generate_endpoint_insight(analysis: dict[str, Any]) -> str:
 
 def generate_explanation(analysis: dict[str, Any]) -> str:
     return _generate_text(analysis, mode="explanation")
+
+
+def validate_signal_setup(analysis: dict[str, Any]) -> dict[str, Any]:
+    fallback = {
+        "valid_setup": None,
+        "confidence_adjustment": 0,
+        "reason": "AI validation unavailable; deterministic review kept.",
+    }
+
+    if not _llm_enabled():
+        return fallback
+
+    api_key, base_url, model = _openai_settings()
+    prompt = (
+        "You are a conservative market setup validator.\n"
+        "Given structured technical data, decide whether this setup is strong enough to keep as a directional signal.\n"
+        "Reject low-quality, contradictory, weak-volume, or choppy setups.\n"
+        "Do not invent facts.\n"
+        "Do not give trading advice.\n"
+        "You are reviewing only the provided fields, not live market data.\n"
+        "Keep confidence_adjustment between -10 and +5.\n"
+        "Return JSON only in this exact shape:\n"
+        '{"valid_setup": true, "confidence_adjustment": -3, "reason": "Short explanation."}\n\n'
+        f"Structured deterministic signal: {analysis}"
+    )
+
+    try:
+        response = requests.post(
+            f"{base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "temperature": 0.0,
+                "max_tokens": 120,
+                "response_format": {"type": "json_object"},
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a strict market-structure quality reviewer. "
+                            "You never create signals. You only validate or reject structured setups conservatively. "
+                            "Return JSON only."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+            },
+            timeout=4,
+        )
+        if response.status_code != 200:
+            return fallback
+        payload = response.json()
+        content = payload["choices"][0]["message"]["content"].strip()
+        parsed = json.loads(content)
+        valid_setup = parsed.get("valid_setup")
+        confidence_adjustment = int(parsed.get("confidence_adjustment", 0))
+        reason = str(parsed.get("reason", "")).strip() or fallback["reason"]
+        if valid_setup not in (True, False):
+            return fallback
+        return {
+            "valid_setup": valid_setup,
+            "confidence_adjustment": max(-10, min(5, confidence_adjustment)),
+            "reason": reason[:240],
+        }
+    except Exception:
+        return fallback
