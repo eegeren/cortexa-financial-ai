@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import SplashScreen from '@/components/SplashScreen';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import LandingPage from '@/pages/Landing';
 import LoginPage from '@/pages/Login';
 import RegisterPage from '@/pages/Register';
 import DashboardPage from '@/pages/Dashboard';
@@ -55,6 +56,19 @@ const PublicOnlyRoute = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
+const HomeRoute = () => {
+  const token = useAuthStore((state) => state.token);
+  const hydrated = useAuthStore((state) => state.hydrated);
+
+  if (!hydrated) {
+    return <Spinner />;
+  }
+  if (token) {
+    return <Navigate to="/overview" replace />;
+  }
+  return <LandingPage />;
+};
+
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -81,7 +95,7 @@ const App = () => {
         />
 
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/overview" replace />} />
+          <Route index element={<HomeRoute />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/overview" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/dashboard" element={<Navigate to="/overview" replace />} />
@@ -94,7 +108,7 @@ const App = () => {
           <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/pricing" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
