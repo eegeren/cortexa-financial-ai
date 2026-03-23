@@ -17,8 +17,8 @@ const valueCards = [
 ];
 
 const statCards = [
-  { label: 'Trend', value: 'Bullish', tone: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-100' },
-  { label: 'Confidence', value: '78/100', tone: 'border-cyan-400/25 bg-cyan-500/10 text-cyan-50' },
+  { label: 'Trend', value: 'Bearish', tone: 'border-rose-400/25 bg-rose-500/10 text-rose-100' },
+  { label: 'Confidence', value: '29', tone: 'border-cyan-400/25 bg-cyan-500/10 text-cyan-50' },
   { label: 'Risk', value: 'Medium', tone: 'border-amber-400/25 bg-amber-500/10 text-amber-100' },
 ];
 
@@ -26,18 +26,6 @@ const priceRows = [
   { label: 'Support', value: '68,200' },
   { label: 'Resistance', value: '70,050' },
   { label: 'Regime', value: 'Trend Day' },
-];
-
-const sideInsights = [
-  { label: 'Momentum', value: 'Expanding', tone: 'text-emerald-200' },
-  { label: 'Volume', value: 'Above avg', tone: 'text-cyan-100' },
-  { label: 'Invalidation', value: 'Below 68,200', tone: 'text-amber-100' },
-];
-
-const watchlistRows = [
-  { symbol: 'ETH', bias: 'Trend building', score: '72' },
-  { symbol: 'SOL', bias: 'High beta bid', score: '81' },
-  { symbol: 'BNB', bias: 'Range to trend', score: '64' },
 ];
 
 const workflowSteps = [
@@ -135,6 +123,49 @@ const ChartMock = () => (
   </div>
 );
 
+const SignalPreview = () => (
+  <aside className="hero-fade-in rounded-[1.8rem] border border-slate-800 bg-[#07101c] p-4 shadow-[0_18px_48px_rgba(2,8,23,0.42)] sm:p-5" data-delay="1">
+    <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-4">
+      <div>
+        <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Signal Preview</p>
+        <h2 className="mt-2 text-2xl font-semibold text-white">BTCUSDT</h2>
+      </div>
+      <div className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
+        1H
+      </div>
+    </div>
+
+    <div className="mt-4">
+      <ChartMock />
+    </div>
+
+    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      {statCards.map((card) => (
+        <div key={card.label} className={`rounded-2xl border p-4 ${card.tone}`}>
+          <p className="text-[11px] uppercase tracking-[0.24em] opacity-75">{card.label}</p>
+          <p className="mt-2 text-xl font-semibold text-white">{card.value}</p>
+        </div>
+      ))}
+    </div>
+
+    <div className="mt-4 rounded-2xl border border-cyan-400/15 bg-cyan-500/6 p-4">
+      <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/80">AI Insight</p>
+      <p className="mt-3 text-sm leading-7 text-slate-100">
+        Momentum is weakening and price is below key levels. Downside remains in focus unless resistance is reclaimed.
+      </p>
+    </div>
+
+    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      {priceRows.map((row) => (
+        <div key={row.label} className="rounded-2xl border border-slate-800 bg-slate-950/65 p-4">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{row.label}</p>
+          <p className="mt-2 text-base font-semibold text-white sm:text-lg">{row.value}</p>
+        </div>
+      ))}
+    </div>
+  </aside>
+);
+
 const LandingPage = () => {
   useEffect(() => {
     const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
@@ -212,86 +243,8 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="hero-fade-in hero-float relative" data-delay="1">
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
-              <aside className="rounded-[1.8rem] border border-slate-800 bg-[#07101c] p-4 shadow-[0_18px_48px_rgba(2,8,23,0.42)] sm:p-5">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Signal Console</p>
-                    <h2 className="mt-2 text-2xl font-semibold text-white">BTC / USDT</h2>
-                  </div>
-                  <div className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-100">
-                    Structure intact
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <ChartMock />
-                </div>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  {statCards.map((card) => (
-                    <div key={card.label} className={`rounded-2xl border p-4 ${card.tone}`}>
-                      <p className="text-[11px] uppercase tracking-[0.24em] opacity-75">{card.label}</p>
-                      <p className="mt-2 text-xl font-semibold text-white">{card.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-cyan-400/15 bg-cyan-500/6 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/80">AI Insight</p>
-                  <p className="mt-3 text-sm leading-7 text-slate-100">
-                    Price is holding above reclaimed intraday support and momentum is still expanding after the last breakout leg. Bias stays constructive while 68,200 holds; failure there would open a rotation back into range.
-                  </p>
-                </div>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  {priceRows.map((row) => (
-                    <div key={row.label} className="rounded-2xl border border-slate-800 bg-slate-950/65 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{row.label}</p>
-                      <p className="mt-2 text-base font-semibold text-white sm:text-lg">{row.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </aside>
-
-              <div className="grid gap-4 content-start">
-                <div className="rounded-[1.6rem] border border-slate-800 bg-slate-950/85 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Signal Context</p>
-                  <div className="mt-4 space-y-3">
-                    {sideInsights.map((item) => (
-                      <div key={item.label} className="rounded-2xl border border-slate-800 bg-[#08101c] p-4">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
-                        <p className={`mt-2 text-sm font-semibold ${item.tone}`}>{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-[1.6rem] border border-slate-800 bg-slate-950/85 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Watchlist Pulse</p>
-                    <span className="rounded-full border border-cyan-400/15 bg-cyan-400/8 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-cyan-100/80">
-                      live read
-                    </span>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {watchlistRows.map((row) => (
-                      <div key={row.symbol} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-[#08101c] px-4 py-3">
-                        <div>
-                          <p className="text-sm font-semibold text-white">{row.symbol} / USDT</p>
-                          <p className="mt-1 text-xs text-slate-400">{row.bias}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">score</p>
-                          <p className="mt-1 text-lg font-semibold text-cyan-100">{row.score}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="hero-float relative self-center">
+            <SignalPreview />
           </div>
         </div>
       </section>
