@@ -142,20 +142,61 @@ export interface BacktestExposure {
 
 export interface BacktestResponse {
   symbol: string;
+  timeframe?: string;
   threshold: number;
   limit: number;
   horizon: number;
+  available_horizons?: number[];
   commission_bps: number;
   slippage_bps: number;
   position_size: number;
+  total_samples?: number;
   trades: number;
   gross_value_sum?: number;
   net_value_sum?: number;
   gross_return_sum?: number;
   net_return_sum?: number;
   hit_rate: number;
+  bullish_hit_rate?: number;
+  bearish_hit_rate?: number;
+  neutral_hit_rate?: number;
+  overall_directional_accuracy?: number;
   cost_return?: number;
   history: BacktestHistoryRow[];
+  sample_rows?: Array<{
+    timestamp: string;
+    symbol: string;
+    timeframe: string;
+    signal_direction: string;
+    confidence: number;
+    raw_score: number;
+    final_score: number;
+    risk: string;
+    market_regime: string;
+    quality_flags: string[];
+    entry_price: number;
+    future_return_1?: number | null;
+    future_return_4?: number | null;
+    future_return_12?: number | null;
+    future_return: number;
+    directional_accuracy: boolean;
+  }>;
+  signal_type_metrics?: Array<{
+    signal_type: string;
+    samples: number;
+    directional_accuracy: number;
+    avg_future_return: number;
+    median_future_return: number;
+    avg_strategy_return: number;
+  }>;
+  confidence_buckets?: Array<{
+    bucket: string;
+    samples: number;
+    avg_future_return: number;
+    median_future_return: number;
+    avg_strategy_return: number;
+    directional_accuracy: number;
+  }>;
   equity_curve?: Array<{ time: string; net_value: number }>;
   regime_metrics?: Array<{
     vol_regime: string;
@@ -184,9 +225,14 @@ export interface BacktestResponse {
   exposure?: BacktestExposure;
   score_buckets?: Array<{
     bucket: string;
+    samples?: number;
     trades: number;
+    avg_future_return?: number;
+    median_future_return?: number;
+    avg_strategy_return?: number;
     net_return_avg: number;
     hit_rate: number;
+    directional_accuracy?: number;
   }>;
 }
 

@@ -353,12 +353,17 @@ const SignalsPage = () => {
       return [];
     }
     return [
+      { label: 'Samples', value: backtest.total_samples?.toString() ?? '—' },
       { label: 'Trades', value: backtest.trades?.toString() ?? '—' },
       { label: 'Hit rate', value: backtest.hit_rate ? `${(backtest.hit_rate * 100).toFixed(1)}%` : '—' },
+      { label: 'Direction', value: backtest.overall_directional_accuracy ? `${(backtest.overall_directional_accuracy * 100).toFixed(1)}%` : '—' },
       { label: 'Net return', value: backtest.net_return_sum ? `${(backtest.net_return_sum * 100).toFixed(2)}%` : '—' },
       { label: 'Max drawdown', value: backtest.max_drawdown ? `${(backtest.max_drawdown * 100).toFixed(1)}%` : '—' }
     ];
   }, [backtest]);
+
+  const confidenceBucketPreview = useMemo(() => backtest?.confidence_buckets?.slice(0, 5) ?? [], [backtest]);
+  const scoreBucketPreview = useMemo(() => backtest?.score_buckets?.slice(0, 5) ?? [], [backtest]);
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
@@ -680,14 +685,69 @@ const SignalsPage = () => {
             ) : backtestError ? (
               <p className="mt-4 text-xs text-rose-200">{backtestError}</p>
             ) : backtest ? (
-              <dl className="mt-4 space-y-3 text-sm text-slate-300">
-                {backtestSummary.map((metric) => (
-                  <div key={metric.label} className="flex items-center justify-between">
-                    <dt>{metric.label}</dt>
-                    <dd className="text-white">{metric.value}</dd>
+              <div className="mt-4 space-y-5">
+                <dl className="space-y-3 text-sm text-slate-300">
+                  {backtestSummary.map((metric) => (
+                    <div key={metric.label} className="flex items-center justify-between gap-4">
+                      <dt>{metric.label}</dt>
+                      <dd className="text-white">{metric.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <div className="grid gap-3 text-xs text-slate-300 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-outline/20 bg-muted/50 px-4 py-3">
+                    <p className="text-slate-500">Bullish hit rate</p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {backtest.bullish_hit_rate !== undefined ? `${(backtest.bullish_hit_rate * 100).toFixed(1)}%` : '—'}
+                    </p>
                   </div>
-                ))}
-              </dl>
+                  <div className="rounded-2xl border border-outline/20 bg-muted/50 px-4 py-3">
+                    <p className="text-slate-500">Bearish hit rate</p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {backtest.bearish_hit_rate !== undefined ? `${(backtest.bearish_hit_rate * 100).toFixed(1)}%` : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-outline/20 bg-muted/50 px-4 py-3">
+                    <p className="text-slate-500">Neutral hit rate</p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {backtest.neutral_hit_rate !== undefined ? `${(backtest.neutral_hit_rate * 100).toFixed(1)}%` : '—'}
+                    </p>
+                  </div>
+                </div>
+
+                {!!confidenceBucketPreview.length && (
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Confidence buckets</p>
+                    <div className="mt-3 space-y-2 text-xs text-slate-300">
+                      {confidenceBucketPreview.map((bucket) => (
+                        <div key={bucket.bucket} className="grid grid-cols-[72px_44px_1fr_1fr] items-center gap-3 rounded-2xl border border-outline/20 bg-muted/50 px-3 py-2">
+                          <span className="text-slate-200">{bucket.bucket}</span>
+                          <span>{bucket.samples}</span>
+                          <span>{(bucket.directional_accuracy * 100).toFixed(0)}% acc</span>
+                          <span className="text-right">{(bucket.avg_future_return * 100).toFixed(2)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!!scoreBucketPreview.length && (
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Score buckets</p>
+                    <div className="mt-3 space-y-2 text-xs text-slate-300">
+                      {scoreBucketPreview.map((bucket) => (
+                        <div key={bucket.bucket} className="grid grid-cols-[92px_44px_1fr_1fr] items-center gap-3 rounded-2xl border border-outline/20 bg-muted/50 px-3 py-2">
+                          <span className="text-slate-200">{bucket.bucket}</span>
+                          <span>{bucket.samples ?? bucket.trades}</span>
+                          <span>{((bucket.directional_accuracy ?? bucket.hit_rate) * 100).toFixed(0)}% acc</span>
+                          <span className="text-right">{(((bucket.avg_future_return ?? bucket.net_return_avg) ?? 0) * 100).toFixed(2)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <p className="mt-4 text-xs text-slate-400">Run the backtest to populate historical performance.</p>
             )}

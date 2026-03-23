@@ -530,18 +530,25 @@ type exposureMetrics struct {
 
 type backtestResp struct {
 	Symbol         string  `json:"symbol"`
+	Timeframe      string  `json:"timeframe"`
 	Threshold      float64 `json:"threshold"`
 	Limit          int     `json:"limit"`
 	Horizon        int     `json:"horizon"`
+	AvailableHorizons []int `json:"available_horizons"`
 	CommissionBps  float64 `json:"commission_bps"`
 	SlippageBps    float64 `json:"slippage_bps"`
 	PositionSize   float64 `json:"position_size"`
+	TotalSamples   int     `json:"total_samples"`
 	Trades         int     `json:"trades"`
 	GrossValueSum  float64 `json:"gross_value_sum"`
 	NetValueSum    float64 `json:"net_value_sum"`
 	GrossReturnSum float64 `json:"gross_return_sum"`
 	NetReturnSum   float64 `json:"net_return_sum"`
 	HitRate        float64 `json:"hit_rate"`
+	BullishHitRate float64 `json:"bullish_hit_rate"`
+	BearishHitRate float64 `json:"bearish_hit_rate"`
+	NeutralHitRate float64 `json:"neutral_hit_rate"`
+	OverallDirectionalAccuracy float64 `json:"overall_directional_accuracy"`
 	CostReturn     float64 `json:"cost_return"`
 	History        []struct {
 		Time        string  `json:"time"`
@@ -557,6 +564,40 @@ type backtestResp struct {
 		Time     string  `json:"time"`
 		NetValue float64 `json:"net_value"`
 	} `json:"equity_curve"`
+	SampleRows []struct {
+		Timestamp           string   `json:"timestamp"`
+		Symbol              string   `json:"symbol"`
+		Timeframe           string   `json:"timeframe"`
+		SignalDirection     string   `json:"signal_direction"`
+		Confidence          int      `json:"confidence"`
+		RawScore            float64  `json:"raw_score"`
+		FinalScore          float64  `json:"final_score"`
+		Risk                string   `json:"risk"`
+		MarketRegime        string   `json:"market_regime"`
+		QualityFlags        []string `json:"quality_flags"`
+		EntryPrice          float64  `json:"entry_price"`
+		FutureReturn1       *float64 `json:"future_return_1"`
+		FutureReturn4       *float64 `json:"future_return_4"`
+		FutureReturn12      *float64 `json:"future_return_12"`
+		FutureReturn        float64  `json:"future_return"`
+		DirectionalAccuracy bool     `json:"directional_accuracy"`
+	} `json:"sample_rows"`
+	SignalTypeMetrics []struct {
+		SignalType          string  `json:"signal_type"`
+		Samples             int     `json:"samples"`
+		DirectionalAccuracy float64 `json:"directional_accuracy"`
+		AvgFutureReturn     float64 `json:"avg_future_return"`
+		MedianFutureReturn  float64 `json:"median_future_return"`
+		AvgStrategyReturn   float64 `json:"avg_strategy_return"`
+	} `json:"signal_type_metrics"`
+	ConfidenceBuckets []struct {
+		Bucket              string  `json:"bucket"`
+		Samples             int     `json:"samples"`
+		AvgFutureReturn     float64 `json:"avg_future_return"`
+		MedianFutureReturn  float64 `json:"median_future_return"`
+		AvgStrategyReturn   float64 `json:"avg_strategy_return"`
+		DirectionalAccuracy float64 `json:"directional_accuracy"`
+	} `json:"confidence_buckets"`
 	RegimeMetrics []struct {
 		VolRegime   string  `json:"vol_regime"`
 		TrendRegime string  `json:"trend_regime"`
@@ -583,10 +624,15 @@ type backtestResp struct {
 	Streaks          streakMetrics         `json:"streaks"`
 	Exposure         exposureMetrics       `json:"exposure"`
 	ScoreBuckets     []struct {
-		Bucket       string  `json:"bucket"`
-		Trades       int     `json:"trades"`
-		NetReturnAvg float64 `json:"net_return_avg"`
-		HitRate      float64 `json:"hit_rate"`
+		Bucket              string  `json:"bucket"`
+		Samples             int     `json:"samples"`
+		Trades              int     `json:"trades"`
+		AvgFutureReturn     float64 `json:"avg_future_return"`
+		MedianFutureReturn  float64 `json:"median_future_return"`
+		AvgStrategyReturn   float64 `json:"avg_strategy_return"`
+		NetReturnAvg        float64 `json:"net_return_avg"`
+		HitRate             float64 `json:"hit_rate"`
+		DirectionalAccuracy float64 `json:"directional_accuracy"`
 	} `json:"score_buckets"`
 }
 

@@ -112,7 +112,7 @@ func (h *Handlers) GetSignalBacktestSweep(w http.ResponseWriter, r *http.Request
 		return
 	}
 	thresholds := parseFloatList(r.URL.Query().Get("thresholds"), []float64{0.4, 0.5, 0.6, 0.7})
-	horizons := parseIntList(r.URL.Query().Get("horizons"), []int{2, 4, 6})
+	horizons := parseIntList(r.URL.Query().Get("horizons"), []int{1, 4, 12})
 	limit := 400
 	if s := r.URL.Query().Get("limit"); s != "" {
 		if v, err := strconv.Atoi(s); err == nil {
