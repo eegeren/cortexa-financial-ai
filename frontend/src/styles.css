@@ -294,6 +294,32 @@ body {
   }
 }
 
+.landing-loader-ring {
+  animation: landingSpin 1.2s linear infinite;
+}
+
+.landing-loader-shimmer {
+  animation: landingShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes landingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landingShimmer {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(-50%) scaleX(0.92);
+  }
+  50% {
+    opacity: 0.55;
+    transform: translateY(-50%) scaleX(1.05);
+  }
+}
+
 @media (max-width: 767px), (prefers-reduced-motion: reduce) {
   .reveal-on-scroll,
   .reveal-on-scroll.is-visible,
@@ -311,6 +337,11 @@ body {
   .signal-spinner,
   .signal-loading-text,
   .signal-loading-dots span {
+    animation-duration: 1.8s;
+  }
+
+  .landing-loader-ring,
+  .landing-loader-shimmer {
     animation-duration: 1.8s;
   }
 }
