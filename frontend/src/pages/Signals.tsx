@@ -260,42 +260,42 @@ const SignalsPage = () => {
   }, [backtest]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-6 lg:gap-5">
+    <div className="flex flex-col gap-5 lg:gap-6">
       <section
-        className={`hero shrink-0 rounded-[2rem] border border-outline/20 bg-gradient-to-b from-surface via-surface to-transparent px-4 text-center transition-all duration-300 ease-out sm:px-6 ${
-          hasData ? 'hero-compact min-h-[20vh] py-5' : 'min-h-[48vh] py-10 lg:min-h-[42vh]'
+        className={`hero rounded-[2rem] border border-outline/20 bg-gradient-to-b from-surface via-surface to-transparent px-4 text-center transition-all duration-300 ease-out sm:px-6 ${
+          hasData ? 'hero-compact py-4 sm:py-5' : 'py-10 lg:py-12'
         }`}
       >
-        <header className="space-y-4">
+        <header className={`${hasData ? 'space-y-2.5' : 'space-y-4'}`}>
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Live signal studio</span>
-          <h1 className="text-4xl font-semibold text-white sm:text-5xl">
+          <h1 className={`font-semibold text-white transition-all duration-300 ${hasData ? 'text-2xl sm:text-3xl' : 'text-4xl sm:text-5xl'}`}>
             Scan structure, validate edge, and read the market with context.
           </h1>
-          <p className="mx-auto max-w-2xl text-sm text-slate-400">
+          <p className={`mx-auto max-w-2xl text-slate-400 transition-all duration-300 ${hasData ? 'text-xs sm:text-sm' : 'text-sm'}`}>
             Pick a market, inspect deterministic scoring, and use the AI layer for explanation only. The output is built for decision support, not trade commands.
           </p>
         </header>
-        <form onSubmit={handleSearch} className="mt-8 flex flex-wrap justify-center gap-3 text-sm">
+        <form onSubmit={handleSearch} className={`flex flex-wrap justify-center gap-3 text-sm transition-all duration-300 ${hasData ? 'mt-4' : 'mt-8'}`}>
           <input
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value.toUpperCase())}
             placeholder="Search symbol (e.g. BTCUSDT)"
-            className="w-full max-w-xs rounded-full border border-outline/50 bg-surface px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary"
+            className={`w-full rounded-full border border-outline/50 bg-surface px-4 text-sm text-slate-200 placeholder:text-slate-500 focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-300 ${hasData ? 'max-w-sm py-2' : 'max-w-xs py-2.5'}`}
           />
           <button
             type="submit"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-medium text-black shadow-inner-glow transition hover:bg-slate-200"
+            className={`inline-flex items-center gap-2 rounded-full bg-white px-5 font-medium text-black shadow-inner-glow transition-all duration-300 hover:bg-slate-200 ${hasData ? 'py-2' : 'py-2.5'}`}
           >
             Load signal
           </button>
         </form>
-        <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
+        <div className={`flex flex-wrap justify-center gap-2 text-xs text-slate-400 transition-all duration-300 ${hasData ? 'mt-4' : 'mt-6'}`}>
           {PRIMARY_SYMBOLS.map((symbol) => (
             <button
               key={symbol}
               type="button"
               onClick={() => void loadSignal(symbol, { scrollToResults: true })}
-              className={`rounded-full border px-3 py-1.5 transition ${
+              className={`rounded-full border transition-all duration-300 ${hasData ? 'px-2.5 py-1' : 'px-3 py-1.5'} ${
                 activeSymbol === symbol
                   ? 'border-primary bg-primary/20 text-white'
                   : 'border-outline/50 bg-surface text-slate-300 hover:border-outline'
@@ -305,13 +305,13 @@ const SignalsPage = () => {
             </button>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs text-slate-500">
+        <div className={`flex flex-wrap justify-center gap-2 text-xs text-slate-500 transition-all duration-300 ${hasData ? 'mt-2' : 'mt-3'}`}>
           {SECONDARY_SYMBOLS.map((symbol) => (
             <button
               key={symbol}
               type="button"
               onClick={() => void loadSignal(symbol, { scrollToResults: true })}
-              className="rounded-full border border-outline/40 bg-muted/60 px-3 py-1 transition hover:border-outline hover:text-white"
+              className={`rounded-full border border-outline/40 bg-muted/60 transition-all duration-300 hover:border-outline hover:text-white ${hasData ? 'px-2.5 py-1' : 'px-3 py-1'}`}
             >
               {SYMBOL_LABELS[symbol] ?? symbol}
             </button>
@@ -321,9 +321,9 @@ const SignalsPage = () => {
 
       <section
         ref={resultsRef}
-        className="grid flex-1 min-h-0 scroll-mt-6 gap-5 overflow-y-auto xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,380px)]"
+        className="grid scroll-mt-24 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,380px)]"
       >
-        <article className="flex min-h-0 flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
+        <article className="flex flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">
@@ -338,7 +338,7 @@ const SignalsPage = () => {
             )}
           </header>
 
-          <div className="mt-6 min-h-0 flex-1 space-y-6">
+          <div className="mt-6 space-y-6">
             {signalLoading ? (
               <div className="h-40 rounded-2xl border border-outline/30 bg-muted/60 animate-pulse" />
             ) : signal ? (
@@ -475,7 +475,7 @@ const SignalsPage = () => {
           </div>
         </article>
 
-        <aside className="grid min-h-0 gap-5 xl:grid-rows-[auto_auto_minmax(0,1fr)]">
+        <aside className="grid gap-5 content-start">
           <div className="rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
             <h3 className="text-lg font-semibold text-white">Technical context</h3>
             <p className="mt-1 text-sm text-slate-400">

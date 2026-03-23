@@ -8,7 +8,7 @@ import { ToastProvider } from '@/components/ToastProvider';
 
 const Layout = () => {
   const location = useLocation();
-  const isDashboardViewportRoute = location.pathname === '/assistant' || location.pathname === '/signals';
+  const isAssistantViewportRoute = location.pathname === '/assistant';
 
   return (
     <ThemeProvider>
@@ -32,7 +32,7 @@ const Layout = () => {
               <div className="relative z-10 flex h-[100dvh] min-h-0 flex-col lg:flex-row">
                 <NavBar />
                 <main className={`flex-1 min-h-0 min-w-0 overflow-x-hidden px-4 py-4 sm:px-6 lg:px-8 lg:py-6 ${
-                  isDashboardViewportRoute ? 'overflow-y-hidden' : 'overflow-y-auto'
+                  isAssistantViewportRoute ? 'overflow-y-hidden' : 'overflow-y-auto'
                 }`}>
                   <div className="mx-auto flex h-full min-h-0 w-full max-w-[1400px] flex-col">
                     <Outlet />
