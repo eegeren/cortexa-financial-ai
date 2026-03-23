@@ -26,7 +26,7 @@ const RegisterPage = () => {
 
   useEffect(() => {
     if (token) {
-      navigate('/dashboard', { replace: true });
+      navigate('/overview', { replace: true });
     }
   }, [token, navigate]);
 

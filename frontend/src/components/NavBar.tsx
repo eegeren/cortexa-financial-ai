@@ -74,9 +74,9 @@ const NavBar = () => {
   const mobileAccountRef = useRef<HTMLDivElement | null>(null);
 
   const authedLinks: { to: string; label: string; icon: IconKey }[] = [
+    { to: '/overview', label: 'Overview', icon: 'overview' },
     { to: '/assistant', label: 'Assistant', icon: 'assistant' },
     { to: '/signals', label: 'Signals', icon: 'signals' },
-    { to: '/dashboard', label: 'Overview', icon: 'overview' },
     { to: '/portfolio', label: 'Portfolio', icon: 'portfolio' },
     { to: '/forum', label: 'Forum', icon: 'updates' },
   ];
@@ -127,7 +127,7 @@ const NavBar = () => {
       <aside className="sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-700/40 bg-slate-950/35 px-3 pb-6 pt-7 backdrop-blur lg:flex">
         <button
           type="button"
-          onClick={() => navigate(token ? '/assistant' : '/')}
+          onClick={() => navigate(token ? '/overview' : '/')}
           className="flex items-center gap-2.5 self-start rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-800/35"
         >
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -235,7 +235,7 @@ const NavBar = () => {
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            onClick={() => navigate(token ? '/assistant' : '/')}
+            onClick={() => navigate(token ? '/overview' : '/')}
             className="flex items-center gap-2 text-left transition hover:text-white"
           >
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/15 text-primary">

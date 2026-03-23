@@ -80,7 +80,7 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (token) {
-      navigate('/dashboard', { replace: true });
+      navigate('/overview', { replace: true });
     }
   }, [token, navigate]);
 
@@ -121,7 +121,7 @@ const LoginPage = () => {
     event.preventDefault();
     try {
       await login(email, password);
-      navigate('/dashboard', { replace: true });
+      navigate('/overview', { replace: true });
     } catch (err) {
       console.error(err);
     }
