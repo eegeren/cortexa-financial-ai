@@ -22,10 +22,12 @@ import logging
 import traceback
 
 from analysis_engine import (
+    apply_ai_validation_outcome,
     apply_quality_first_signal_filter,
     build_analysis,
     build_indicator_frame,
     build_indicator_snapshot,
+    coin_profile,
     normalize_timeframe,
     safe_float,
     scenario_summary,
@@ -386,24 +388,21 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
         "risk": analysis.get("risk"),
         "market_regime": analysis.get("market_regime"),
         "quality_flags": analysis.get("quality_flags"),
+        "price": analysis.get("price"),
         "indicators": analysis.get("indicators"),
         "levels": analysis.get("levels"),
         "scenario": analysis.get("scenario"),
+        "scoring": analysis.get("scoring"),
+        "coin_profile": analysis.get("coin_profile") or coin_profile(symbol),
     }
     ai_validation = validate_signal_setup(validation_input)
-    analysis["ai_validated"] = ai_validation.get("valid_setup")
-    analysis["ai_setup_quality"] = ai_validation.get("setup_quality")
-    analysis["ai_validation_reason"] = ai_validation.get("reason")
-    analysis["ai_confidence_adjustment"] = int(ai_validation.get("confidence_adjustment", 0))
-
-    if ai_validation.get("setup_quality") == "low" or ai_validation.get("valid_setup") is False:
-        analysis["trend"] = "Neutral"
-        analysis["confidence"] = min(int(analysis["confidence"]) + int(ai_validation["confidence_adjustment"]), 42)
-        analysis["confidence"] = max(16, analysis["confidence"])
-    elif ai_validation.get("setup_quality") == "high" and ai_validation.get("valid_setup") is True:
-        analysis["confidence"] = max(16, min(90, int(analysis["confidence"]) + int(ai_validation["confidence_adjustment"])))
-    elif ai_validation.get("setup_quality") == "medium":
-        analysis["confidence"] = max(16, min(90, int(analysis["confidence"])))
+    if ai_validation.get("valid_setup") is None:
+        analysis["ai_validated"] = None
+        analysis["ai_setup_quality"] = ai_validation.get("setup_quality")
+        analysis["ai_validation_reason"] = ai_validation.get("reason")
+        analysis["ai_confidence_adjustment"] = 0
+    else:
+        analysis = apply_ai_validation_outcome(analysis, ai_validation)
 
     analysis["insight"] = generate_insight(analysis)
     analysis["explanation"] = generate_explanation(analysis)
@@ -468,6 +467,7 @@ def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
         "ai_setup_quality": "medium",
         "ai_validation_reason": "AI validation unavailable; deterministic fallback used.",
         "ai_confidence_adjustment": 0,
+        "coin_profile": coin_profile(normalized_symbol),
     }
 
 
@@ -583,6 +583,7 @@ def backtest(
     commission_bps: float = 4.0,
     slippage_bps: float = 1.0,
     position_size: float = 1.0,
+    use_ai_validation: bool = True,
     mode: str = "horizon",
     bootstrap: int = 0,
 ):
@@ -611,6 +612,7 @@ def backtest(
             commission_bps=commission_bps,
             slippage_bps=slippage_bps,
             position_size=position_size,
+            use_ai_validation=use_ai_validation,
         )
         return json_sanitize(result)
     except HTTPException:
@@ -630,6 +632,7 @@ def backtest_sweep_endpoint(
     commission_bps: float = 4.0,
     slippage_bps: float = 1.0,
     position_size: float = 1.0,
+    use_ai_validation: bool = True,
 ):
     threshold_values = parse_float_list(thresholds)
     horizon_values = parse_int_list(horizons)
@@ -649,6 +652,7 @@ def backtest_sweep_endpoint(
             commission_bps=commission_bps,
             slippage_bps=slippage_bps,
             position_size=position_size,
+            use_ai_validation=use_ai_validation,
         )
         for threshold_value in threshold_values
         for horizon_value in horizon_values
@@ -663,6 +667,7 @@ def backtest_sweep_endpoint(
             "commission_bps": commission_bps,
             "slippage_bps": slippage_bps,
             "position_size": position_size,
+            "use_ai_validation": use_ai_validation,
             "results": results,
         }
     )
@@ -680,6 +685,7 @@ def optimize_endpoint(
     position_size: float = 1.0,
     target_hit: float = 0.64,
     min_trades: int = 25,
+    use_ai_validation: bool = True,
     mode: str = "horizon",
     walkforward: bool = False,
 ):
@@ -705,6 +711,7 @@ def optimize_endpoint(
                 commission_bps=commission_bps,
                 slippage_bps=slippage_bps,
                 position_size=position_size,
+                use_ai_validation=use_ai_validation,
             )
             trades = int(result["trades"])
             hit_rate = float(result["hit_rate"])

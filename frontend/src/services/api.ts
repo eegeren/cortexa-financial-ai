@@ -146,6 +146,7 @@ export interface BacktestExposure {
 
 export interface BacktestResponse {
   symbol: string;
+  coin_profile?: string;
   timeframe?: string;
   threshold: number;
   limit: number;
@@ -154,6 +155,7 @@ export interface BacktestResponse {
   commission_bps: number;
   slippage_bps: number;
   position_size: number;
+  use_ai_validation?: boolean;
   total_samples?: number;
   trades: number;
   gross_value_sum?: number;
@@ -178,6 +180,8 @@ export interface BacktestResponse {
     risk: string;
     market_regime: string;
     quality_flags: string[];
+    coin_profile?: string;
+    ai_setup_quality?: 'high' | 'medium' | 'low' | null;
     entry_price: number;
     future_return_1?: number | null;
     future_return_4?: number | null;
@@ -194,6 +198,22 @@ export interface BacktestResponse {
     avg_strategy_return: number;
   }>;
   confidence_buckets?: Array<{
+    bucket: string;
+    samples: number;
+    avg_future_return: number;
+    median_future_return: number;
+    avg_strategy_return: number;
+    directional_accuracy: number;
+  }>;
+  setup_quality_buckets?: Array<{
+    bucket: string;
+    samples: number;
+    avg_future_return: number;
+    median_future_return: number;
+    avg_strategy_return: number;
+    directional_accuracy: number;
+  }>;
+  coin_profile_metrics?: Array<{
     bucket: string;
     samples: number;
     avg_future_return: number;
@@ -248,6 +268,7 @@ export interface BacktestSweepResponse {
   commission_bps: number;
   slippage_bps: number;
   position_size: number;
+  use_ai_validation?: boolean;
   results: BacktestResponse[];
 }
 
@@ -451,6 +472,7 @@ export const fetchBacktest = async (
     commission_bps?: number;
     slippage_bps?: number;
     position_size?: number;
+    use_ai_validation?: boolean;
   } = {}
 ) => {
   const {
@@ -460,9 +482,10 @@ export const fetchBacktest = async (
     commission_bps = 4,
     slippage_bps = 1,
     position_size = 1,
+    use_ai_validation = true,
   } = params;
   const { data } = await http.get<BacktestResponse>(`/api/signals/${symbol}/backtest`, {
-    params: { threshold, limit, horizon, commission_bps, slippage_bps, position_size },
+    params: { threshold, limit, horizon, commission_bps, slippage_bps, position_size, use_ai_validation },
   });
   return data;
 };
@@ -476,6 +499,7 @@ export const fetchBacktestSweep = async (
     commission_bps?: number;
     slippage_bps?: number;
     position_size?: number;
+    use_ai_validation?: boolean;
   } = {}
 ) => {
   const {
@@ -485,12 +509,14 @@ export const fetchBacktestSweep = async (
     commission_bps = 4,
     slippage_bps = 1,
     position_size = 1,
+    use_ai_validation = true,
   } = params;
   const query: Record<string, string | number> = {
     limit,
     commission_bps,
     slippage_bps,
     position_size,
+    use_ai_validation: use_ai_validation ? 'true' : 'false',
   };
   if (thresholds && thresholds.length) {
     query.thresholds = thresholds.join(',');

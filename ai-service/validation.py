@@ -5,7 +5,15 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from analysis_engine import apply_quality_first_signal_filter, build_analysis, build_indicator_frame, clamp
+from analysis_engine import (
+    apply_ai_validation_outcome,
+    apply_quality_first_signal_filter,
+    build_analysis,
+    build_indicator_frame,
+    clamp,
+    coin_profile,
+    deterministic_ai_validation_proxy,
+)
 
 SUPPORTED_VALIDATION_HORIZONS = (1, 4, 12)
 CONFIDENCE_BUCKETS = ((0, 20), (20, 40), (40, 60), (60, 80), (80, 100))
@@ -35,8 +43,8 @@ def _trend_bias(trend: str) -> int:
     return 0
 
 
-def _apply_validation_quality_filters(analysis: dict[str, Any], latest_row: pd.Series) -> dict[str, Any]:
-    return apply_quality_first_signal_filter(
+def _apply_validation_quality_filters(analysis: dict[str, Any], latest_row: pd.Series, *, use_ai_validation: bool) -> dict[str, Any]:
+    filtered = apply_quality_first_signal_filter(
         analysis,
         latest_row,
         timeframe=str(analysis.get("timeframe", "1h")),
@@ -44,6 +52,30 @@ def _apply_validation_quality_filters(analysis: dict[str, Any], latest_row: pd.S
         higher_timeframe_trend=None,
         higher_timeframe_stale=False,
     )
+    if not use_ai_validation:
+        filtered["ai_validated"] = None
+        filtered["ai_setup_quality"] = None
+        filtered["ai_validation_reason"] = "AI validation disabled for this backtest run."
+        filtered["ai_confidence_adjustment"] = 0
+        return filtered
+
+    validation_input = {
+        "symbol": filtered.get("symbol"),
+        "timeframe": filtered.get("timeframe"),
+        "trend": filtered.get("trend"),
+        "confidence": filtered.get("confidence"),
+        "risk": filtered.get("risk"),
+        "market_regime": filtered.get("market_regime"),
+        "quality_flags": filtered.get("quality_flags"),
+        "indicators": filtered.get("indicators"),
+        "levels": filtered.get("levels"),
+        "scenario": filtered.get("scenario"),
+        "scoring": filtered.get("scoring"),
+        "coin_profile": filtered.get("coin_profile") or coin_profile(str(filtered.get("symbol", ""))),
+        "price": filtered.get("price"),
+    }
+    ai_validation = deterministic_ai_validation_proxy(validation_input)
+    return apply_ai_validation_outcome(filtered, ai_validation)
 
 
 def _directional_final_score(analysis: dict[str, Any]) -> float:
@@ -54,7 +86,7 @@ def _directional_final_score(analysis: dict[str, Any]) -> float:
     return round(clamp((raw_score - 50.0) + market_quality + mtf, -100.0, 100.0), 2)
 
 
-def analysis_history(df: pd.DataFrame, symbol: str, timeframe: str) -> pd.DataFrame:
+def analysis_history(df: pd.DataFrame, symbol: str, timeframe: str, *, use_ai_validation: bool = True) -> pd.DataFrame:
     frame = build_indicator_frame(df)
     records: list[dict[str, Any]] = []
     start_index = 199 if len(frame) > 199 else len(frame)
@@ -62,12 +94,13 @@ def analysis_history(df: pd.DataFrame, symbol: str, timeframe: str) -> pd.DataFr
     for idx in range(start_index, len(frame)):
         window = frame.iloc[: idx + 1]
         analysis = build_analysis(window, symbol=symbol, timeframe=timeframe)
-        analysis = _apply_validation_quality_filters(analysis, frame.iloc[idx])
+        analysis = _apply_validation_quality_filters(analysis, frame.iloc[idx], use_ai_validation=use_ai_validation)
         current = frame.iloc[idx]
         records.append(
             {
                 "timestamp": frame.index[idx],
                 "symbol": symbol.upper(),
+                "coin_profile": str(analysis.get("coin_profile") or coin_profile(symbol)),
                 "timeframe": timeframe,
                 "entry_price": float(current["close"]),
                 "signal_direction": analysis["trend"],
@@ -78,6 +111,8 @@ def analysis_history(df: pd.DataFrame, symbol: str, timeframe: str) -> pd.DataFr
                 "risk": str(analysis["risk"]),
                 "market_regime": str(analysis["market_regime"]),
                 "quality_flags": list(analysis.get("quality_flags", [])),
+                "ai_setup_quality": analysis.get("ai_setup_quality"),
+                "ai_validated": analysis.get("ai_validated"),
                 "momentum": str(analysis.get("momentum", "")),
                 "atr_pct": float(current["atr_pct"]) if pd.notna(current["atr_pct"]) else np.nan,
                 "adx": float(current["adx"]) if pd.notna(current["adx"]) else np.nan,
@@ -155,11 +190,14 @@ def validate_analysis_history(
     commission_bps: float,
     slippage_bps: float,
     position_size: float,
+    use_ai_validation: bool = True,
 ) -> dict[str, Any]:
-    signals = analysis_history(df, symbol, timeframe)
+    profile = coin_profile(symbol)
+    signals = analysis_history(df, symbol, timeframe, use_ai_validation=use_ai_validation)
     if signals.empty:
         return {
             "symbol": symbol.upper(),
+            "coin_profile": profile,
             "timeframe": timeframe,
             "threshold": threshold,
             "limit": int(len(df)),
@@ -168,6 +206,7 @@ def validate_analysis_history(
             "commission_bps": commission_bps,
             "slippage_bps": slippage_bps,
             "position_size": position_size,
+            "use_ai_validation": use_ai_validation,
             "total_samples": 0,
             "trades": 0,
             "bullish_hit_rate": 0.0,
@@ -179,6 +218,8 @@ def validate_analysis_history(
             "signal_type_metrics": [],
             "confidence_buckets": [],
             "score_buckets": [],
+            "setup_quality_buckets": [],
+            "coin_profile_metrics": [],
             "validation": {"records": [], "activation_threshold": threshold},
         }
 
@@ -256,6 +297,32 @@ def validate_analysis_history(
             }
         )
 
+    setup_quality_buckets: list[dict[str, Any]] = []
+    for bucket in ("high", "medium", "low"):
+        subset = working[working["ai_setup_quality"] == bucket] if use_ai_validation else working.iloc[0:0]
+        setup_quality_buckets.append(
+            {
+                "bucket": bucket,
+                "samples": int(len(subset)),
+                "avg_future_return": _avg_or_zero(subset["future_return"]),
+                "median_future_return": _median_or_zero(subset["future_return"]),
+                "avg_strategy_return": _avg_or_zero(subset["strategy_return_gross"]),
+                "directional_accuracy": _directional_accuracy(subset),
+            }
+        )
+
+    coin_profile_subset = working[working["coin_profile"] == profile]
+    coin_profile_metrics = [
+        {
+            "bucket": profile,
+            "samples": int(len(coin_profile_subset)),
+            "avg_future_return": _avg_or_zero(coin_profile_subset["future_return"]),
+            "median_future_return": _median_or_zero(coin_profile_subset["future_return"]),
+            "avg_strategy_return": _avg_or_zero(coin_profile_subset["strategy_return_gross"]),
+            "directional_accuracy": _directional_accuracy(coin_profile_subset),
+        }
+    ]
+
     bullish = working[working["signal_direction"].isin(["Bullish", "Strong Bullish"])]
     bearish = working[working["signal_direction"].isin(["Bearish", "Strong Bearish"])]
     neutral = working[working["signal_direction"] == "Neutral"]
@@ -304,6 +371,8 @@ def validate_analysis_history(
             "risk": row["risk"],
             "market_regime": row["market_regime"],
             "quality_flags": row["quality_flags"],
+            "coin_profile": row["coin_profile"],
+            "ai_setup_quality": row["ai_setup_quality"],
             "entry_price": float(row["entry_price"]),
             "future_return_1": float(row["future_return_1"]) if pd.notna(row["future_return_1"]) else None,
             "future_return_4": float(row["future_return_4"]) if pd.notna(row["future_return_4"]) else None,
@@ -325,12 +394,15 @@ def validate_analysis_history(
             "direction": int(row["signal_bias"]),
             "market_regime": row["market_regime"],
             "quality_flags": row["quality_flags"],
+            "coin_profile": row["coin_profile"],
+            "ai_setup_quality": row["ai_setup_quality"],
         }
         for _, row in working.tail(250).iterrows()
     ]
 
     return {
         "symbol": symbol.upper(),
+        "coin_profile": profile,
         "timeframe": timeframe,
         "threshold": threshold,
         "limit": int(len(df)),
@@ -339,6 +411,7 @@ def validate_analysis_history(
         "commission_bps": commission_bps,
         "slippage_bps": slippage_bps,
         "position_size": position_size,
+        "use_ai_validation": use_ai_validation,
         "total_samples": int(len(working)),
         "trades": int(len(active)),
         "gross_value_sum": float(active["gross_value"].sum()) if not active.empty else 0.0,
@@ -400,6 +473,8 @@ def validate_analysis_history(
         "signal_type_metrics": signal_type_metrics,
         "confidence_buckets": confidence_buckets,
         "score_buckets": score_buckets,
+        "setup_quality_buckets": setup_quality_buckets,
+        "coin_profile_metrics": coin_profile_metrics,
         "validation": {
             "records": validation_records,
             "activation_threshold": threshold,

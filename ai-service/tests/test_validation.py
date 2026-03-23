@@ -42,6 +42,7 @@ class ValidationTests(unittest.TestCase):
             self.assertIn(f"future_return_{horizon}", history.columns)
         self.assertIn("final_score", history.columns)
         self.assertIn("quality_flags", history.columns)
+        self.assertIn("coin_profile", history.columns)
 
     def test_validate_analysis_history_returns_bucket_metrics_and_samples(self):
         result = validate_analysis_history(
@@ -58,10 +59,13 @@ class ValidationTests(unittest.TestCase):
         self.assertIn("overall_directional_accuracy", result)
         self.assertIn("confidence_buckets", result)
         self.assertIn("score_buckets", result)
+        self.assertIn("setup_quality_buckets", result)
+        self.assertIn("coin_profile_metrics", result)
         self.assertIn("sample_rows", result)
         self.assertEqual(result["available_horizons"], [1, 4, 12])
         self.assertEqual(len(result["confidence_buckets"]), 5)
         self.assertEqual(len(result["score_buckets"]), 5)
+        self.assertEqual(result["coin_profile"], "high_quality")
 
     def test_sample_rows_include_required_validation_fields(self):
         result = validate_analysis_history(
@@ -87,6 +91,8 @@ class ValidationTests(unittest.TestCase):
             "risk",
             "market_regime",
             "quality_flags",
+            "coin_profile",
+            "ai_setup_quality",
             "entry_price",
             "future_return",
             "future_return_1",
@@ -95,6 +101,21 @@ class ValidationTests(unittest.TestCase):
             "directional_accuracy",
         ):
             self.assertIn(key, row)
+
+    def test_backtest_can_disable_ai_validation(self):
+        result = validate_analysis_history(
+            sample_frame(),
+            symbol="SOLUSDT",
+            timeframe="4h",
+            threshold=0.5,
+            horizon=4,
+            commission_bps=4.0,
+            slippage_bps=1.0,
+            position_size=1.0,
+            use_ai_validation=False,
+        )
+        self.assertFalse(result["use_ai_validation"])
+        self.assertEqual(result["coin_profile"], "mid_quality")
 
 
 if __name__ == "__main__":

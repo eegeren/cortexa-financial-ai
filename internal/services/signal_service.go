@@ -529,28 +529,30 @@ type exposureMetrics struct {
 }
 
 type backtestResp struct {
-	Symbol         string  `json:"symbol"`
-	Timeframe      string  `json:"timeframe"`
-	Threshold      float64 `json:"threshold"`
-	Limit          int     `json:"limit"`
-	Horizon        int     `json:"horizon"`
-	AvailableHorizons []int `json:"available_horizons"`
-	CommissionBps  float64 `json:"commission_bps"`
-	SlippageBps    float64 `json:"slippage_bps"`
-	PositionSize   float64 `json:"position_size"`
-	TotalSamples   int     `json:"total_samples"`
-	Trades         int     `json:"trades"`
-	GrossValueSum  float64 `json:"gross_value_sum"`
-	NetValueSum    float64 `json:"net_value_sum"`
-	GrossReturnSum float64 `json:"gross_return_sum"`
-	NetReturnSum   float64 `json:"net_return_sum"`
-	HitRate        float64 `json:"hit_rate"`
-	BullishHitRate float64 `json:"bullish_hit_rate"`
-	BearishHitRate float64 `json:"bearish_hit_rate"`
-	NeutralHitRate float64 `json:"neutral_hit_rate"`
+	Symbol                     string  `json:"symbol"`
+	CoinProfile                string  `json:"coin_profile"`
+	Timeframe                  string  `json:"timeframe"`
+	Threshold                  float64 `json:"threshold"`
+	Limit                      int     `json:"limit"`
+	Horizon                    int     `json:"horizon"`
+	AvailableHorizons          []int   `json:"available_horizons"`
+	CommissionBps              float64 `json:"commission_bps"`
+	SlippageBps                float64 `json:"slippage_bps"`
+	PositionSize               float64 `json:"position_size"`
+	UseAIValidation            bool    `json:"use_ai_validation"`
+	TotalSamples               int     `json:"total_samples"`
+	Trades                     int     `json:"trades"`
+	GrossValueSum              float64 `json:"gross_value_sum"`
+	NetValueSum                float64 `json:"net_value_sum"`
+	GrossReturnSum             float64 `json:"gross_return_sum"`
+	NetReturnSum               float64 `json:"net_return_sum"`
+	HitRate                    float64 `json:"hit_rate"`
+	BullishHitRate             float64 `json:"bullish_hit_rate"`
+	BearishHitRate             float64 `json:"bearish_hit_rate"`
+	NeutralHitRate             float64 `json:"neutral_hit_rate"`
 	OverallDirectionalAccuracy float64 `json:"overall_directional_accuracy"`
-	CostReturn     float64 `json:"cost_return"`
-	History        []struct {
+	CostReturn                 float64 `json:"cost_return"`
+	History                    []struct {
 		Time        string  `json:"time"`
 		Side        string  `json:"side"`
 		Score       float64 `json:"score"`
@@ -575,6 +577,8 @@ type backtestResp struct {
 		Risk                string   `json:"risk"`
 		MarketRegime        string   `json:"market_regime"`
 		QualityFlags        []string `json:"quality_flags"`
+		CoinProfile         string   `json:"coin_profile"`
+		AISetupQuality      *string  `json:"ai_setup_quality"`
 		EntryPrice          float64  `json:"entry_price"`
 		FutureReturn1       *float64 `json:"future_return_1"`
 		FutureReturn4       *float64 `json:"future_return_4"`
@@ -598,6 +602,22 @@ type backtestResp struct {
 		AvgStrategyReturn   float64 `json:"avg_strategy_return"`
 		DirectionalAccuracy float64 `json:"directional_accuracy"`
 	} `json:"confidence_buckets"`
+	SetupQualityBuckets []struct {
+		Bucket              string  `json:"bucket"`
+		Samples             int     `json:"samples"`
+		AvgFutureReturn     float64 `json:"avg_future_return"`
+		MedianFutureReturn  float64 `json:"median_future_return"`
+		AvgStrategyReturn   float64 `json:"avg_strategy_return"`
+		DirectionalAccuracy float64 `json:"directional_accuracy"`
+	} `json:"setup_quality_buckets"`
+	CoinProfileMetrics []struct {
+		Bucket              string  `json:"bucket"`
+		Samples             int     `json:"samples"`
+		AvgFutureReturn     float64 `json:"avg_future_return"`
+		MedianFutureReturn  float64 `json:"median_future_return"`
+		AvgStrategyReturn   float64 `json:"avg_strategy_return"`
+		DirectionalAccuracy float64 `json:"directional_accuracy"`
+	} `json:"coin_profile_metrics"`
 	RegimeMetrics []struct {
 		VolRegime   string  `json:"vol_regime"`
 		TrendRegime string  `json:"trend_regime"`
@@ -637,14 +657,15 @@ type backtestResp struct {
 }
 
 type backtestSweepResp struct {
-	Symbol        string         `json:"symbol"`
-	Thresholds    []float64      `json:"thresholds"`
-	Horizons      []int          `json:"horizons"`
-	Limit         int            `json:"limit"`
-	CommissionBps float64        `json:"commission_bps"`
-	SlippageBps   float64        `json:"slippage_bps"`
-	PositionSize  float64        `json:"position_size"`
-	Results       []backtestResp `json:"results"`
+	Symbol          string         `json:"symbol"`
+	Thresholds      []float64      `json:"thresholds"`
+	Horizons        []int          `json:"horizons"`
+	Limit           int            `json:"limit"`
+	CommissionBps   float64        `json:"commission_bps"`
+	SlippageBps     float64        `json:"slippage_bps"`
+	PositionSize    float64        `json:"position_size"`
+	UseAIValidation bool           `json:"use_ai_validation"`
+	Results         []backtestResp `json:"results"`
 }
 
 func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Signal, error) {
@@ -821,6 +842,7 @@ func (s *SignalService) Backtest(
 	threshold float64,
 	limit, horizon int,
 	commissionBps, slippageBps, positionSize float64,
+	useAIValidation bool,
 ) (backtestResp, error) {
 	var resp backtestResp
 	endpoint, _ := url.Parse(s.aiBaseURL() + "/backtest")
@@ -832,6 +854,11 @@ func (s *SignalService) Backtest(
 	q.Set("commission_bps", formatFloat(commissionBps))
 	q.Set("slippage_bps", formatFloat(slippageBps))
 	q.Set("position_size", formatFloat(positionSize))
+	if useAIValidation {
+		q.Set("use_ai_validation", "true")
+	} else {
+		q.Set("use_ai_validation", "false")
+	}
 	endpoint.RawQuery = q.Encode()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
 	res, err := http.DefaultClient.Do(req)
@@ -855,6 +882,7 @@ func (s *SignalService) BacktestSweep(
 	horizons []int,
 	limit int,
 	commissionBps, slippageBps, positionSize float64,
+	useAIValidation bool,
 ) (backtestSweepResp, error) {
 	var resp backtestSweepResp
 	endpoint, _ := url.Parse(s.aiBaseURL() + "/backtest/sweep")
@@ -866,6 +894,11 @@ func (s *SignalService) BacktestSweep(
 	q.Set("commission_bps", formatFloat(commissionBps))
 	q.Set("slippage_bps", formatFloat(slippageBps))
 	q.Set("position_size", formatFloat(positionSize))
+	if useAIValidation {
+		q.Set("use_ai_validation", "true")
+	} else {
+		q.Set("use_ai_validation", "false")
+	}
 	endpoint.RawQuery = q.Encode()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
 	res, err := http.DefaultClient.Do(req)

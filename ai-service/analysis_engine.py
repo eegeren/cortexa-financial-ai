@@ -10,6 +10,50 @@ import ta
 
 DISCLAIMER = "This is not financial advice. It is an informational market analysis."
 CORE_COLUMNS = ("open", "high", "low", "close", "volume")
+HIGH_QUALITY_SYMBOLS = frozenset({"BTCUSDT", "ETHUSDT"})
+MID_QUALITY_SYMBOLS = frozenset({"SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "AVAXUSDT"})
+
+PROFILE_RULES: dict[str, dict[str, float | int | bool]] = {
+    "high_quality": {
+        "neutral_adx_min": 22,
+        "neutral_volume_min": 0.85,
+        "directional_adx_min": 22,
+        "directional_volume_min": 0.95,
+        "directional_confirmations_min": 4,
+        "directional_mtf_required": False,
+        "directional_confidence_min": 45,
+        "strong_adx_min": 25,
+        "strong_volume_min": 1.0,
+        "strong_confirmations_min": 5,
+        "strong_confidence_min": 75,
+    },
+    "mid_quality": {
+        "neutral_adx_min": 23,
+        "neutral_volume_min": 0.90,
+        "directional_adx_min": 23,
+        "directional_volume_min": 1.0,
+        "directional_confirmations_min": 5,
+        "directional_mtf_required": False,
+        "directional_confidence_min": 45,
+        "strong_adx_min": 27,
+        "strong_volume_min": 1.08,
+        "strong_confirmations_min": 6,
+        "strong_confidence_min": 76,
+    },
+    "low_quality": {
+        "neutral_adx_min": 25,
+        "neutral_volume_min": 0.95,
+        "directional_adx_min": 25,
+        "directional_volume_min": 1.05,
+        "directional_confirmations_min": 5,
+        "directional_mtf_required": True,
+        "directional_confidence_min": 60,
+        "strong_adx_min": 30,
+        "strong_volume_min": 1.15,
+        "strong_confirmations_min": 6,
+        "strong_confidence_min": 78,
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -42,6 +86,19 @@ def confidence_from_raw_score(raw_score: float) -> int:
 def normalize_timeframe(timeframe: str | None) -> str:
     value = (timeframe or "1h").strip().lower()
     return value or "1h"
+
+
+def coin_profile(symbol: str | None) -> str:
+    normalized = (symbol or "").strip().upper()
+    if normalized in HIGH_QUALITY_SYMBOLS:
+        return "high_quality"
+    if normalized in MID_QUALITY_SYMBOLS:
+        return "mid_quality"
+    return "low_quality"
+
+
+def coin_profile_rules(symbol: str | None) -> dict[str, float | int | bool]:
+    return dict(PROFILE_RULES[coin_profile(symbol)])
 
 
 def build_indicator_frame(df: pd.DataFrame) -> pd.DataFrame:
@@ -278,6 +335,9 @@ def apply_quality_first_signal_filter(
         "quality_flags": list(analysis.get("quality_flags", [])),
     }
 
+    symbol = str(updated.get("symbol") or analysis.get("symbol") or "")
+    profile = coin_profile(symbol)
+    rules = coin_profile_rules(symbol)
     confidence = int(updated["confidence"])
     flags = list(updated["quality_flags"])
     market_quality_adjustment = 0
@@ -307,14 +367,18 @@ def apply_quality_first_signal_filter(
     if higher_timeframe_stale:
         market_quality_adjustment -= 1
 
-    if volume_ratio is not None and volume_ratio < 0.95:
+    directional_volume_min = float(rules["directional_volume_min"])
+    neutral_volume_min = float(rules["neutral_volume_min"])
+    neutral_adx_min = float(rules["neutral_adx_min"])
+
+    if volume_ratio is not None and volume_ratio < directional_volume_min:
         market_quality_adjustment -= 3
         flags.append("weak_volume_confirmation")
-    if volume_ratio is not None and volume_ratio < 0.85:
+    if volume_ratio is not None and volume_ratio < neutral_volume_min:
         market_quality_adjustment -= 7
         flags.append("low_volume")
 
-    if adx is not None and adx < 22:
+    if adx is not None and adx < neutral_adx_min:
         market_quality_adjustment -= 10
         flags.append("weak_trend_strength")
     elif adx is not None and adx < 25:
@@ -347,7 +411,7 @@ def apply_quality_first_signal_filter(
         bullish_confirmations += 1
     if higher_is_bullish:
         bullish_confirmations += 1
-    if volume_ratio is not None and volume_ratio >= 0.95:
+    if volume_ratio is not None and volume_ratio >= directional_volume_min:
         bullish_confirmations += 1
 
     if ema20 is not None and ema50 is not None and ema20 < ema50:
@@ -364,7 +428,7 @@ def apply_quality_first_signal_filter(
         bearish_confirmations += 1
     if higher_is_bearish:
         bearish_confirmations += 1
-    if volume_ratio is not None and volume_ratio >= 0.95:
+    if volume_ratio is not None and volume_ratio >= directional_volume_min:
         bearish_confirmations += 1
 
     if higher_is_bullish and bearish_confirmations > bullish_confirmations:
@@ -385,26 +449,96 @@ def apply_quality_first_signal_filter(
 
     bullish_exhausted = rsi is not None and rsi > 72
     bearish_exhausted = rsi is not None and rsi < 28
+    directional_adx_min = float(rules["directional_adx_min"])
+    directional_confirmations_min = int(rules["directional_confirmations_min"])
+    directional_mtf_required = bool(rules["directional_mtf_required"])
+    directional_confidence_min = int(rules["directional_confidence_min"])
+    strong_adx_min = float(rules["strong_adx_min"])
+    strong_volume_min = float(rules["strong_volume_min"])
+    strong_confirmations_min = int(rules["strong_confirmations_min"])
+    strong_confidence_min = int(rules["strong_confidence_min"])
     no_trade = (
-        (adx is not None and adx < 22)
-        or (volume_ratio is not None and volume_ratio < 0.85)
+        (adx is not None and adx < neutral_adx_min)
+        or (volume_ratio is not None and volume_ratio < neutral_volume_min)
         or regime in {"Range-Bound", "Low Participation"}
         or "mtf_conflict" in flags
         or "choppy_structure" in flags
         or "weak_trend_strength" in flags
     )
 
-    bull_candidate = bullish_confirmations >= 4 and not bullish_exhausted
-    bear_candidate = bearish_confirmations >= 4 and not bearish_exhausted
-    bull_strong = bull_candidate and bullish_confirmations >= 5 and adx is not None and adx >= 25 and "mtf_aligned" in flags
-    bear_strong = bear_candidate and bearish_confirmations >= 5 and adx is not None and adx >= 25 and "mtf_aligned" in flags
+    bull_price_confirms = price is not None and ema20 is not None and price > ema20
+    bear_price_confirms = price is not None and ema20 is not None and price < ema20
+    bull_macd_confirms = (
+        macd is not None
+        and macd_signal is not None
+        and macd > macd_signal
+        and macd_histogram is not None
+        and macd_histogram > 0
+    )
+    bear_macd_confirms = (
+        macd is not None
+        and macd_signal is not None
+        and macd < macd_signal
+        and macd_histogram is not None
+        and macd_histogram < 0
+    )
+    bull_rsi_supportive = rsi is not None and 52 <= rsi <= 68
+    bear_rsi_supportive = rsi is not None and 32 <= rsi <= 48
+    mtf_aligned = "mtf_aligned" in flags
+
+    bull_candidate = (
+        bullish_confirmations >= directional_confirmations_min
+        and not bullish_exhausted
+        and bull_price_confirms
+        and bull_macd_confirms
+        and adx is not None
+        and adx >= directional_adx_min
+        and volume_ratio is not None
+        and volume_ratio >= directional_volume_min
+        and (not directional_mtf_required or mtf_aligned)
+    )
+    bear_candidate = (
+        bearish_confirmations >= directional_confirmations_min
+        and not bearish_exhausted
+        and bear_price_confirms
+        and bear_macd_confirms
+        and adx is not None
+        and adx >= directional_adx_min
+        and volume_ratio is not None
+        and volume_ratio >= directional_volume_min
+        and (not directional_mtf_required or mtf_aligned)
+    )
+    bull_strong_ready = (
+        bull_candidate
+        and bullish_stack
+        and bullish_confirmations >= strong_confirmations_min
+        and bull_rsi_supportive
+        and adx is not None
+        and adx >= strong_adx_min
+        and volume_ratio is not None
+        and volume_ratio >= strong_volume_min
+        and mtf_aligned
+        and confidence >= strong_confidence_min
+    )
+    bear_strong_ready = (
+        bear_candidate
+        and bearish_stack
+        and bearish_confirmations >= strong_confirmations_min
+        and bear_rsi_supportive
+        and adx is not None
+        and adx >= strong_adx_min
+        and volume_ratio is not None
+        and volume_ratio >= strong_volume_min
+        and mtf_aligned
+        and confidence >= strong_confidence_min
+    )
 
     trend = "Neutral"
-    if not no_trade and confidence >= 45 and not (risk == "High" and confidence < 65):
+    if not no_trade and confidence >= directional_confidence_min and not (risk == "High" and confidence < 65):
         if bull_candidate and bullish_confirmations > bearish_confirmations:
-            trend = "Strong Bullish" if bull_strong and confidence >= 75 else "Bullish"
+            trend = "Bullish"
         elif bear_candidate and bearish_confirmations > bullish_confirmations:
-            trend = "Strong Bearish" if bear_strong and confidence >= 75 else "Bearish"
+            trend = "Bearish"
 
     if confidence < 45:
         trend = "Neutral"
@@ -419,10 +553,14 @@ def apply_quality_first_signal_filter(
     updated["trend"] = trend
     updated["quality_flags"] = flags
     updated["stale"] = stale
+    updated["coin_profile"] = profile
     updated["scoring"]["market_quality"] = market_quality_adjustment
     updated["scoring"]["multi_timeframe_confirmation"] = mtf_adjustment
     updated["scoring"]["bullish_confirmations"] = bullish_confirmations
     updated["scoring"]["bearish_confirmations"] = bearish_confirmations
+    updated["scoring"]["bull_strong_ready"] = bull_strong_ready
+    updated["scoring"]["bear_strong_ready"] = bear_strong_ready
+    updated["scoring"]["coin_profile"] = profile
 
     if trend == "Neutral" and risk == "Low" and confidence < 65:
         updated["risk"] = "Medium"
@@ -438,6 +576,147 @@ def apply_quality_first_signal_filter(
         momentum=str(updated.get("momentum", "Weak")),
     )
 
+    return updated
+
+
+def deterministic_ai_validation_proxy(analysis: dict[str, Any]) -> dict[str, Any]:
+    trend = str(analysis.get("trend", "Neutral"))
+    confidence = int(analysis.get("confidence", 50))
+    risk = str(analysis.get("risk", "Medium"))
+    regime = str(analysis.get("market_regime", "Range-Bound"))
+    flags = set(str(flag) for flag in analysis.get("quality_flags", []) if flag)
+    indicators = analysis.get("indicators", {}) or {}
+    scoring = analysis.get("scoring", {}) or {}
+
+    adx = safe_float(indicators.get("adx"))
+    volume_ratio = safe_float(indicators.get("volume_ratio"))
+    rsi = safe_float(indicators.get("rsi"))
+    macd_payload = indicators.get("macd", {}) or {}
+    macd = safe_float(macd_payload.get("macd"))
+    macd_signal = safe_float(macd_payload.get("signal"))
+    macd_histogram = safe_float(macd_payload.get("histogram"))
+    ema20 = safe_float(indicators.get("ema20"))
+    ema50 = safe_float(indicators.get("ema50"))
+    ema200 = safe_float(indicators.get("ema200"))
+    price = safe_float(analysis.get("price"))
+
+    bullish_direction = trend in {"Bullish", "Strong Bullish"}
+    bearish_direction = trend in {"Bearish", "Strong Bearish"}
+    bullish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 > ema50 > ema200
+    bearish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 < ema50 < ema200
+    price_confirms = (
+        (bullish_direction and price is not None and ema20 is not None and price > ema20)
+        or (bearish_direction and price is not None and ema20 is not None and price < ema20)
+    )
+    macd_confirms = (
+        bullish_direction
+        and macd is not None
+        and macd_signal is not None
+        and macd > macd_signal
+        and macd_histogram is not None
+        and macd_histogram > 0
+    ) or (
+        bearish_direction
+        and macd is not None
+        and macd_signal is not None
+        and macd < macd_signal
+        and macd_histogram is not None
+        and macd_histogram < 0
+    )
+    supportive_rsi = (
+        bullish_direction and rsi is not None and 52 <= rsi <= 68
+    ) or (
+        bearish_direction and rsi is not None and 32 <= rsi <= 48
+    )
+
+    confirmation_count = int(
+        scoring.get("bullish_confirmations", 0) if bullish_direction else scoring.get("bearish_confirmations", 0)
+    )
+    has_conflict = bool({"mtf_conflict", "choppy_structure", "weak_trend_strength"} & flags)
+    directional = bullish_direction or bearish_direction
+    clean_structure = bullish_stack or bearish_stack
+
+    if not directional:
+        return {
+            "valid_setup": True,
+            "setup_quality": "low",
+            "confidence_adjustment": -4,
+            "reason": "Directional alignment is insufficient, so no clear edge is present.",
+        }
+
+    if (
+        has_conflict
+        or regime in {"Range-Bound", "Low Participation"}
+        or volume_ratio is None
+        or volume_ratio < 0.95
+        or adx is None
+        or adx < 22
+        or confidence < 45
+        or (risk == "High" and confidence < 65)
+        or not price_confirms
+        or not macd_confirms
+    ):
+        return {
+            "valid_setup": False,
+            "setup_quality": "low",
+            "confidence_adjustment": -8,
+            "reason": "Participation or confirmation is too weak to keep a reliable directional setup.",
+        }
+
+    if (
+        clean_structure
+        and supportive_rsi
+        and volume_ratio >= 1.0
+        and adx >= 25
+        and "mtf_aligned" in flags
+        and confirmation_count >= 5
+        and confidence >= 75
+    ):
+        return {
+            "valid_setup": True,
+            "setup_quality": "high",
+            "confidence_adjustment": 3,
+            "reason": "Structure, momentum, participation, and timeframe alignment are all clean and supportive.",
+        }
+
+    return {
+        "valid_setup": True,
+        "setup_quality": "medium",
+        "confidence_adjustment": 0,
+        "reason": "The setup is usable, but confirmation quality is not clean enough to rate highly.",
+    }
+
+
+def apply_ai_validation_outcome(analysis: dict[str, Any], ai_validation: dict[str, Any]) -> dict[str, Any]:
+    updated = {
+        **analysis,
+        "scoring": dict(analysis.get("scoring", {})),
+        "quality_flags": list(analysis.get("quality_flags", [])),
+    }
+
+    setup_quality = ai_validation.get("setup_quality")
+    valid_setup = ai_validation.get("valid_setup")
+    confidence_adjustment = int(ai_validation.get("confidence_adjustment", 0))
+    updated["ai_validated"] = valid_setup
+    updated["ai_setup_quality"] = setup_quality
+    updated["ai_validation_reason"] = str(ai_validation.get("reason", "")).strip()
+    updated["ai_confidence_adjustment"] = confidence_adjustment
+
+    confidence = int(updated.get("confidence", 50))
+    if setup_quality == "low" or valid_setup is False:
+        updated["trend"] = "Neutral"
+        updated["confidence"] = max(16, min(42, confidence + confidence_adjustment))
+        return updated
+
+    updated["confidence"] = max(16, min(90, confidence + confidence_adjustment))
+    if setup_quality == "high" and valid_setup is True:
+        bull_ready = bool(updated.get("scoring", {}).get("bull_strong_ready"))
+        bear_ready = bool(updated.get("scoring", {}).get("bear_strong_ready"))
+        current_trend = str(updated.get("trend", "Neutral"))
+        if bull_ready and current_trend == "Bullish" and int(updated["confidence"]) >= 75:
+            updated["trend"] = "Strong Bullish"
+        elif bear_ready and current_trend == "Bearish" and int(updated["confidence"]) >= 75:
+            updated["trend"] = "Strong Bearish"
     return updated
 
 

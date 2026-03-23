@@ -12,8 +12,10 @@ if str(AI_SERVICE_DIR) not in sys.path:
     sys.path.insert(0, str(AI_SERVICE_DIR))
 
 from analysis_engine import (  # noqa: E402
+    apply_ai_validation_outcome,
     build_analysis,
     build_indicator_frame,
+    coin_profile,
     confidence_from_raw_score,
     risk_label,
     score_row,
@@ -201,9 +203,35 @@ class AnalysisEngineTests(unittest.TestCase):
         analysis["market_regime"] = "Trending"
 
         filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend="Bullish")
-        self.assertEqual(filtered["trend"], "Strong Bullish")
+        self.assertEqual(filtered["trend"], "Bullish")
         self.assertGreaterEqual(filtered["scoring"]["bullish_confirmations"], 5)
         self.assertIn("mtf_aligned", filtered["quality_flags"])
+        self.assertTrue(filtered["scoring"]["bull_strong_ready"])
+
+    def test_high_quality_ai_validation_is_required_for_strong_label(self):
+        frame = build_indicator_frame(sample_frame())
+        analysis = build_analysis(frame, symbol="BTCUSDT", timeframe="1h")
+        latest = frame.iloc[-1].copy()
+        latest["ema20"] = 108
+        latest["ema50"] = 104
+        latest["ema200"] = 99
+        latest["close"] = 110
+        latest["macd"] = 2.1
+        latest["macd_signal"] = 1.2
+        latest["macd_histogram"] = 0.9
+        latest["rsi"] = 61
+        latest["adx"] = 28
+        latest["volume_ratio"] = 1.08
+        analysis["confidence"] = 81
+        analysis["risk"] = "Low"
+        analysis["market_regime"] = "Trending"
+
+        filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend="Bullish")
+        promoted = apply_ai_validation_outcome(
+            filtered,
+            {"valid_setup": True, "setup_quality": "high", "confidence_adjustment": 3, "reason": "Clean alignment."},
+        )
+        self.assertEqual(promoted["trend"], "Strong Bullish")
 
     def test_exhaustion_guard_blocks_bullish_output(self):
         frame = build_indicator_frame(sample_frame())
@@ -289,6 +317,7 @@ class AnalysisEngineTests(unittest.TestCase):
         self.assertEqual(analysis["ai_setup_quality"], "high")
         self.assertEqual(analysis["ai_confidence_adjustment"], 3)
         self.assertIn("consistent", analysis["ai_validation_reason"].lower())
+        self.assertGreaterEqual(analysis["confidence"], 16)
 
     def test_ai_validation_medium_quality_keeps_direction(self):
         with patch(
@@ -299,6 +328,10 @@ class AnalysisEngineTests(unittest.TestCase):
                 analysis = __import__("signal_api").compute_analysis("BTCUSDT", "1h")
         self.assertEqual(analysis["ai_setup_quality"], "medium")
         self.assertIn(analysis["trend"], {"Neutral", "Bullish", "Bearish", "Strong Bullish", "Strong Bearish"})
+
+    def test_coin_profile_defaults_to_low_for_other_pairs(self):
+        self.assertEqual(coin_profile("DOGEUSDT"), "low_quality")
+        self.assertEqual(coin_profile("BTCUSDT"), "high_quality")
 
     def test_generate_endpoint_insight_returns_text(self):
         insight = generate_endpoint_insight(

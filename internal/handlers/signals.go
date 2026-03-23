@@ -96,8 +96,14 @@ func (h *Handlers) GetSignalBacktest(w http.ResponseWriter, r *http.Request) {
 			positionSize = v
 		}
 	}
+	useAIValidation := true
+	if s := r.URL.Query().Get("use_ai_validation"); s != "" {
+		if v, err := strconv.ParseBool(s); err == nil {
+			useAIValidation = v
+		}
+	}
 
-	resp, err := h.Signal.Backtest(r.Context(), symbol, th, limit, horizon, commissionBps, slippageBps, positionSize)
+	resp, err := h.Signal.Backtest(r.Context(), symbol, th, limit, horizon, commissionBps, slippageBps, positionSize, useAIValidation)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -137,8 +143,14 @@ func (h *Handlers) GetSignalBacktestSweep(w http.ResponseWriter, r *http.Request
 			positionSize = v
 		}
 	}
+	useAIValidation := true
+	if s := r.URL.Query().Get("use_ai_validation"); s != "" {
+		if v, err := strconv.ParseBool(s); err == nil {
+			useAIValidation = v
+		}
+	}
 
-	resp, err := h.Signal.BacktestSweep(r.Context(), symbol, thresholds, horizons, limit, commissionBps, slippageBps, positionSize)
+	resp, err := h.Signal.BacktestSweep(r.Context(), symbol, thresholds, horizons, limit, commissionBps, slippageBps, positionSize, useAIValidation)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
