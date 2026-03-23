@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchSignal, fetchBacktest, fetchInsight, type SignalResponse, type BacktestResponse } from '@/services/api';
 import { useToast } from '@/components/ToastProvider';
@@ -57,6 +57,7 @@ const SignalsPage = () => {
   const [signal, setSignal] = useState<SignalResponse | null>(null);
   const [signalLoading, setSignalLoading] = useState(false);
   const [signalError, setSignalError] = useState<string | null>(null);
+  const [hasData, setHasData] = useState(false);
   const [insight, setInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState(false);
@@ -64,12 +65,17 @@ const SignalsPage = () => {
   const [backtest, setBacktest] = useState<BacktestResponse | null>(null);
   const [backtestLoading, setBacktestLoading] = useState(false);
   const [backtestError, setBacktestError] = useState<string | null>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   const { pushToast } = useToast();
+  const resultsRef = useRef<HTMLElement | null>(null);
 
-  const loadSignal = useCallback( async (raw: string) => {
+  const loadSignal = useCallback(async (raw: string, options?: { scrollToResults?: boolean }) => {
     const symbol = raw.trim().toUpperCase();
     if (!symbol) {
       return;
+    }
+    if (options?.scrollToResults) {
+      setShouldAutoScroll(true);
     }
     setSignalLoading(true);
     setSignalError(null);
@@ -79,6 +85,7 @@ const SignalsPage = () => {
     try {
       const data = await fetchSignal(symbol);
       setSignal(data);
+      setHasData(true);
       setActiveSymbol(symbol);
       setSearchValue(symbol);
       setInsightLoading(true);
@@ -102,21 +109,31 @@ const SignalsPage = () => {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load signal';
       setSignal(null);
+      setHasData(false);
       setSignalError(message);
       setInsight('');
       setInsightError(false);
+      setShouldAutoScroll(false);
     } finally {
       setSignalLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadSignal(DEFAULT_SYMBOL);
+    void loadSignal(DEFAULT_SYMBOL, { scrollToResults: false });
   }, [loadSignal]);
+
+  useEffect(() => {
+    if (!shouldAutoScroll || signalLoading || !signal || !resultsRef.current) {
+      return;
+    }
+    resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setShouldAutoScroll(false);
+  }, [shouldAutoScroll, signalLoading, signal]);
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void loadSignal(searchValue);
+    void loadSignal(searchValue, { scrollToResults: true });
   };
 
   const runBacktest = async () => {
@@ -244,7 +261,11 @@ const SignalsPage = () => {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6 lg:gap-5">
-      <section className="shrink-0 text-center">
+      <section
+        className={`hero shrink-0 rounded-[2rem] border border-outline/20 bg-gradient-to-b from-surface via-surface to-transparent px-4 text-center transition-all duration-300 ease-out sm:px-6 ${
+          hasData ? 'hero-compact min-h-[20vh] py-5' : 'min-h-[48vh] py-10 lg:min-h-[42vh]'
+        }`}
+      >
         <header className="space-y-4">
           <span className="text-xs uppercase tracking-[0.4em] text-slate-500">Live signal studio</span>
           <h1 className="text-4xl font-semibold text-white sm:text-5xl">
@@ -273,7 +294,7 @@ const SignalsPage = () => {
             <button
               key={symbol}
               type="button"
-              onClick={() => void loadSignal(symbol)}
+              onClick={() => void loadSignal(symbol, { scrollToResults: true })}
               className={`rounded-full border px-3 py-1.5 transition ${
                 activeSymbol === symbol
                   ? 'border-primary bg-primary/20 text-white'
@@ -289,7 +310,7 @@ const SignalsPage = () => {
             <button
               key={symbol}
               type="button"
-              onClick={() => void loadSignal(symbol)}
+              onClick={() => void loadSignal(symbol, { scrollToResults: true })}
               className="rounded-full border border-outline/40 bg-muted/60 px-3 py-1 transition hover:border-outline hover:text-white"
             >
               {SYMBOL_LABELS[symbol] ?? symbol}
@@ -298,7 +319,10 @@ const SignalsPage = () => {
         </div>
       </section>
 
-      <section className="grid flex-1 min-h-0 gap-5 overflow-y-auto xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,380px)]">
+      <section
+        ref={resultsRef}
+        className="grid flex-1 min-h-0 scroll-mt-6 gap-5 overflow-y-auto xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,380px)]"
+      >
         <article className="flex min-h-0 flex-col rounded-3xl border border-outline/40 bg-surface p-6 shadow-elevation-soft">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
