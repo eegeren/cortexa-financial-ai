@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/cortexa-labs/cortexa-trade-ai-backend/internal/config"
@@ -33,18 +34,18 @@ type predictResp struct {
 	OK    bool `json:"ok"`
 	Stale bool `json:"stale"`
 	Data  *struct {
-		Symbol       string `json:"symbol"`
-		Timeframe    string `json:"timeframe"`
-		Trend        string `json:"trend"`
-		Momentum     string `json:"momentum"`
-		Risk         string `json:"risk"`
-		MarketRegime string `json:"market_regime"`
+		Symbol       string   `json:"symbol"`
+		Timeframe    string   `json:"timeframe"`
+		Trend        string   `json:"trend"`
+		Momentum     string   `json:"momentum"`
+		Risk         string   `json:"risk"`
+		MarketRegime string   `json:"market_regime"`
 		QualityFlags []string `json:"quality_flags"`
-		Confidence   int    `json:"confidence"`
-		Scenario     string `json:"scenario"`
-		Insight      string `json:"insight"`
-		Explanation  string `json:"explanation"`
-		Disclaimer   string `json:"disclaimer"`
+		Confidence   int      `json:"confidence"`
+		Scenario     string   `json:"scenario"`
+		Insight      string   `json:"insight"`
+		Explanation  string   `json:"explanation"`
+		Disclaimer   string   `json:"disclaimer"`
 		Indicators   struct {
 			EMA20       *float64 `json:"ema20"`
 			EMA50       *float64 `json:"ema50"`
@@ -76,6 +77,12 @@ type predictResp struct {
 
 type insightResp struct {
 	Insight string `json:"insight"`
+}
+
+type symbolsResp struct {
+	OK       bool     `json:"ok"`
+	Symbols  []string `json:"symbols"`
+	Provider string   `json:"provider"`
 }
 
 func (s *SignalService) aiBaseURL() string {
@@ -278,6 +285,51 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 		RSI:   pr.Data.RSI,
 		ATR:   pr.Data.ATR,
 	}, nil
+}
+
+func (s *SignalService) Symbols(ctx context.Context) ([]string, error) {
+	symbolsURL := s.aiBaseURL() + "/market/symbols"
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, symbolsURL, nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("symbol upstream request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(resp.Body)
+		trimmed := strings.TrimSpace(string(msg))
+		if trimmed == "" {
+			trimmed = "ai service error"
+		}
+		return nil, fmt.Errorf("ai service status %d: %s", resp.StatusCode, trimmed)
+	}
+
+	var sr symbolsResp
+	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+		return nil, fmt.Errorf("ai service decode failed: %w", err)
+	}
+
+	seen := make(map[string]struct{}, len(sr.Symbols))
+	symbols := make([]string, 0, len(sr.Symbols))
+	for _, symbol := range sr.Symbols {
+		normalized := strings.ToUpper(strings.TrimSpace(symbol))
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		symbols = append(symbols, normalized)
+	}
+	sort.Strings(symbols)
+	if len(symbols) == 0 {
+		return nil, fmt.Errorf("ai service returned empty symbols list")
+	}
+
+	return symbols, nil
 }
 
 func (s *SignalService) Insight(ctx context.Context, payload map[string]any) (string, error) {

@@ -236,6 +236,11 @@ export interface InsightResponse {
   insight: string;
 }
 
+export interface MarketSymbolsResponse {
+  ok: boolean;
+  symbols: string[];
+}
+
 export interface PlanSummary {
   id: number;
   code: string;
@@ -312,6 +317,11 @@ export const setAuthToken = setAuthHeader;
 export const fetchSignal = async (symbol: string) => {
   const { data } = await http.get<SignalResponse>(`/api/signals/${symbol}`);
   return data;
+};
+
+export const fetchMarketSymbols = async () => {
+  const { data } = await http.get<MarketSymbolsResponse>('/api/market/symbols');
+  return data.symbols;
 };
 
 export const fetchInsight = async (payload: InsightRequest) => {

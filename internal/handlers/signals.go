@@ -24,6 +24,18 @@ func (h *Handlers) GetSignals(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, res)
 }
 
+func (h *Handlers) GetMarketSymbols(w http.ResponseWriter, r *http.Request) {
+	symbols, err := h.Signal.Symbols(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":      true,
+		"symbols": symbols,
+	})
+}
+
 func (h *Handlers) GetInsight(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

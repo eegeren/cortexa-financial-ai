@@ -1,27 +1,11 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchSignal, fetchBacktest, fetchInsight, type SignalResponse, type BacktestResponse } from '@/services/api';
+import { fetchSignal, fetchBacktest, fetchInsight, fetchMarketSymbols, type SignalResponse, type BacktestResponse } from '@/services/api';
 import { useToast } from '@/components/ToastProvider';
 
-const PRIMARY_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT'] as const;
-const SECONDARY_SYMBOLS = ['BNBUSDT', 'ADAUSDT', 'LINKUSDT', 'MATICUSDT', 'DOTUSDT', 'NEARUSDT'] as const;
+const FALLBACK_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT', 'ADAUSDT'] as const;
 
-const SYMBOL_LABELS: Record<string, string> = {
-  BTCUSDT: 'Bitcoin',
-  ETHUSDT: 'Ethereum',
-  SOLUSDT: 'Solana',
-  AVAXUSDT: 'Avalanche',
-  XRPUSDT: 'XRP',
-  DOGEUSDT: 'Dogecoin',
-  BNBUSDT: 'BNB',
-  ADAUSDT: 'Cardano',
-  LINKUSDT: 'Chainlink',
-  MATICUSDT: 'Polygon',
-  DOTUSDT: 'Polkadot',
-  NEARUSDT: 'NEAR'
-};
-
-const DEFAULT_SYMBOL = PRIMARY_SYMBOLS[0];
+const DEFAULT_SYMBOL = FALLBACK_SYMBOLS[0];
 
 const QUALITY_FLAG_LABELS: Record<string, string> = {
   low_volume: 'Low volume',
@@ -51,9 +35,15 @@ const toneClassByRisk: Record<string, string> = {
 const formatNumber = (value?: number, digits = 2) =>
   value !== undefined ? value.toLocaleString(undefined, { maximumFractionDigits: digits }) : '—';
 
+const formatSymbolDisplay = (symbol: string) => symbol.replace(/USDT$/, ' / USDT');
+
 const SignalsPage = () => {
   const [activeSymbol, setActiveSymbol] = useState(DEFAULT_SYMBOL);
   const [searchValue, setSearchValue] = useState(DEFAULT_SYMBOL);
+  const [availableSymbols, setAvailableSymbols] = useState<string[]>([...FALLBACK_SYMBOLS]);
+  const [symbolMenuOpen, setSymbolMenuOpen] = useState(false);
+  const [symbolsLoading, setSymbolsLoading] = useState(false);
+  const [symbolFetchFailed, setSymbolFetchFailed] = useState(false);
   const [signal, setSignal] = useState<SignalResponse | null>(null);
   const [signalLoading, setSignalLoading] = useState(false);
   const [signalError, setSignalError] = useState<string | null>(null);
@@ -68,6 +58,7 @@ const SignalsPage = () => {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   const { pushToast } = useToast();
   const resultsRef = useRef<HTMLElement | null>(null);
+  const symbolPickerRef = useRef<HTMLDivElement | null>(null);
 
   const loadSignal = useCallback(async (raw: string, options?: { scrollToResults?: boolean }) => {
     const symbol = raw.trim().toUpperCase();
@@ -124,6 +115,43 @@ const SignalsPage = () => {
   }, [loadSignal]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadSymbols = async () => {
+      setSymbolsLoading(true);
+      try {
+        const symbols = await fetchMarketSymbols();
+        if (cancelled) {
+          return;
+        }
+        if (symbols.length) {
+          setAvailableSymbols(symbols);
+          setSymbolFetchFailed(false);
+        } else {
+          setAvailableSymbols([...FALLBACK_SYMBOLS]);
+          setSymbolFetchFailed(true);
+        }
+      } catch {
+        if (cancelled) {
+          return;
+        }
+        setAvailableSymbols([...FALLBACK_SYMBOLS]);
+        setSymbolFetchFailed(true);
+      } finally {
+        if (!cancelled) {
+          setSymbolsLoading(false);
+        }
+      }
+    };
+
+    void loadSymbols();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!shouldAutoScroll || signalLoading || !signal || !resultsRef.current) {
       return;
     }
@@ -131,9 +159,56 @@ const SignalsPage = () => {
     setShouldAutoScroll(false);
   }, [shouldAutoScroll, signalLoading, signal]);
 
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (symbolPickerRef.current && !symbolPickerRef.current.contains(event.target as Node)) {
+        setSymbolMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, []);
+
+  const filteredSymbols = useMemo(() => {
+    const query = searchValue.trim().toUpperCase();
+    const matches = query
+      ? availableSymbols.filter((symbol) => symbol.includes(query))
+      : availableSymbols;
+
+    return matches
+      .slice()
+      .sort((left, right) => {
+        const leftStarts = left.startsWith(query);
+        const rightStarts = right.startsWith(query);
+        if (leftStarts !== rightStarts) {
+          return leftStarts ? -1 : 1;
+        }
+        return left.localeCompare(right);
+      })
+      .slice(0, 60);
+  }, [availableSymbols, searchValue]);
+
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void loadSignal(searchValue, { scrollToResults: true });
+    const normalizedSymbol = searchValue.trim().toUpperCase();
+    if (!normalizedSymbol) {
+      return;
+    }
+
+    const matchedSymbol = availableSymbols.find((symbol) => symbol === normalizedSymbol);
+    if (!matchedSymbol) {
+      pushToast('Select a supported symbol from the search list.', 'warning');
+      setSymbolMenuOpen(true);
+      return;
+    }
+
+    void loadSignal(matchedSymbol, { scrollToResults: true });
+  };
+
+  const handleSymbolSelect = (symbol: string) => {
+    setSearchValue(symbol);
+    setSymbolMenuOpen(false);
   };
 
   const runBacktest = async () => {
@@ -276,12 +351,76 @@ const SignalsPage = () => {
           </p>
         </header>
         <form onSubmit={handleSearch} className={`flex flex-wrap justify-center gap-3 text-sm transition-all duration-300 ${hasData ? 'mt-4' : 'mt-8'}`}>
-          <input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value.toUpperCase())}
-            placeholder="Search symbol (e.g. BTCUSDT)"
-            className={`w-full rounded-full border border-outline/50 bg-surface px-4 text-sm text-slate-200 placeholder:text-slate-500 focus:border-outline focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-300 ${hasData ? 'max-w-sm py-2' : 'max-w-xs py-2.5'}`}
-          />
+          <div ref={symbolPickerRef} className={`relative w-full ${hasData ? 'max-w-md' : 'max-w-sm'}`}>
+            <div className="flex items-center rounded-[1.6rem] border border-outline/50 bg-surface/95 shadow-elevation-soft transition focus-within:border-outline focus-within:ring-2 focus-within:ring-primary">
+              <input
+                value={searchValue}
+                onChange={(event) => {
+                  setSearchValue(event.target.value.toUpperCase());
+                  setSymbolMenuOpen(true);
+                }}
+                onFocus={() => setSymbolMenuOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    setSymbolMenuOpen(false);
+                  }
+                }}
+                placeholder="Search supported symbol (e.g. BTCUSDT)"
+                role="combobox"
+                aria-expanded={symbolMenuOpen}
+                aria-controls="signals-symbol-listbox"
+                aria-autocomplete="list"
+                className={`w-full rounded-[1.6rem] bg-transparent pl-4 pr-12 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none transition-all duration-300 ${hasData ? 'py-2' : 'py-2.5'}`}
+              />
+              <button
+                type="button"
+                onClick={() => setSymbolMenuOpen((open) => !open)}
+                className="mr-2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-800/70 hover:text-white"
+                aria-label="Toggle symbol options"
+              >
+                <svg aria-hidden viewBox="0 0 12 8" className={`h-3.5 w-3.5 transition-transform ${symbolMenuOpen ? 'rotate-180' : ''}`} fill="none">
+                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            {symbolMenuOpen && (
+              <div className="absolute left-0 right-0 top-[calc(100%+0.65rem)] z-20 overflow-hidden rounded-[1.4rem] border border-outline/40 bg-slate-950/95 text-left shadow-elevation-soft backdrop-blur">
+                <div className="border-b border-outline/20 px-4 py-3 text-[11px] uppercase tracking-[0.24em] text-slate-500">
+                  {symbolsLoading
+                    ? 'Loading symbol universe'
+                    : symbolFetchFailed
+                      ? 'Fallback symbol list'
+                      : `${availableSymbols.length} supported symbols`}
+                </div>
+                <div id="signals-symbol-listbox" role="listbox" className="max-h-80 overflow-y-auto p-2">
+                  {filteredSymbols.length ? (
+                    filteredSymbols.map((symbol) => (
+                      <button
+                        key={symbol}
+                        type="button"
+                        role="option"
+                        aria-selected={searchValue === symbol}
+                        onClick={() => handleSymbolSelect(symbol)}
+                        className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-sm transition ${
+                          searchValue === symbol
+                            ? 'bg-primary/15 text-white'
+                            : 'text-slate-300 hover:bg-slate-900/70 hover:text-white'
+                        }`}
+                      >
+                        <span className="font-medium">{symbol}</span>
+                        <span className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{formatSymbolDisplay(symbol)}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-4 text-sm text-slate-400">
+                      No supported symbols match "{searchValue.trim().toUpperCase()}".
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             type="submit"
             className={`inline-flex items-center gap-2 rounded-full bg-white px-5 font-medium text-black shadow-inner-glow transition-all duration-300 hover:bg-slate-200 ${hasData ? 'py-2' : 'py-2.5'}`}
@@ -289,34 +428,13 @@ const SignalsPage = () => {
             Load signal
           </button>
         </form>
-        <div className={`flex flex-wrap justify-center gap-2 text-xs text-slate-400 transition-all duration-300 ${hasData ? 'mt-4' : 'mt-6'}`}>
-          {PRIMARY_SYMBOLS.map((symbol) => (
-            <button
-              key={symbol}
-              type="button"
-              onClick={() => void loadSignal(symbol, { scrollToResults: true })}
-              className={`rounded-full border transition-all duration-300 ${hasData ? 'px-2.5 py-1' : 'px-3 py-1.5'} ${
-                activeSymbol === symbol
-                  ? 'border-primary bg-primary/20 text-white'
-                  : 'border-outline/50 bg-surface text-slate-300 hover:border-outline'
-              }`}
-            >
-              {SYMBOL_LABELS[symbol] ?? symbol}
-            </button>
-          ))}
-        </div>
-        <div className={`flex flex-wrap justify-center gap-2 text-xs text-slate-500 transition-all duration-300 ${hasData ? 'mt-2' : 'mt-3'}`}>
-          {SECONDARY_SYMBOLS.map((symbol) => (
-            <button
-              key={symbol}
-              type="button"
-              onClick={() => void loadSignal(symbol, { scrollToResults: true })}
-              className={`rounded-full border border-outline/40 bg-muted/60 transition-all duration-300 hover:border-outline hover:text-white ${hasData ? 'px-2.5 py-1' : 'px-3 py-1'}`}
-            >
-              {SYMBOL_LABELS[symbol] ?? symbol}
-            </button>
-          ))}
-        </div>
+        <p className={`text-xs transition-all duration-300 ${hasData ? 'mt-3 text-slate-500' : 'mt-4 text-slate-400'}`}>
+          {symbolsLoading
+            ? 'Syncing supported markets from the signal engine...'
+            : symbolFetchFailed
+              ? 'Using a fallback list of major pairs while symbol discovery is unavailable.'
+              : `Search across ${availableSymbols.length} backend-supported trading pairs.`}
+        </p>
       </section>
 
       <section
@@ -327,7 +445,7 @@ const SignalsPage = () => {
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">
-                {SYMBOL_LABELS[activeSymbol] ?? activeSymbol} • market intelligence snapshot
+                {formatSymbolDisplay(activeSymbol)} • market intelligence snapshot
               </h2>
               <p className="text-sm text-slate-400">Latest deterministic view from the analysis engine with explainable technical context.</p>
             </div>
