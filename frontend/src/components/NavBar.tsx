@@ -67,6 +67,7 @@ const NavBar = () => {
     email: state.email,
     logout: state.logout,
   }));
+  const isPublicNav = !token;
   const navigate = useNavigate();
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
@@ -109,7 +110,7 @@ const NavBar = () => {
   }, []);
 
   const desktopLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-all ${
+    `flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-colors ${
       isActive
         ? 'border-primary/50 bg-primary/15 font-medium text-slate-100'
         : 'text-slate-300 hover:border-slate-600/50 hover:bg-slate-900/40 hover:text-white'
@@ -124,7 +125,9 @@ const NavBar = () => {
 
   return (
     <>
-      <aside className="sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-700/40 bg-slate-950/35 px-3 pb-6 pt-7 backdrop-blur lg:flex">
+      <aside className={`sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-700/40 px-3 pb-6 pt-7 lg:flex ${
+        isPublicNav ? 'bg-slate-950/92' : 'bg-slate-950/35 backdrop-blur'
+      }`}>
         <button
           type="button"
           onClick={() => navigate(token ? '/overview' : '/')}
@@ -231,7 +234,9 @@ const NavBar = () => {
         </div>
       </aside>
 
-      <nav className="sticky top-0 z-20 border-b border-slate-700/40 bg-slate-950/85 px-4 py-3 backdrop-blur lg:hidden">
+      <nav className={`sticky top-0 z-20 border-b border-slate-700/40 px-4 py-3 lg:hidden ${
+        isPublicNav ? 'bg-slate-950/96' : 'bg-slate-950/85 backdrop-blur'
+      }`}>
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"

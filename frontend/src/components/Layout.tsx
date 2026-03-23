@@ -1,5 +1,6 @@
 import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { Outlet, useLocation } from 'react-router-dom';
+import { useAuthStore } from '@/store/auth';
 import NavBar from './NavBar';
 import OnboardingTour from './OnboardingTour';
 import { ThemeProvider } from '@/context/ThemeContext';
@@ -8,7 +9,10 @@ import { ToastProvider } from '@/components/ToastProvider';
 
 const Layout = () => {
   const location = useLocation();
+  const token = useAuthStore((state) => state.token);
   const isAssistantViewportRoute = location.pathname === '/assistant';
+  const isLandingRoute = location.pathname === '/' && !token;
+  const shouldReduceAmbientEffects = isLandingRoute;
 
   return (
     <ThemeProvider>
@@ -27,8 +31,8 @@ const Layout = () => {
               />
             </Helmet>
             <div className="relative h-[100dvh] overflow-hidden text-ink">
-              <div className="pointer-events-none absolute inset-0 bg-grid-glow opacity-60" />
-              <div className="pointer-events-none absolute inset-0 bg-glow-band opacity-40" />
+              {!shouldReduceAmbientEffects && <div className="pointer-events-none absolute inset-0 bg-grid-glow opacity-60" />}
+              {!shouldReduceAmbientEffects && <div className="pointer-events-none absolute inset-0 bg-glow-band opacity-40" />}
               <div className="relative z-10 flex h-[100dvh] min-h-0 flex-col lg:flex-row">
                 <NavBar />
                 <main className={`flex-1 min-h-0 min-w-0 overflow-x-hidden px-4 py-4 sm:px-6 lg:px-8 lg:py-6 ${

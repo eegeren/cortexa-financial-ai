@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const valuePoints = [
@@ -22,12 +23,31 @@ const metricCards = [
 ];
 
 const LandingPage = () => {
+  const [reduceEffects, setReduceEffects] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 767px), (prefers-reduced-motion: reduce)');
+    const syncEffects = () => setReduceEffects(mediaQuery.matches);
+
+    syncEffects();
+    mediaQuery.addEventListener('change', syncEffects);
+    return () => mediaQuery.removeEventListener('change', syncEffects);
+  }, []);
+
   return (
     <div className="space-y-8 pb-8 pt-2 sm:space-y-10 lg:space-y-12">
-      <section className="relative overflow-hidden rounded-[2rem] border border-outline/25 bg-gradient-to-br from-slate-950 via-surface to-slate-950 px-5 py-8 shadow-elevation-soft sm:px-8 sm:py-10 lg:px-12 lg:py-14">
-        <div className="pointer-events-none absolute inset-0 bg-grid-glow opacity-40" />
-        <div className="pointer-events-none absolute -right-20 top-8 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl sm:h-64 sm:w-64" />
-        <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl sm:h-56 sm:w-56" />
+      <section className={`relative overflow-hidden rounded-[2rem] border border-outline/25 px-5 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-14 ${
+        reduceEffects
+          ? 'bg-slate-950'
+          : 'bg-gradient-to-br from-slate-950 via-surface to-slate-950 shadow-elevation-soft'
+      }`}>
+        {!reduceEffects && <div className="pointer-events-none absolute inset-0 bg-grid-glow opacity-25" />}
+        {!reduceEffects && <div className="pointer-events-none absolute -right-20 top-8 h-64 w-64 rounded-full bg-cyan-400/8 blur-3xl" />}
+        {!reduceEffects && <div className="pointer-events-none absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-emerald-400/8 blur-3xl" />}
 
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,420px)] lg:items-center">
           <div className="space-y-6">
@@ -46,7 +66,7 @@ const LandingPage = () => {
 
             <div className="grid gap-3 sm:grid-cols-3">
               {valuePoints.map((point) => (
-                <div key={point.title} className="rounded-2xl border border-outline/25 bg-slate-900/45 p-4 backdrop-blur">
+                <div key={point.title} className="rounded-2xl border border-outline/25 bg-slate-900/65 p-4">
                   <h2 className="text-sm font-semibold text-white">{point.title}</h2>
                   <p className="mt-2 text-xs leading-6 text-slate-400 sm:text-sm">{point.description}</p>
                 </div>
@@ -56,20 +76,22 @@ const LandingPage = () => {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
                 to="/register"
-                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-slate-200"
+                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-slate-200"
               >
                 Get started
               </Link>
               <Link
                 to="/login"
-                className="inline-flex items-center justify-center rounded-full border border-outline/50 bg-slate-900/40 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-outline hover:bg-slate-900/70"
+                className="inline-flex items-center justify-center rounded-full border border-outline/50 bg-slate-900/50 px-6 py-3 text-sm font-semibold text-slate-100 transition-colors hover:border-outline hover:bg-slate-900/70"
               >
                 Sign in
               </Link>
             </div>
           </div>
 
-          <aside className="rounded-[1.75rem] border border-outline/30 bg-slate-950/80 p-5 shadow-inner-glow backdrop-blur sm:p-6">
+          <aside className={`rounded-[1.75rem] border border-outline/30 bg-slate-950/90 p-5 sm:p-6 ${
+            reduceEffects ? '' : 'shadow-inner-glow'
+          }`}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Example Signal</p>
