@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
@@ -85,12 +86,417 @@ type symbolsResp struct {
 	Provider string   `json:"provider"`
 }
 
+type signalScoreBreakdown struct {
+	TrendStructureScore             float64
+	MomentumConfirmationScore       float64
+	TrendStrengthScore              float64
+	VolumeParticipationScore        float64
+	RegimeScore                     float64
+	MultiTimeframeConfirmationScore float64
+	FinalScore                      float64
+	Confidence                      int
+	Risk                            string
+	Trend                           string
+	Momentum                        string
+	MarketRegime                    string
+	QualityFlags                    []string
+	Side                            string
+	CompatibilityScore              float64
+}
+
 func (s *SignalService) aiBaseURL() string {
 	base := strings.TrimSuffix(s.cfg.AIServiceURL, "/predict")
 	if base == "" {
 		base = s.cfg.AIServiceURL
 	}
 	return strings.TrimRight(base, "/")
+}
+
+func clampFloat(value, min, max float64) float64 {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+func boolToFloat(value bool) float64 {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func appendUnique(flags []string, flag string) []string {
+	for _, existing := range flags {
+		if existing == flag {
+			return flags
+		}
+	}
+	return append(flags, flag)
+}
+
+func normalizeSigned(value, maxAbs float64) float64 {
+	if maxAbs == 0 {
+		return 0
+	}
+	return clampFloat(value/maxAbs, -1, 1)
+}
+
+func classifyMomentum(macd, signal, histogram, rsi *float64) string {
+	macdUp := macd != nil && signal != nil && *macd > *signal
+	macdDown := macd != nil && signal != nil && *macd < *signal
+	histUp := histogram != nil && *histogram > 0
+	histDown := histogram != nil && *histogram < 0
+	rsiHigh := rsi != nil && *rsi >= 55
+	rsiLow := rsi != nil && *rsi <= 45
+
+	switch {
+	case (macdUp && histUp) || (macdUp && rsiHigh):
+		return "Expanding"
+	case (macdDown && histDown) || (macdDown && rsiLow):
+		return "Weakening"
+	default:
+		return "Mixed"
+	}
+}
+
+func classifyRegime(trendStrengthScore, regimeScore, volumeScore float64) string {
+	switch {
+	case regimeScore <= -10 || trendStrengthScore <= 2:
+		return "Range-bound"
+	case volumeScore <= 0:
+		return "Low participation"
+	case trendStrengthScore >= 12 && regimeScore >= 8:
+		return "Trend expansion"
+	default:
+		return "Balanced"
+	}
+}
+
+func trendLabelFromScore(score float64) string {
+	switch {
+	case score <= -60:
+		return "Strong Bearish"
+	case score <= -35:
+		return "Bearish"
+	case score >= 60:
+		return "Strong Bullish"
+	case score >= 35:
+		return "Bullish"
+	default:
+		return "Neutral"
+	}
+}
+
+func riskLabelFromInputs(adx, atr, price, volumeRatio *float64, flags []string, regimeScore float64) string {
+	riskPoints := 20.0
+
+	if atr != nil && price != nil && *price > 0 {
+		atrPct := (*atr / *price) * 100.0
+		switch {
+		case atrPct >= 3.5:
+			riskPoints += 28
+		case atrPct >= 2.2:
+			riskPoints += 18
+		case atrPct >= 1.1:
+			riskPoints += 8
+		}
+	}
+
+	if volumeRatio != nil {
+		switch {
+		case *volumeRatio < 0.8:
+			riskPoints += 18
+		case *volumeRatio < 1.0:
+			riskPoints += 10
+		case *volumeRatio > 1.6:
+			riskPoints -= 6
+		}
+	}
+
+	if adx != nil {
+		switch {
+		case *adx < 16:
+			riskPoints += 14
+		case *adx < 22:
+			riskPoints += 8
+		case *adx > 32:
+			riskPoints -= 4
+		}
+	}
+
+	if regimeScore <= -10 {
+		riskPoints += 12
+	}
+
+	for _, flag := range flags {
+		switch flag {
+		case "high_volatility", "stale_data":
+			riskPoints += 10
+		case "low_volume", "weak_volume_confirmation", "choppy_structure", "mtf_conflict":
+			riskPoints += 8
+		case "mtf_aligned":
+			riskPoints -= 4
+		}
+	}
+
+	riskPoints = clampFloat(riskPoints, 0, 100)
+	switch {
+	case riskPoints >= 60:
+		return "High"
+	case riskPoints >= 34:
+		return "Medium"
+	default:
+		return "Low"
+	}
+}
+
+func computeSignalBreakdown(data *struct {
+	Symbol       string   `json:"symbol"`
+	Timeframe    string   `json:"timeframe"`
+	Trend        string   `json:"trend"`
+	Momentum     string   `json:"momentum"`
+	Risk         string   `json:"risk"`
+	MarketRegime string   `json:"market_regime"`
+	QualityFlags []string `json:"quality_flags"`
+	Confidence   int      `json:"confidence"`
+	Scenario     string   `json:"scenario"`
+	Insight      string   `json:"insight"`
+	Explanation  string   `json:"explanation"`
+	Disclaimer   string   `json:"disclaimer"`
+	Indicators   struct {
+		EMA20       *float64 `json:"ema20"`
+		EMA50       *float64 `json:"ema50"`
+		EMA200      *float64 `json:"ema200"`
+		RSI         *float64 `json:"rsi"`
+		ADX         *float64 `json:"adx"`
+		ATR         *float64 `json:"atr"`
+		VolumeRatio *float64 `json:"volume_ratio"`
+		MACD        struct {
+			MACD      *float64 `json:"macd"`
+			Signal    *float64 `json:"signal"`
+			Histogram *float64 `json:"histogram"`
+		} `json:"macd"`
+	} `json:"indicators"`
+	Levels struct {
+		Support    *float64 `json:"support"`
+		Resistance *float64 `json:"resistance"`
+	} `json:"levels"`
+	Price   *float64 `json:"price"`
+	RSI     *float64 `json:"rsi"`
+	ATR     *float64 `json:"atr"`
+	Scoring struct {
+		RawScore *float64 `json:"raw_score"`
+	} `json:"scoring"`
+}) signalScoreBreakdown {
+	flags := append([]string{}, data.QualityFlags...)
+	ema20 := data.Indicators.EMA20
+	ema50 := data.Indicators.EMA50
+	ema200 := data.Indicators.EMA200
+	price := data.Price
+	rsi := data.Indicators.RSI
+	adx := data.Indicators.ADX
+	atr := data.Indicators.ATR
+	volumeRatio := data.Indicators.VolumeRatio
+	macd := data.Indicators.MACD.MACD
+	macdSignal := data.Indicators.MACD.Signal
+	macdHistogram := data.Indicators.MACD.Histogram
+
+	trendStructure := 0.0
+	if ema20 != nil && ema50 != nil && ema200 != nil {
+		switch {
+		case *ema20 > *ema50 && *ema50 > *ema200:
+			trendStructure += 24
+		case *ema20 < *ema50 && *ema50 < *ema200:
+			trendStructure -= 24
+		case *ema20 > *ema50:
+			trendStructure += 10
+		case *ema20 < *ema50:
+			trendStructure -= 10
+		}
+	}
+	if price != nil {
+		if ema20 != nil {
+			trendStructure += 6 * normalizeSigned(*price-*ema20, math.Max(math.Abs(*ema20)*0.01, 1))
+		}
+		if ema50 != nil {
+			trendStructure += 8 * normalizeSigned(*price-*ema50, math.Max(math.Abs(*ema50)*0.015, 1))
+		}
+		if ema200 != nil {
+			trendStructure += 10 * normalizeSigned(*price-*ema200, math.Max(math.Abs(*ema200)*0.02, 1))
+		}
+	}
+	trendStructure = clampFloat(trendStructure, -40, 40)
+
+	momentumConfirmation := 0.0
+	if macd != nil && macdSignal != nil {
+		delta := *macd - *macdSignal
+		momentumConfirmation += 14 * normalizeSigned(delta, math.Max(math.Abs(*macdSignal)*0.35, 0.6))
+	}
+	if macdHistogram != nil {
+		momentumConfirmation += 8 * normalizeSigned(*macdHistogram, 0.8)
+	}
+	if rsi != nil {
+		switch {
+		case *rsi >= 58:
+			momentumConfirmation += 4
+		case *rsi >= 52:
+			momentumConfirmation += 2
+		case *rsi <= 42:
+			momentumConfirmation -= 4
+		case *rsi <= 48:
+			momentumConfirmation -= 2
+		}
+		if *rsi >= 70 || *rsi <= 30 {
+			momentumConfirmation *= 0.85
+		}
+	}
+	momentumConfirmation = clampFloat(momentumConfirmation, -22, 22)
+
+	trendStrength := 0.0
+	if adx != nil {
+		switch {
+		case *adx >= 35:
+			trendStrength = 16
+		case *adx >= 28:
+			trendStrength = 12
+		case *adx >= 22:
+			trendStrength = 8
+		case *adx >= 18:
+			trendStrength = 4
+		default:
+			trendStrength = -6
+		}
+	} else {
+		trendStrength = -2
+	}
+
+	volumeParticipation := 0.0
+	if volumeRatio != nil {
+		switch {
+		case *volumeRatio >= 1.8:
+			volumeParticipation = 12
+		case *volumeRatio >= 1.35:
+			volumeParticipation = 8
+		case *volumeRatio >= 1.05:
+			volumeParticipation = 4
+		case *volumeRatio >= 0.9:
+			volumeParticipation = -2
+		case *volumeRatio >= 0.75:
+			volumeParticipation = -8
+		default:
+			volumeParticipation = -14
+		}
+	} else {
+		volumeParticipation = -4
+	}
+
+	regimeScore := 0.0
+	if trendStrength <= 0 {
+		regimeScore -= 10
+		flags = appendUnique(flags, "weak_trend_strength")
+	}
+	if volumeParticipation <= -8 {
+		regimeScore -= 10
+		flags = appendUnique(flags, "low_volume")
+		flags = appendUnique(flags, "weak_volume_confirmation")
+	}
+	if math.Abs(trendStructure) < 12 {
+		regimeScore -= 10
+		flags = appendUnique(flags, "choppy_structure")
+	}
+	if math.Abs(momentumConfirmation) < 5 {
+		regimeScore -= 6
+	}
+	if trendStrength >= 8 && math.Abs(trendStructure) >= 18 {
+		regimeScore += 8
+	}
+	if volumeParticipation >= 8 {
+		regimeScore += 4
+	}
+	regimeScore = clampFloat(regimeScore, -18, 12)
+
+	multiTimeframeConfirmation := 0.0
+	alignedFromFlags := false
+	for _, flag := range flags {
+		switch flag {
+		case "mtf_aligned":
+			multiTimeframeConfirmation += 8
+			alignedFromFlags = true
+		case "mtf_conflict":
+			multiTimeframeConfirmation -= 10
+		}
+	}
+	if !alignedFromFlags {
+		if trendStrength >= 8 && math.Abs(trendStructure) >= 20 && math.Abs(momentumConfirmation) >= 8 && trendStructure*momentumConfirmation > 0 {
+			multiTimeframeConfirmation += 4
+		}
+		if trendStructure*momentumConfirmation < 0 {
+			multiTimeframeConfirmation -= 4
+		}
+	}
+	multiTimeframeConfirmation = clampFloat(multiTimeframeConfirmation, -12, 12)
+
+	finalScore := trendStructure + momentumConfirmation + trendStrength + volumeParticipation + regimeScore + multiTimeframeConfirmation
+
+	if math.Abs(trendStructure) < 14 || trendStructure*momentumConfirmation < 0 {
+		finalScore *= 0.7
+	}
+	if trendStrength <= 0 && math.Abs(finalScore) > 35 {
+		finalScore *= 0.8
+	}
+	if regimeScore <= -10 && math.Abs(finalScore) > 30 {
+		finalScore *= 0.78
+	}
+
+	finalScore = clampFloat(finalScore, -100, 100)
+	trend := trendLabelFromScore(finalScore)
+	side := "HOLD"
+	if trend == "Bullish" || trend == "Strong Bullish" {
+		side = "BUY"
+	} else if trend == "Bearish" || trend == "Strong Bearish" {
+		side = "SELL"
+	}
+
+	qualityPenalty := 0.0
+	if volumeParticipation <= -8 {
+		qualityPenalty += 14
+	}
+	if trendStrength <= 0 {
+		qualityPenalty += 12
+	}
+	if regimeScore <= -10 {
+		qualityPenalty += 10
+	}
+	if multiTimeframeConfirmation < 0 {
+		qualityPenalty += math.Abs(multiTimeframeConfirmation) * 1.2
+	}
+	if math.Abs(trendStructure) < 12 {
+		qualityPenalty += 10
+	}
+	confidence := int(math.Round(clampFloat(22+(math.Abs(finalScore)*0.72)-qualityPenalty, 18, 92)))
+	risk := riskLabelFromInputs(adx, atr, price, volumeRatio, flags, regimeScore)
+
+	return signalScoreBreakdown{
+		TrendStructureScore:             math.Round(trendStructure*10) / 10,
+		MomentumConfirmationScore:       math.Round(momentumConfirmation*10) / 10,
+		TrendStrengthScore:              math.Round(trendStrength*10) / 10,
+		VolumeParticipationScore:        math.Round(volumeParticipation*10) / 10,
+		RegimeScore:                     math.Round(regimeScore*10) / 10,
+		MultiTimeframeConfirmationScore: math.Round(multiTimeframeConfirmation*10) / 10,
+		FinalScore:                      math.Round(finalScore*10) / 10,
+		Confidence:                      confidence,
+		Risk:                            risk,
+		Trend:                           trend,
+		Momentum:                        classifyMomentum(macd, macdSignal, macdHistogram, rsi),
+		MarketRegime:                    classifyRegime(trendStrength, regimeScore, volumeParticipation),
+		QualityFlags:                    flags,
+		Side:                            side,
+		CompatibilityScore:              math.Round((math.Abs(finalScore)/100.0)*1000) / 1000,
+	}
 }
 
 type sideBreakdownMetrics struct {
@@ -239,24 +645,17 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 		log.Printf("signal predict returned blank symbol for %s: data=%+v", symbol, *pr.Data)
 		return models.Signal{}, fmt.Errorf("ai service returned invalid signal payload")
 	}
-	score := float64(pr.Data.Confidence) / 100.0
-	side := "HOLD"
-	switch pr.Data.Trend {
-	case "Bullish", "Strong Bullish":
-		side = "BUY"
-	case "Bearish", "Strong Bearish":
-		side = "SELL"
-	}
+	breakdown := computeSignalBreakdown(pr.Data)
 
 	return models.Signal{
 		Symbol:       pr.Data.Symbol,
 		Timeframe:    pr.Data.Timeframe,
-		Trend:        pr.Data.Trend,
-		Momentum:     pr.Data.Momentum,
-		Risk:         pr.Data.Risk,
-		MarketRegime: pr.Data.MarketRegime,
-		QualityFlags: pr.Data.QualityFlags,
-		Confidence:   pr.Data.Confidence,
+		Trend:        breakdown.Trend,
+		Momentum:     breakdown.Momentum,
+		Risk:         breakdown.Risk,
+		MarketRegime: breakdown.MarketRegime,
+		QualityFlags: breakdown.QualityFlags,
+		Confidence:   breakdown.Confidence,
 		Scenario:     pr.Data.Scenario,
 		Insight:      pr.Data.Insight,
 		Explanation:  pr.Data.Explanation,
@@ -279,11 +678,20 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 			Support:    pr.Data.Levels.Support,
 			Resistance: pr.Data.Levels.Resistance,
 		},
-		Side:  side,
-		Score: score,
-		Price: pr.Data.Price,
-		RSI:   pr.Data.RSI,
-		ATR:   pr.Data.ATR,
+		Scoring: models.SignalScoringComponents{
+			TrendStructureScore:             breakdown.TrendStructureScore,
+			MomentumConfirmationScore:       breakdown.MomentumConfirmationScore,
+			TrendStrengthScore:              breakdown.TrendStrengthScore,
+			VolumeParticipationScore:        breakdown.VolumeParticipationScore,
+			RegimeScore:                     breakdown.RegimeScore,
+			MultiTimeframeConfirmationScore: breakdown.MultiTimeframeConfirmationScore,
+		},
+		Side:       breakdown.Side,
+		Score:      breakdown.CompatibilityScore,
+		FinalScore: breakdown.FinalScore,
+		Price:      pr.Data.Price,
+		RSI:        pr.Data.RSI,
+		ATR:        pr.Data.ATR,
 	}, nil
 }
 

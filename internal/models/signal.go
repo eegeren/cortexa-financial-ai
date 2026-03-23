@@ -22,28 +22,39 @@ type SignalLevels struct {
 	Resistance *float64 `json:"resistance,omitempty"`
 }
 
+type SignalScoringComponents struct {
+	TrendStructureScore             float64 `json:"trend_structure_score,omitempty"`
+	MomentumConfirmationScore       float64 `json:"momentum_confirmation_score,omitempty"`
+	TrendStrengthScore              float64 `json:"trend_strength_score,omitempty"`
+	VolumeParticipationScore        float64 `json:"volume_participation_score,omitempty"`
+	RegimeScore                     float64 `json:"regime_score,omitempty"`
+	MultiTimeframeConfirmationScore float64 `json:"multi_timeframe_confirmation_score,omitempty"`
+}
+
 type Signal struct {
-	Symbol       string           `json:"symbol"`
-	Timeframe    string           `json:"timeframe,omitempty"`
-	Trend        string           `json:"trend,omitempty"`
-	Momentum     string           `json:"momentum,omitempty"`
-	Risk         string           `json:"risk,omitempty"`
-	MarketRegime string           `json:"market_regime,omitempty"`
-	QualityFlags []string         `json:"quality_flags,omitempty"`
-	Confidence   int              `json:"confidence,omitempty"`
-	Scenario     string           `json:"scenario,omitempty"`
-	Insight      string           `json:"insight,omitempty"`
-	Explanation  string           `json:"explanation,omitempty"`
-	Disclaimer   string           `json:"disclaimer,omitempty"`
-	Indicators   SignalIndicators `json:"indicators"`
-	Levels       SignalLevels     `json:"levels"`
-	Side         string           `json:"side"`
-	Score        float64          `json:"score"`
-	Price        *float64         `json:"price,omitempty"`
-	RSI          *float64         `json:"rsi,omitempty"`
-	ATR          *float64         `json:"atr,omitempty"`
-	EMAFast      *float64         `json:"ema_fast,omitempty"`
-	EMASlow      *float64         `json:"ema_slow,omitempty"`
-	SL           *float64         `json:"sl,omitempty"`
-	TP           *float64         `json:"tp,omitempty"`
+	Symbol       string                  `json:"symbol"`
+	Timeframe    string                  `json:"timeframe,omitempty"`
+	Trend        string                  `json:"trend,omitempty"`
+	Momentum     string                  `json:"momentum,omitempty"`
+	Risk         string                  `json:"risk,omitempty"`
+	MarketRegime string                  `json:"market_regime,omitempty"`
+	QualityFlags []string                `json:"quality_flags,omitempty"`
+	Confidence   int                     `json:"confidence,omitempty"`
+	Scenario     string                  `json:"scenario,omitempty"`
+	Insight      string                  `json:"insight,omitempty"`
+	Explanation  string                  `json:"explanation,omitempty"`
+	Disclaimer   string                  `json:"disclaimer,omitempty"`
+	Indicators   SignalIndicators        `json:"indicators"`
+	Levels       SignalLevels            `json:"levels"`
+	Scoring      SignalScoringComponents `json:"scoring,omitempty"`
+	Side         string                  `json:"side"`
+	Score        float64                 `json:"score"`
+	FinalScore   float64                 `json:"final_score,omitempty"`
+	Price        *float64                `json:"price,omitempty"`
+	RSI          *float64                `json:"rsi,omitempty"`
+	ATR          *float64                `json:"atr,omitempty"`
+	EMAFast      *float64                `json:"ema_fast,omitempty"`
+	EMASlow      *float64                `json:"ema_slow,omitempty"`
+	SL           *float64                `json:"sl,omitempty"`
+	TP           *float64                `json:"tp,omitempty"`
 }

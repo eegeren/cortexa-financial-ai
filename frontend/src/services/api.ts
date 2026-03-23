@@ -10,6 +10,7 @@ export interface SignalResponse {
   quality_flags?: string[];
   side: 'BUY' | 'SELL' | 'HOLD';
   score: number;
+  final_score?: number;
   confidence?: number;
   scenario?: string;
   insight?: string;
@@ -46,6 +47,14 @@ export interface SignalResponse {
   levels?: {
     support?: number;
     resistance?: number;
+  };
+  scoring?: {
+    trend_structure_score?: number;
+    momentum_confirmation_score?: number;
+    trend_strength_score?: number;
+    volume_participation_score?: number;
+    regime_score?: number;
+    multi_timeframe_confirmation_score?: number;
   };
   mtf?: {
     votes: Record<string, number>;
