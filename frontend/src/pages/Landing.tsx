@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'framer-motion';
+import CortexaWordmark from '@/components/CortexaWordmark';
 
 type PreviewSignal = {
   symbol: string;
@@ -395,9 +396,8 @@ const LandingPage = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={sectionTransition}
-              className="inline-flex items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[11px] uppercase tracking-[0.28em] text-cyan-100/80"
             >
-              Cortexa
+              <CortexaWordmark />
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ ...sectionTransition, delay: 0.08 }}>

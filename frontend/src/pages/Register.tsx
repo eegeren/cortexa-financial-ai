@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import Card from '@/components/Card';
+import CortexaWordmark from '@/components/CortexaWordmark';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -120,9 +121,7 @@ const RegisterPage = () => {
       <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col px-4 py-6 sm:px-6 sm:py-10 lg:flex-row lg:items-center lg:gap-12 lg:py-12">
         <section className="order-2 w-full space-y-6 text-slate-200 lg:order-1 lg:w-1/2 lg:space-y-8">
           <div className="relative overflow-hidden rounded-[2rem] border border-outline/40 bg-surface/80 p-6 shadow-elevation-soft sm:p-8 lg:p-10">
-            <span className="inline-flex items-center gap-2 rounded-full border border-outline/50 bg-surface px-4 py-2 text-[11px] uppercase tracking-[0.45em] text-slate-400">
-              Join Cortexa
-            </span>
+            <CortexaWordmark compact />
             <h1 className="mt-5 text-2xl font-semibold text-white sm:text-4xl">Build your edge with institutional grade intelligence.</h1>
             <p className="mt-3 max-w-xl text-sm text-slate-300">
               Cortexa surfaces AI-calibrated trade ideas, live risk analytics, and automated execution in a single workspace. Create an account to unlock tailored strategies and concierge onboarding.

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
+import CortexaWordmark from '@/components/CortexaWordmark';
 
 const FEATURE_BULLETS = [
   {
@@ -170,9 +171,7 @@ const LoginPage = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/70 via-slate-900/70 to-emerald-700/60" />
               <div className="relative space-y-3 sm:space-y-4">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.28em] text-slate-200 sm:px-4 sm:py-1.5 sm:text-xs sm:tracking-[0.35em]">
-                  Cortexa Trade
-                </span>
+                <CortexaWordmark compact />
                 <h1 className="max-w-xl text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
                   Sign in. Unlock signal intelligence in minutes.
                 </h1>
