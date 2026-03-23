@@ -5,8 +5,6 @@ import { useToast } from '@/components/ToastProvider';
 
 const FALLBACK_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT', 'ADAUSDT'] as const;
 
-const DEFAULT_SYMBOL = FALLBACK_SYMBOLS[0];
-
 const QUALITY_FLAG_LABELS: Record<string, string> = {
   low_volume: 'Low volume',
   weak_volume_confirmation: 'Weak volume confirmation',
@@ -38,8 +36,8 @@ const formatNumber = (value?: number, digits = 2) =>
 const formatSymbolDisplay = (symbol: string) => symbol.replace(/USDT$/, ' / USDT');
 
 const SignalsPage = () => {
-  const [activeSymbol, setActiveSymbol] = useState(DEFAULT_SYMBOL);
-  const [searchValue, setSearchValue] = useState(DEFAULT_SYMBOL);
+  const [activeSymbol, setActiveSymbol] = useState('');
+  const [searchValue, setSearchValue] = useState('');
   const [availableSymbols, setAvailableSymbols] = useState<string[]>([...FALLBACK_SYMBOLS]);
   const [symbolMenuOpen, setSymbolMenuOpen] = useState(false);
   const [symbolsLoading, setSymbolsLoading] = useState(false);
@@ -109,10 +107,6 @@ const SignalsPage = () => {
       setSignalLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    void loadSignal(DEFAULT_SYMBOL, { scrollToResults: false });
-  }, [loadSignal]);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,10 +183,14 @@ const SignalsPage = () => {
       .slice(0, 60);
   }, [availableSymbols, searchValue]);
 
+  const hasSelectedSymbol = searchValue.trim().length > 0;
+
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const normalizedSymbol = searchValue.trim().toUpperCase();
     if (!normalizedSymbol) {
+      pushToast('Choose a symbol to load a signal.', 'warning');
+      setSymbolMenuOpen(true);
       return;
     }
 
@@ -365,7 +363,7 @@ const SignalsPage = () => {
                     setSymbolMenuOpen(false);
                   }
                 }}
-                placeholder="Search supported symbol (e.g. BTCUSDT)"
+                placeholder="Select a market..."
                 role="combobox"
                 aria-expanded={symbolMenuOpen}
                 aria-controls="signals-symbol-listbox"
@@ -423,7 +421,12 @@ const SignalsPage = () => {
           </div>
           <button
             type="submit"
-            className={`inline-flex items-center gap-2 rounded-full bg-white px-5 font-medium text-black shadow-inner-glow transition-all duration-300 hover:bg-slate-200 ${hasData ? 'py-2' : 'py-2.5'}`}
+            disabled={!hasSelectedSymbol || signalLoading}
+            className={`inline-flex items-center gap-2 rounded-full px-5 font-medium shadow-inner-glow transition-all duration-300 ${hasData ? 'py-2' : 'py-2.5'} ${
+              hasSelectedSymbol && !signalLoading
+                ? 'bg-white text-black hover:bg-slate-200'
+                : 'cursor-not-allowed bg-slate-700/70 text-slate-300 opacity-60'
+            }`}
           >
             Load signal
           </button>
@@ -435,6 +438,7 @@ const SignalsPage = () => {
               ? 'Using a fallback list of major pairs while symbol discovery is unavailable.'
               : `Search across ${availableSymbols.length} backend-supported trading pairs.`}
         </p>
+        <p className="mt-2 text-xs text-slate-500">Choose a symbol to load a signal.</p>
       </section>
 
       <section
@@ -445,7 +449,7 @@ const SignalsPage = () => {
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">
-                {formatSymbolDisplay(activeSymbol)} • market intelligence snapshot
+                {(activeSymbol ? formatSymbolDisplay(activeSymbol) : 'Select a market')} • market intelligence snapshot
               </h2>
               <p className="text-sm text-slate-400">Latest deterministic view from the analysis engine with explainable technical context.</p>
             </div>
