@@ -392,15 +392,18 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
     }
     ai_validation = validate_signal_setup(validation_input)
     analysis["ai_validated"] = ai_validation.get("valid_setup")
+    analysis["ai_setup_quality"] = ai_validation.get("setup_quality")
     analysis["ai_validation_reason"] = ai_validation.get("reason")
     analysis["ai_confidence_adjustment"] = int(ai_validation.get("confidence_adjustment", 0))
 
-    if ai_validation.get("valid_setup") is False:
+    if ai_validation.get("setup_quality") == "low" or ai_validation.get("valid_setup") is False:
         analysis["trend"] = "Neutral"
         analysis["confidence"] = min(int(analysis["confidence"]) + int(ai_validation["confidence_adjustment"]), 42)
         analysis["confidence"] = max(16, analysis["confidence"])
-    elif ai_validation.get("valid_setup") is True:
+    elif ai_validation.get("setup_quality") == "high" and ai_validation.get("valid_setup") is True:
         analysis["confidence"] = max(16, min(90, int(analysis["confidence"]) + int(ai_validation["confidence_adjustment"])))
+    elif ai_validation.get("setup_quality") == "medium":
+        analysis["confidence"] = max(16, min(90, int(analysis["confidence"])))
 
     analysis["insight"] = generate_insight(analysis)
     analysis["explanation"] = generate_explanation(analysis)
@@ -462,6 +465,7 @@ def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
         "quality_flags": ["stale_data"],
         "stale": True,
         "ai_validated": None,
+        "ai_setup_quality": "medium",
         "ai_validation_reason": "AI validation unavailable; deterministic fallback used.",
         "ai_confidence_adjustment": 0,
     }

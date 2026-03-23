@@ -9,6 +9,7 @@ export interface SignalResponse {
   market_regime?: string;
   quality_flags?: string[];
   ai_validated?: boolean | null;
+  ai_setup_quality?: 'high' | 'medium' | 'low' | null;
   ai_validation_reason?: string;
   ai_confidence_adjustment?: number;
   side: 'BUY' | 'SELL' | 'HOLD';

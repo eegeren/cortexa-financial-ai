@@ -250,6 +250,7 @@ def generate_explanation(analysis: dict[str, Any]) -> str:
 def validate_signal_setup(analysis: dict[str, Any]) -> dict[str, Any]:
     fallback = {
         "valid_setup": None,
+        "setup_quality": "medium",
         "confidence_adjustment": 0,
         "reason": "AI validation unavailable; deterministic review kept.",
     }
@@ -260,14 +261,18 @@ def validate_signal_setup(analysis: dict[str, Any]) -> dict[str, Any]:
     api_key, base_url, model = _openai_settings()
     prompt = (
         "You are a conservative market setup validator.\n"
-        "Given structured technical data, decide whether this setup is strong enough to keep as a directional signal.\n"
+        "Given structured technical data, classify the setup quality as high, medium, or low and decide whether it is strong enough to keep as a directional signal.\n"
+        "Be strict.\n"
+        "Prefer low unless the setup is clearly strong.\n"
+        "Most setups should be medium or low.\n"
+        "Only mark high when structure is clean, momentum supports direction, volume is not weak, there is no timeframe conflict, and ADX indicates a real trend.\n"
         "Reject low-quality, contradictory, weak-volume, or choppy setups.\n"
         "Do not invent facts.\n"
         "Do not give trading advice.\n"
         "You are reviewing only the provided fields, not live market data.\n"
-        "Keep confidence_adjustment between -10 and +5.\n"
+        "Keep confidence_adjustment between -10 and +10.\n"
         "Return JSON only in this exact shape:\n"
-        '{"valid_setup": true, "confidence_adjustment": -3, "reason": "Short explanation."}\n\n'
+        '{"valid_setup": true, "setup_quality": "medium", "confidence_adjustment": -3, "reason": "Short explanation."}\n\n'
         f"Structured deterministic signal: {analysis}"
     )
 
@@ -306,13 +311,17 @@ def validate_signal_setup(analysis: dict[str, Any]) -> dict[str, Any]:
         content = payload["choices"][0]["message"]["content"].strip()
         parsed = json.loads(content)
         valid_setup = parsed.get("valid_setup")
+        setup_quality = str(parsed.get("setup_quality", "medium")).strip().lower()
         confidence_adjustment = int(parsed.get("confidence_adjustment", 0))
         reason = str(parsed.get("reason", "")).strip() or fallback["reason"]
         if valid_setup not in (True, False):
             return fallback
+        if setup_quality not in {"high", "medium", "low"}:
+            return fallback
         return {
             "valid_setup": valid_setup,
-            "confidence_adjustment": max(-10, min(5, confidence_adjustment)),
+            "setup_quality": setup_quality,
+            "confidence_adjustment": max(-10, min(10, confidence_adjustment)),
             "reason": reason[:240],
         }
     except Exception:
