@@ -29,6 +29,7 @@ type AuthState = {
 
 const TOKEN_KEY = 'cortexa.token';
 const EMAIL_KEY = 'cortexa.email';
+const PERSIST_KEY = 'cortexa-auth';
 const storage = typeof window !== 'undefined' ? createJSONStorage(() => window.localStorage) : undefined;
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -155,9 +156,10 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem(TOKEN_KEY);
           window.localStorage.removeItem(EMAIL_KEY);
+          window.localStorage.removeItem(PERSIST_KEY);
         }
         setAuthToken(null);
-        set({ token: null, email: null, role: null });
+        set({ token: null, email: null, role: null, error: null, loading: false, hydrated: true });
       },
       clearError: () => set({ error: null })
     }),
