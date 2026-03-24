@@ -98,8 +98,6 @@ type marketSummaryResp struct {
 		PriceChangePercent *float64 `json:"priceChangePercent"`
 		Volume             *float64 `json:"volume"`
 		QuoteVolume        *float64 `json:"quoteVolume"`
-		HighPrice          *float64 `json:"highPrice"`
-		LowPrice           *float64 `json:"lowPrice"`
 	} `json:"data"`
 	Error string `json:"error"`
 }
@@ -110,8 +108,6 @@ type MarketSummaryItem struct {
 	PriceChangePercent *float64 `json:"price_change_percent"`
 	Volume             *float64 `json:"volume,omitempty"`
 	QuoteVolume        *float64 `json:"quote_volume,omitempty"`
-	HighPrice          *float64 `json:"high_price,omitempty"`
-	LowPrice           *float64 `json:"low_price,omitempty"`
 }
 
 type NewsItem struct {
@@ -1050,13 +1046,8 @@ func (s *SignalService) MarketSummary(ctx context.Context, symbols []string, lim
 			PriceChangePercent: item.PriceChangePercent,
 			Volume:             item.Volume,
 			QuoteVolume:        item.QuoteVolume,
-			HighPrice:          item.HighPrice,
-			LowPrice:           item.LowPrice,
 		})
 	}
-	sort.SliceStable(items, func(i, j int) bool {
-		return items[i].Symbol < items[j].Symbol
-	})
 	return items, nil
 }
 

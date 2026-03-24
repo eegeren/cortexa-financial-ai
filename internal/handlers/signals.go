@@ -94,18 +94,19 @@ func (h *Handlers) GetMarketSummary(w http.ResponseWriter, r *http.Request) {
 	var symbols []string
 	if rawSymbols != "" {
 		for _, symbol := range strings.Split(rawSymbols, ",") {
-			trimmed := strings.ToUpper(strings.TrimSpace(symbol))
-			if trimmed != "" {
-				symbols = append(symbols, trimmed)
+			if normalized := strings.ToUpper(strings.TrimSpace(symbol)); normalized != "" {
+				symbols = append(symbols, normalized)
 			}
 		}
 	}
+
 	limit := 0
 	if s := r.URL.Query().Get("limit"); s != "" {
-		if v, err := strconv.Atoi(s); err == nil && v > 0 {
-			limit = v
+		if value, err := strconv.Atoi(s); err == nil && value > 0 {
+			limit = value
 		}
 	}
+
 	items, err := h.Signal.MarketSummary(r.Context(), symbols, limit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)

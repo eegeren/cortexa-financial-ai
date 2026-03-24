@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import AllMarketsModal from '@/components/AllMarketsModal';
+import { Link } from 'react-router-dom';
 import Card from '@/components/Card';
-import MarketTopBar from '@/components/MarketTopBar';
+import MarketStrip from '@/components/MarketStrip';
+import MarketsDrawer from '@/components/MarketsDrawer';
 import NewsCard from '@/components/NewsCard';
 import { useToast } from '@/components/ToastProvider';
 import SignalSentimentPoll from '@/components/SignalSentimentPoll';
@@ -95,8 +95,6 @@ const statTone = (label: string) => {
   return 'text-slate-100';
 };
 
-const TOP_MARKET_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT'];
-
 const aggregateCommunitySentiment = (threads: ForumThread[]) => {
   const votes = threads.reduce(
     (acc, thread) => {
@@ -120,8 +118,9 @@ const aggregateCommunitySentiment = (threads: ForumThread[]) => {
   return 'Neutral';
 };
 
+const TOP_MARKET_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT'];
+
 const DashboardPage = () => {
-  const navigate = useNavigate();
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
@@ -132,7 +131,7 @@ const DashboardPage = () => {
   const [newsError, setNewsError] = useState<string | null>(null);
   const [marketItems, setMarketItems] = useState<MarketSummaryItem[]>([]);
   const [marketLoading, setMarketLoading] = useState(true);
-  const [marketModalOpen, setMarketModalOpen] = useState(false);
+  const [marketsOpen, setMarketsOpen] = useState(false);
   const [communitySentiment, setCommunitySentiment] = useState<'Bullish' | 'Bearish' | 'Neutral'>('Neutral');
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const { pushToast } = useToast();
@@ -331,39 +330,24 @@ const DashboardPage = () => {
     [signal]
   );
 
-  const handleSelectMarket = (symbol: string) => {
-    setSelectedSymbol(symbol);
-    setMarketModalOpen(false);
-    navigate(`/signals?symbol=${encodeURIComponent(symbol)}`);
-  };
-
-  const topMarketItems = useMemo(() => {
-    const lookup = new Map(marketItems.map((item) => [item.symbol, item]));
-    return TOP_MARKET_SYMBOLS.map((symbol) => lookup.get(symbol)).filter(Boolean) as MarketSummaryItem[];
+  const stripItems = useMemo(() => {
+    const bySymbol = new Map(marketItems.map((item) => [item.symbol, item]));
+    return TOP_MARKET_SYMBOLS.map((symbol) => bySymbol.get(symbol)).filter(Boolean) as MarketSummaryItem[];
   }, [marketItems]);
+
+  const handleSelectSymbol = (symbol: string) => {
+    setSelectedSymbol(symbol);
+    setMarketsOpen(false);
+  };
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <MarketTopBar
-        items={topMarketItems}
+      <MarketStrip
+        items={stripItems}
         loading={marketLoading}
         activeSymbol={selectedSymbol}
-        onSelectSymbol={(symbol) => {
-          setSelectedSymbol(symbol);
-          void (async () => {
-            setSignalLoading(true);
-            try {
-              const latest = await fetchSignal(symbol);
-              setSignal(latest);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : 'Unable to load market context';
-              pushToast(message, 'warning');
-            } finally {
-              setSignalLoading(false);
-            }
-          })();
-        }}
-        onViewAll={() => setMarketModalOpen(true)}
+        onSelectSymbol={handleSelectSymbol}
+        onViewAll={() => setMarketsOpen(true)}
       />
 
       <section>
@@ -615,12 +599,12 @@ const DashboardPage = () => {
         </Suspense>
       </section>
 
-      <AllMarketsModal
-        open={marketModalOpen}
+      <MarketsDrawer
+        open={marketsOpen}
         items={marketItems}
         activeSymbol={selectedSymbol}
-        onClose={() => setMarketModalOpen(false)}
-        onSelectSymbol={handleSelectMarket}
+        onClose={() => setMarketsOpen(false)}
+        onSelectSymbol={handleSelectSymbol}
       />
     </div>
   );

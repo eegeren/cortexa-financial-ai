@@ -345,8 +345,6 @@ export interface MarketSummaryItem {
   price_change_percent?: number | null;
   volume?: number | null;
   quote_volume?: number | null;
-  high_price?: number | null;
-  low_price?: number | null;
 }
 
 export interface MarketSummaryResponse {

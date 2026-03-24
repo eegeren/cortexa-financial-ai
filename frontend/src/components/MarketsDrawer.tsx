@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { MarketSummaryItem } from '@/services/api';
 
-type AllMarketsModalProps = {
+type MarketsDrawerProps = {
   open: boolean;
   items: MarketSummaryItem[];
-  activeSymbol?: string;
+  activeSymbol: string;
   onClose: () => void;
   onSelectSymbol: (symbol: string) => void;
 };
@@ -23,40 +23,28 @@ const formatVolume = (value?: number | null) => {
   if (value == null || Number.isNaN(value)) {
     return '—';
   }
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`;
-  }
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`;
-  }
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
   return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
 };
 
 const trendArrow = (value?: number | null) => {
-  if (value == null || Number.isNaN(value)) {
-    return '→';
-  }
-  if (value > 0.15) {
-    return '↑';
-  }
-  if (value < -0.15) {
-    return '↓';
-  }
+  if (value == null || Number.isNaN(value)) return '→';
+  if (value > 0.15) return '↑';
+  if (value < -0.15) return '↓';
   return '→';
 };
 
-const AllMarketsModal = ({ open, items, activeSymbol, onClose, onSelectSymbol }: AllMarketsModalProps) => {
+const MarketsDrawer = ({ open, items, activeSymbol, onClose, onSelectSymbol }: MarketsDrawerProps) => {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
-    const value = query.trim().toUpperCase();
-    if (!value) {
-      return items;
-    }
-    return items.filter((item) => item.symbol.includes(value));
+    const normalized = query.trim().toUpperCase();
+    if (!normalized) return items;
+    return items.filter((item) => item.symbol.includes(normalized));
   }, [items, query]);
 
-  const topGainers = useMemo(
+  const gainers = useMemo(
     () =>
       items
         .filter((item) => item.price_change_percent != null)
@@ -66,7 +54,7 @@ const AllMarketsModal = ({ open, items, activeSymbol, onClose, onSelectSymbol }:
     [items]
   );
 
-  const topLosers = useMemo(
+  const losers = useMemo(
     () =>
       items
         .filter((item) => item.price_change_percent != null)
@@ -76,9 +64,7 @@ const AllMarketsModal = ({ open, items, activeSymbol, onClose, onSelectSymbol }:
     [items]
   );
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm">
@@ -108,7 +94,7 @@ const AllMarketsModal = ({ open, items, activeSymbol, onClose, onSelectSymbol }:
             <div className="rounded-2xl border border-emerald-400/15 bg-emerald-500/5 p-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-200/70">Top Movers</p>
               <div className="mt-3 space-y-2">
-                {topGainers.map((item) => (
+                {gainers.map((item) => (
                   <div key={item.symbol} className="flex items-center justify-between gap-2 text-sm">
                     <span className="text-slate-100">{item.symbol}</span>
                     <span className="text-emerald-300">{formatChange(item.price_change_percent)}</span>
@@ -119,7 +105,7 @@ const AllMarketsModal = ({ open, items, activeSymbol, onClose, onSelectSymbol }:
             <div className="rounded-2xl border border-rose-400/15 bg-rose-500/5 p-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-rose-200/70">Top Losers</p>
               <div className="mt-3 space-y-2">
-                {topLosers.map((item) => (
+                {losers.map((item) => (
                   <div key={item.symbol} className="flex items-center justify-between gap-2 text-sm">
                     <span className="text-slate-100">{item.symbol}</span>
                     <span className="text-rose-300">{formatChange(item.price_change_percent)}</span>
@@ -140,7 +126,7 @@ const AllMarketsModal = ({ open, items, activeSymbol, onClose, onSelectSymbol }:
                   key={item.symbol}
                   type="button"
                   onClick={() => onSelectSymbol(item.symbol)}
-                  className={`flex w-full items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-left transition ${
+                  className={`grid w-full grid-cols-[1.2fr_1fr_0.8fr_1fr] items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                     isActive
                       ? 'border-cyan-400/35 bg-cyan-500/10'
                       : 'border-outline/25 bg-slate-900/38 hover:border-outline/45 hover:bg-slate-900/60'
@@ -148,19 +134,13 @@ const AllMarketsModal = ({ open, items, activeSymbol, onClose, onSelectSymbol }:
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-white">{item.symbol}</p>
-                      <span className={`text-xs ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>
-                        {trendArrow(item.price_change_percent)}
-                      </span>
+                      <p className="truncate text-sm font-semibold text-white">{item.symbol}</p>
+                      <span className={`text-xs ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>{trendArrow(item.price_change_percent)}</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Volume {formatVolume(item.quote_volume ?? item.volume)}</p>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-white">{formatPrice(item.last_price)}</p>
-                    <p className={`mt-1 text-xs ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>
-                      {formatChange(item.price_change_percent)}
-                    </p>
-                  </div>
+                  <p className="text-sm font-semibold text-white">{formatPrice(item.last_price)}</p>
+                  <p className={`text-sm ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>{formatChange(item.price_change_percent)}</p>
+                  <p className="text-sm text-slate-400">{formatVolume(item.quote_volume ?? item.volume)}</p>
                 </button>
               );
             })}
@@ -176,4 +156,4 @@ const AllMarketsModal = ({ open, items, activeSymbol, onClose, onSelectSymbol }:
   );
 };
 
-export default AllMarketsModal;
+export default MarketsDrawer;
