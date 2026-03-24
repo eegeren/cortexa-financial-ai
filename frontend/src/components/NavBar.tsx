@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
+import BrandWordmark from '@/components/BrandWordmark';
 
 const Icon = {
   assistant: (
@@ -136,9 +137,7 @@ const NavBar = () => {
           onClick={() => navigate(token ? '/overview' : '/')}
           className="self-start rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-800/35"
         >
-          <span className="block text-sm font-semibold uppercase tracking-[0.32em] text-[#E5E7EB] [text-shadow:0_0_18px_rgba(148,163,184,0.08)]">
-            CORTEXA
-          </span>
+          <BrandWordmark className="text-sm" />
         </button>
 
         <nav className="mt-8 flex flex-1 flex-col gap-1">
@@ -242,9 +241,7 @@ const NavBar = () => {
             onClick={() => navigate(token ? '/overview' : '/')}
             className="text-left transition hover:text-white"
           >
-            <span className="block text-sm font-semibold uppercase tracking-[0.28em] text-[#E5E7EB] [text-shadow:0_0_14px_rgba(148,163,184,0.08)]">
-              CORTEXA
-            </span>
+            <BrandWordmark className="text-sm tracking-[0.28em] [text-shadow:0_0_14px_rgba(148,163,184,0.08)]" />
           </button>
 
           <button
