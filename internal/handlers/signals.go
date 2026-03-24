@@ -36,6 +36,29 @@ func (h *Handlers) GetMarketSymbols(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handlers) GetNews(w http.ResponseWriter, r *http.Request) {
+	currency := strings.TrimSpace(r.URL.Query().Get("currency"))
+	if currency == "" {
+		currency = "BTC"
+	}
+	limit := 20
+	if s := r.URL.Query().Get("limit"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			limit = v
+		}
+	}
+	items, provider, err := h.Signal.News(r.Context(), currency, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":       true,
+		"provider": provider,
+		"items":    items,
+	})
+}
+
 func (h *Handlers) GetInsight(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 

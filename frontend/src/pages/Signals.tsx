@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchSignal, fetchBacktest, fetchInsight, fetchMarketSymbols, type SignalResponse, type BacktestResponse } from '@/services/api';
+import SignalSentimentPoll from '@/components/SignalSentimentPoll';
 import { useToast } from '@/components/ToastProvider';
 
 const FALLBACK_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT', 'ADAUSDT'] as const;
@@ -580,6 +581,8 @@ const SignalsPage = () => {
                         {signal.disclaimer && <p className="mt-4 text-xs text-slate-500">{signal.disclaimer}</p>}
                       </div>
                     )}
+
+                    {activeSymbol && <SignalSentimentPoll symbol={activeSymbol} />}
                   </div>
 
                   <div className="space-y-4">

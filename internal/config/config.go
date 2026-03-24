@@ -24,9 +24,10 @@ type Config struct {
 	PremiumDisabled           bool
 
 	// AI assistant
-	OpenAIAPIKey  string
-	OpenAIBaseURL string
-	OpenAIModel   string
+	OpenAIAPIKey      string
+	OpenAIBaseURL     string
+	OpenAIModel       string
+	CryptoPanicAPIKey string
 
 	// Billing / payments
 	PaymentProvider           string
@@ -101,6 +102,7 @@ func Load() Config {
 		OpenAIAPIKey:              strings.TrimSpace(getenv("OPENAI_API_KEY", "")),
 		OpenAIBaseURL:             strings.TrimSpace(getenv("OPENAI_BASE_URL", "https://api.openai.com")),
 		OpenAIModel:               strings.TrimSpace(getenv("OPENAI_MODEL", "gpt-4o-mini")),
+		CryptoPanicAPIKey:         strings.TrimSpace(getenv("CRYPTOPANIC_API_KEY", "")),
 		PaymentProvider:           strings.TrimSpace(strings.ToLower(getenv("PAYMENT_PROVIDER", "stripe"))),
 		StripeSecretKey:           strings.TrimSpace(getenv("STRIPE_SECRET_KEY", "")),
 		StripeWebhookSecret:       strings.TrimSpace(getenv("STRIPE_WEBHOOK_SECRET", "")),

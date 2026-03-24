@@ -39,6 +39,7 @@ func Build(r *chi.Mux, cfg config.Config, db *sqlx.DB) *chi.Mux {
 		r.Use(middleware.JWT(authSvc))
 		r.Get("/prices/{symbol}", h.GetPrices)
 		r.Get("/market/symbols", h.GetMarketSymbols)
+		r.Get("/news", h.GetNews)
 		r.Get("/signals/{symbol}", h.GetSignals)
 		r.Get("/signals/{symbol}/stream", h.StreamSignal)
 		r.Get("/signals/{symbol}/backtest", h.GetSignalBacktest)

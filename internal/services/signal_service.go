@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/cortexa-labs/cortexa-trade-ai-backend/internal/config"
 	"github.com/cortexa-labs/cortexa-trade-ai-backend/internal/models"
@@ -84,6 +86,37 @@ type symbolsResp struct {
 	OK       bool     `json:"ok"`
 	Symbols  []string `json:"symbols"`
 	Provider string   `json:"provider"`
+}
+
+type NewsItem struct {
+	Title       string `json:"title"`
+	Source      string `json:"source"`
+	URL         string `json:"url"`
+	PublishedAt string `json:"published_at"`
+	Sentiment   string `json:"sentiment"`
+}
+
+type rssEnvelope struct {
+	Channel struct {
+		Items []struct {
+			Title       string `xml:"title"`
+			Link        string `xml:"link"`
+			PubDate     string `xml:"pubDate"`
+			Published   string `xml:"published"`
+			Date        string `xml:"date"`
+			Source      string `xml:"source"`
+			Creator     string `xml:"creator"`
+			Description string `xml:"description"`
+		} `xml:"item"`
+	} `xml:"channel"`
+	Entries []struct {
+		Title string `xml:"title"`
+		Link  struct {
+			Href string `xml:"href,attr"`
+		} `xml:"link"`
+		Updated string `xml:"updated"`
+		Source  string `xml:"source>title"`
+	} `xml:"entry"`
 }
 
 type signalScoreBreakdown struct {
@@ -890,6 +923,255 @@ func (s *SignalService) Symbols(ctx context.Context) ([]string, error) {
 	}
 
 	return symbols, nil
+}
+
+func inferNewsSentiment(title string) string {
+	lower := strings.ToLower(title)
+	bullishTerms := []string{"surge", "breakout", "approval", "rally", "gain", "up", "bull", "inflow", "record high"}
+	bearishTerms := []string{"drop", "decline", "hack", "outflow", "selloff", "down", "bear", "lawsuit", "liquidation"}
+
+	bullishHits := 0
+	bearishHits := 0
+	for _, term := range bullishTerms {
+		if strings.Contains(lower, term) {
+			bullishHits++
+		}
+	}
+	for _, term := range bearishTerms {
+		if strings.Contains(lower, term) {
+			bearishHits++
+		}
+	}
+
+	switch {
+	case bullishHits > bearishHits:
+		return "bullish"
+	case bearishHits > bullishHits:
+		return "bearish"
+	default:
+		return "neutral"
+	}
+}
+
+func parseNewsTimestamp(raw string) time.Time {
+	candidates := []string{
+		time.RFC3339,
+		time.RFC3339Nano,
+		time.RFC1123Z,
+		time.RFC1123,
+		time.RFC822Z,
+		time.RFC822,
+		"Mon, 02 Jan 2006 15:04:05 MST",
+		"2006-01-02 15:04:05 -0700 MST",
+	}
+	for _, layout := range candidates {
+		if parsed, err := time.Parse(layout, strings.TrimSpace(raw)); err == nil {
+			return parsed
+		}
+	}
+	return time.Time{}
+}
+
+func parseCryptoPanicPublished(raw string) time.Time {
+	if raw == "" {
+		return time.Time{}
+	}
+	if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
+		return parsed
+	}
+	return parseNewsTimestamp(raw)
+}
+
+func (s *SignalService) fetchCryptoPanicNews(ctx context.Context, currency string, limit int) ([]NewsItem, error) {
+	if strings.TrimSpace(s.cfg.CryptoPanicAPIKey) == "" {
+		return nil, fmt.Errorf("cryptopanic api key not configured")
+	}
+	endpoint, _ := url.Parse("https://cryptopanic.com/api/v1/posts/")
+	q := endpoint.Query()
+	q.Set("auth_token", s.cfg.CryptoPanicAPIKey)
+	q.Set("currencies", strings.ToUpper(currency))
+	q.Set("kind", "news")
+	q.Set("public", "true")
+	q.Set("filter", "hot")
+	q.Set("regions", "en")
+	endpoint.RawQuery = q.Encode()
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, httpError(resp)
+	}
+
+	var payload struct {
+		Results []struct {
+			Title     string `json:"title"`
+			Published string `json:"published_at"`
+			URL       string `json:"url"`
+			Domain    string `json:"domain"`
+			Source    struct {
+				Title string `json:"title"`
+			} `json:"source"`
+			Votes struct {
+				Positive int `json:"positive"`
+				Negative int `json:"negative"`
+			} `json:"votes"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+
+	items := make([]NewsItem, 0, minInt(limit, len(payload.Results)))
+	for _, result := range payload.Results {
+		sentiment := "neutral"
+		switch {
+		case result.Votes.Positive > result.Votes.Negative:
+			sentiment = "bullish"
+		case result.Votes.Negative > result.Votes.Positive:
+			sentiment = "bearish"
+		}
+		source := strings.TrimSpace(result.Source.Title)
+		if source == "" {
+			source = strings.TrimSpace(result.Domain)
+		}
+		items = append(items, NewsItem{
+			Title:       strings.TrimSpace(result.Title),
+			Source:      source,
+			URL:         strings.TrimSpace(result.URL),
+			PublishedAt: parseCryptoPanicPublished(result.Published).Format(time.RFC3339),
+			Sentiment:   sentiment,
+		})
+		if len(items) >= limit {
+			break
+		}
+	}
+	if len(items) == 0 {
+		return nil, fmt.Errorf("no news items returned")
+	}
+	return items, nil
+}
+
+func (s *SignalService) fetchRSSNews(ctx context.Context, limit int) ([]NewsItem, error) {
+	feeds := []struct {
+		Name string
+		URL  string
+	}{
+		{Name: "CoinDesk", URL: "https://www.coindesk.com/arc/outboundfeeds/rss/"},
+		{Name: "Cointelegraph", URL: "https://cointelegraph.com/rss"},
+		{Name: "Decrypt", URL: "https://decrypt.co/feed"},
+	}
+
+	collected := make([]NewsItem, 0, limit)
+	seen := map[string]struct{}{}
+
+	for _, feed := range feeds {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, feed.URL, nil)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			continue
+		}
+		body, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil || resp.StatusCode >= 400 {
+			continue
+		}
+
+		var envelope rssEnvelope
+		if err := xml.Unmarshal(body, &envelope); err != nil {
+			continue
+		}
+
+		for _, item := range envelope.Channel.Items {
+			link := strings.TrimSpace(item.Link)
+			if link == "" {
+				continue
+			}
+			if _, ok := seen[link]; ok {
+				continue
+			}
+			seen[link] = struct{}{}
+			published := parseNewsTimestamp(firstNonEmpty(item.PubDate, item.Published, item.Date))
+			source := firstNonEmpty(strings.TrimSpace(item.Source), feed.Name)
+			collected = append(collected, NewsItem{
+				Title:       strings.TrimSpace(item.Title),
+				Source:      source,
+				URL:         link,
+				PublishedAt: published.Format(time.RFC3339),
+				Sentiment:   inferNewsSentiment(item.Title),
+			})
+		}
+
+		for _, entry := range envelope.Entries {
+			link := strings.TrimSpace(entry.Link.Href)
+			if link == "" {
+				continue
+			}
+			if _, ok := seen[link]; ok {
+				continue
+			}
+			seen[link] = struct{}{}
+			published := parseNewsTimestamp(entry.Updated)
+			source := firstNonEmpty(strings.TrimSpace(entry.Source), feed.Name)
+			collected = append(collected, NewsItem{
+				Title:       strings.TrimSpace(entry.Title),
+				Source:      source,
+				URL:         link,
+				PublishedAt: published.Format(time.RFC3339),
+				Sentiment:   inferNewsSentiment(entry.Title),
+			})
+		}
+	}
+
+	sort.SliceStable(collected, func(i, j int) bool {
+		return collected[i].PublishedAt > collected[j].PublishedAt
+	})
+	if len(collected) > limit {
+		collected = collected[:limit]
+	}
+	if len(collected) == 0 {
+		return nil, fmt.Errorf("no rss news available")
+	}
+	return collected, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func (s *SignalService) News(ctx context.Context, currency string, limit int) ([]NewsItem, string, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 20 {
+		limit = 20
+	}
+	if strings.TrimSpace(currency) == "" {
+		currency = "BTC"
+	}
+	if items, err := s.fetchCryptoPanicNews(ctx, currency, limit); err == nil {
+		return items, "cryptopanic", nil
+	}
+	items, err := s.fetchRSSNews(ctx, limit)
+	if err != nil {
+		return nil, "", err
+	}
+	return items, "rss-fallback", nil
 }
 
 func (s *SignalService) Insight(ctx context.Context, payload map[string]any) (string, error) {

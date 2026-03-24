@@ -321,6 +321,20 @@ export interface MarketSymbolsResponse {
   symbols: string[];
 }
 
+export interface NewsItem {
+  title: string;
+  source: string;
+  url: string;
+  published_at: string;
+  sentiment: 'bullish' | 'bearish' | 'neutral' | string;
+}
+
+export interface NewsResponse {
+  ok: boolean;
+  provider: string;
+  items: NewsItem[];
+}
+
 export interface PlanSummary {
   id: number;
   code: string;
@@ -402,6 +416,19 @@ export const fetchSignal = async (symbol: string) => {
 export const fetchMarketSymbols = async () => {
   const { data } = await http.get<MarketSymbolsResponse>('/api/market/symbols');
   return data.symbols;
+};
+
+export const fetchNews = async (
+  params: {
+    currency?: string;
+    limit?: number;
+  } = {}
+) => {
+  const { currency = 'BTC', limit = 20 } = params;
+  const { data } = await http.get<NewsResponse>('/api/news', {
+    params: { currency, limit },
+  });
+  return data;
 };
 
 export const fetchInsight = async (payload: InsightRequest) => {

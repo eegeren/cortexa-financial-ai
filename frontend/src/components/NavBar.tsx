@@ -27,6 +27,12 @@ const Icon = {
       <path d="M7 6V5a3 3 0 016 0v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   ),
+  news: (
+    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden>
+      <path d="M4 4.5h9a2.5 2.5 0 012.5 2.5v8.5H6A2.5 2.5 0 013.5 13V5A.5.5 0 014 4.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M6.5 8H12.5M6.5 11H12.5M6.5 14H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
   updates: (
     <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden>
       <path d="M10 2a6 6 0 00-6 6c0 3-1.5 5-2 6h16c-.5-1-2-3-2-6a6 6 0 00-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -80,6 +86,7 @@ const NavBar = () => {
     { to: '/signals', label: 'Signals', icon: 'signals' },
     { to: '/portfolio', label: 'Portfolio', icon: 'portfolio' },
     { to: '/forum', label: 'Forum', icon: 'updates' },
+    { to: '/news', label: 'News', icon: 'news' },
   ];
 
   const publicLinks: { to: string; label: string; icon: IconKey; highlight?: boolean }[] = [
