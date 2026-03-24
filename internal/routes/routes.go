@@ -18,13 +18,14 @@ func Build(r *chi.Mux, cfg config.Config, db *sqlx.DB) *chi.Mux {
 	authSvc := services.NewAuthService(db, cfg)
 	priceSvc := services.NewPriceService(cfg)
 	signalSvc := services.NewSignalService(cfg)
+	forumSvc := services.NewForumService(db)
 	portfolioSvc := services.NewPortfolioService(db)
 	webhookSvc := services.NewWebhookService(cfg)
 	billingSvc := services.NewBillingService(db, cfg)
 	chatSvc := services.NewChatService(cfg)
 
 	// handlers
-	h := handlers.NewHandlers(authSvc, priceSvc, signalSvc, portfolioSvc, webhookSvc, billingSvc, chatSvc, cfg)
+	h := handlers.NewHandlers(authSvc, priceSvc, signalSvc, forumSvc, portfolioSvc, webhookSvc, billingSvc, chatSvc, cfg)
 
 	r.Get("/health", h.Health)
 	r.Get("/healthz", h.Healthz)
@@ -60,35 +61,9 @@ func Build(r *chi.Mux, cfg config.Config, db *sqlx.DB) *chi.Mux {
 
 	// Forum (placeholder API routes; replace with real handlers later)
 	r.Route("/api/forum", func(r chi.Router) {
-		r.Use(middleware.JWT(authSvc))
-
-		// GET /api/forum/threads?topic=&q=
-		r.Get("/threads", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"ok":true,"threads":[]}`))
-		})
-
-		// POST /api/forum/threads (create a new thread)
-		r.Post("/threads", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotImplemented)
-			w.Write([]byte(`{"ok":false,"error":"not implemented yet"}`))
-		})
-
-		// POST /api/forum/posts (reply to a thread)
-		r.Post("/posts", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotImplemented)
-			w.Write([]byte(`{"ok":false,"error":"not implemented yet"}`))
-		})
-
-		// POST /api/forum/vote (up/down vote)
-		r.Post("/vote", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotImplemented)
-			w.Write([]byte(`{"ok":false,"error":"not implemented yet"}`))
-		})
+		r.Get("/threads", h.GetForumThreads)
+		r.With(middleware.RequireAuth(authSvc)).Post("/comments", h.CreateForumComment)
+		r.With(middleware.RequireAuth(authSvc)).Post("/votes", h.CreateForumVote)
 	})
 
 	r.Route("/admin", func(r chi.Router) {

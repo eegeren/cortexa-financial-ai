@@ -21,6 +21,30 @@ func EnsureSchema(db *sqlx.DB) error {
             price DOUBLE PRECISION NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT NOW()
         )`,
+		`CREATE TABLE IF NOT EXISTS forum_threads (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            topic TEXT NOT NULL,
+            author TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        )`,
+		`CREATE TABLE IF NOT EXISTS forum_comments (
+            id SERIAL PRIMARY KEY,
+            thread_id TEXT NOT NULL REFERENCES forum_threads(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            username TEXT NOT NULL DEFAULT '',
+            body TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        )`,
+		`CREATE TABLE IF NOT EXISTS forum_votes (
+            id SERIAL PRIMARY KEY,
+            thread_id TEXT NOT NULL REFERENCES forum_threads(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            vote_type TEXT NOT NULL CHECK (vote_type IN ('bullish','bearish','chop')),
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            UNIQUE(thread_id, user_id)
+        )`,
 		`CREATE TABLE IF NOT EXISTS plans (
             id SERIAL PRIMARY KEY,
             code TEXT NOT NULL UNIQUE,
@@ -84,6 +108,8 @@ func EnsureSchema(db *sqlx.DB) error {
         )`,
 		`CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_invoices_subscription_id ON invoices(subscription_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_forum_comments_thread_id ON forum_comments(thread_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_forum_votes_thread_id ON forum_votes(thread_id)`,
 		`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS first_name TEXT DEFAULT ''`,
 		`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS last_name TEXT DEFAULT ''`,
 		`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS phone TEXT`,
@@ -110,6 +136,21 @@ func EnsureSchema(db *sqlx.DB) error {
 		if _, err := db.Exec(stmt); err != nil {
 			return err
 		}
+	}
+
+	if _, err := db.Exec(`
+        INSERT INTO forum_threads (id, title, topic, author, created_at, updated_at)
+        VALUES
+            ('t1', 'Desk brief: BTC volatility regimes for the New York session', 'Announcements', 'cortexa-desk', NOW(), NOW()),
+            ('t2', 'Strategy share: multi-timeframe ladder for SOL after CPI print', 'Strategy', 'liquidity_hunter', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '2 hours'),
+            ('t3', 'Automation recipe: webhook triggers for ETH basis trades', 'Automation', 'ops', NOW() - INTERVAL '4 hours', NOW() - INTERVAL '4 hours'),
+            ('t4', 'Support: Binance automation credentials rotate after restart', 'Support', 'flowstate', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day')
+        ON CONFLICT (id) DO UPDATE SET
+            title = EXCLUDED.title,
+            topic = EXCLUDED.topic,
+            author = EXCLUDED.author;
+    `); err != nil {
+		return err
 	}
 
 	if _, err := db.Exec(`

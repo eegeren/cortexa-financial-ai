@@ -335,6 +335,37 @@ export interface NewsResponse {
   items: NewsItem[];
 }
 
+export interface ForumComment {
+  id: number;
+  thread_id: string;
+  user_id: number;
+  username: string;
+  body: string;
+  created_at: string;
+}
+
+export interface ForumVoteSummary {
+  bullish: number;
+  bearish: number;
+  chop: number;
+}
+
+export interface ForumThread {
+  id: string;
+  title: string;
+  topic: string;
+  author: string;
+  last_activity: string;
+  replies: number;
+  comments: ForumComment[];
+  votes: ForumVoteSummary;
+}
+
+export interface ForumThreadsResponse {
+  ok: boolean;
+  threads: ForumThread[];
+}
+
 export interface PlanSummary {
   id: number;
   code: string;
@@ -429,6 +460,21 @@ export const fetchNews = async (
     params: { currency, limit },
   });
   return data;
+};
+
+export const fetchForumThreads = async (params: { topic?: string; q?: string } = {}) => {
+  const { data } = await http.get<ForumThreadsResponse>('/api/forum/threads', { params });
+  return data.threads ?? [];
+};
+
+export const createForumComment = async (payload: { thread_id: string; body: string }) => {
+  const { data } = await http.post<{ ok: boolean; comment: ForumComment }>('/api/forum/comments', payload);
+  return data.comment;
+};
+
+export const createForumVote = async (payload: { thread_id: string; vote: 'bullish' | 'bearish' | 'chop' }) => {
+  const { data } = await http.post<{ ok: boolean; votes: ForumVoteSummary }>('/api/forum/votes', payload);
+  return data.votes;
 };
 
 export const fetchInsight = async (payload: InsightRequest) => {

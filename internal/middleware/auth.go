@@ -32,6 +32,26 @@ func JWT(auth *services.AuthService) func(http.Handler) http.Handler {
 	}
 }
 
+func RequireAuth(auth *services.AuthService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := r.Header.Get("Authorization")
+			parts := strings.Split(h, " ")
+			if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+				http.Error(w, "authentication required", http.StatusUnauthorized)
+				return
+			}
+			uid, role, err := auth.ParseToken(parts[1])
+			if err != nil {
+				http.Error(w, "authentication required", http.StatusUnauthorized)
+				return
+			}
+			ctx := context.WithValue(r.Context(), UserIDKey, map[string]any{"id": uid, "role": role})
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 func AdminOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		m, ok := r.Context().Value(UserIDKey).(map[string]any)
