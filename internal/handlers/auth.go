@@ -22,7 +22,10 @@ type registerReq struct {
 }
 
 type authResp struct {
-	Token string `json:"token"`
+	Token     string `json:"token"`
+	Email     string `json:"email"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
 }
 
 func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
@@ -77,5 +80,10 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t, _ := h.Auth.GenerateToken(u)
-	writeJSON(w, http.StatusOK, authResp{Token: t})
+	writeJSON(w, http.StatusOK, authResp{
+		Token:     t,
+		Email:     u.Email,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+	})
 }

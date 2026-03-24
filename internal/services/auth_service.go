@@ -65,7 +65,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, firstName, 
 
 func (s *AuthService) Login(ctx context.Context, email, password string) (models.User, error) {
 	var u models.User
-	err := s.db.GetContext(ctx, &u, `SELECT id,email,password_hash,role FROM users WHERE email=$1`, email)
+	err := s.db.GetContext(ctx, &u, `SELECT id,email,password_hash,role,first_name,last_name FROM users WHERE email=$1`, email)
 	if err != nil {
 		return u, err
 	}
@@ -86,7 +86,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (models
 
 func (s *AuthService) GetUserByID(ctx context.Context, id int64) (models.User, error) {
 	var u models.User
-	err := s.db.GetContext(ctx, &u, `SELECT id,email,role FROM users WHERE id=$1`, id)
+	err := s.db.GetContext(ctx, &u, `SELECT id,email,role,first_name,last_name FROM users WHERE id=$1`, id)
 	if err != nil {
 		return u, err
 	}

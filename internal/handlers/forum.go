@@ -42,8 +42,11 @@ func (h *Handlers) CreateForumComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "authentication required", http.StatusUnauthorized)
 		return
 	}
-	username := strings.Split(strings.TrimSpace(user.Email), "@")[0]
-	comment, err := h.Forum.CreateComment(r.Context(), userID, payload.ThreadID, body, username)
+	displayName := strings.TrimSpace(strings.TrimSpace(user.FirstName) + " " + strings.TrimSpace(user.LastName))
+	if displayName == "" {
+		displayName = strings.TrimSpace(user.Email)
+	}
+	comment, err := h.Forum.CreateComment(r.Context(), userID, payload.ThreadID, body, displayName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return

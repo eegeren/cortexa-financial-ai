@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import BrandWordmark from '@/components/BrandWordmark';
+import usePremiumStatus from '@/hooks/usePremiumStatus';
 
 const Icon = {
   assistant: (
@@ -63,11 +64,14 @@ const Icon = {
 type IconKey = keyof typeof Icon;
 
 const NavBar = () => {
-  const { token, email, logout } = useAuthStore((state) => ({
+  const { token, email, firstName, lastName, logout } = useAuthStore((state) => ({
     token: state.token,
     email: state.email,
+    firstName: state.firstName,
+    lastName: state.lastName,
     logout: state.logout,
   }));
+  const { isPremium } = usePremiumStatus();
   const isPublicNav = !token;
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,6 +86,7 @@ const NavBar = () => {
     { to: '/portfolio', label: 'Portfolio', icon: 'portfolio' },
     { to: '/forum', label: 'Forum', icon: 'updates' },
     { to: '/news', label: 'News', icon: 'news' },
+    { to: '/pricing', label: 'Pricing', icon: 'pricing' },
   ];
 
   const publicLinks: { to: string; label: string; icon: IconKey; highlight?: boolean }[] = [
@@ -112,6 +117,8 @@ const NavBar = () => {
     setMobileMenuOpen(false);
     setAccountOpen(false);
   }, [location.pathname]);
+
+  const displayName = [firstName, lastName].filter(Boolean).join(' ').trim() || email || 'Account';
 
   const desktopLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-colors ${
@@ -166,9 +173,18 @@ const NavBar = () => {
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-semibold text-primary uppercase">
-                    {(email ?? 'A')[0]}
+                    {displayName[0] ?? 'A'}
                   </div>
-                  <span className="truncate text-xs">{email ?? 'Account'}</span>
+                  <div className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-100">{displayName}</span>
+                    {email && <span className="mt-0.5 block truncate text-[11px] text-slate-400">{email}</span>}
+                    {isPremium && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-[linear-gradient(135deg,#1e293b,#111827)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#facc15]">
+                        <span aria-hidden>★</span>
+                        PREMIUM
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <svg aria-hidden viewBox="0 0 12 8" className={`h-3 w-3 shrink-0 transition-transform ${accountOpen ? 'rotate-180' : ''}`} fill="none">
                   <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -254,7 +270,7 @@ const NavBar = () => {
           >
             {token && (
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[9px] font-bold text-primary uppercase">
-                {(email ?? 'A')[0]}
+                {displayName[0] ?? 'A'}
               </div>
             )}
             <span>Menu</span>
@@ -274,7 +290,12 @@ const NavBar = () => {
             <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Navigation</p>
-                {token && <p className="mt-1 text-sm text-slate-300">{email ?? 'Account'}</p>}
+                {token && (
+                  <>
+                    <p className="mt-1 text-sm font-medium text-slate-200">{displayName}</p>
+                    {email && <p className="mt-0.5 text-xs text-slate-400">{email}</p>}
+                  </>
+                )}
               </div>
               <button
                 type="button"

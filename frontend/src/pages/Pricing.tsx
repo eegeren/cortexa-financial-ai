@@ -1,315 +1,113 @@
-import { useEffect, useMemo, useState } from 'react';
-import Card from '@/components/Card';
+import { useState } from 'react';
 import PageHeader from '@/components/PageHeader';
-import { createCheckoutSession } from '@/services/api';
-import { useSubscriptionStore } from '@/store/subscription';
+import Card from '@/components/Card';
+import usePremiumStatus from '@/hooks/usePremiumStatus';
 import { useAuthStore } from '@/store/auth';
-import Skeleton from '@/components/Skeleton';
-import clsx from 'clsx';
 
-type BillingInterval = 'monthly' | 'annual';
+const PREMIUM_FEATURES = [
+  'Full signal access',
+  'Advanced AI explanations',
+  'Access to all coins',
+  'Community participation',
+  'Priority updates',
+];
 
-const formatPrice = (
-  amountCents: number,
-  currency: string,
-  billingInterval: BillingInterval,
-  monthlyFallback: string,
-  annualFallback?: string | null,
-) => {
-  if (billingInterval === 'annual' && annualFallback) {
-    return annualFallback;
-  }
-
-  if (billingInterval === 'monthly' && monthlyFallback) {
-    return monthlyFallback;
-  }
-
-  const amount = amountCents / 100;
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency?.toUpperCase() ?? 'USD',
-    minimumFractionDigits: 0,
-  }).format(amount);
-
-  if (billingInterval === 'annual') {
-    return `${formatted} (annual)`;
-  }
-  return formatted;
-};
-
-const planHighlights: Record<
-  string,
+const LOCKED_PREVIEWS = [
   {
-    tier: string;
-    description: string;
-    bullets: string[];
-    monthly: string;
-    annual?: string | null;
-    ctaLabel: string;
-    secondaryLabel?: string;
-  }
-> = {
-  starter: {
-    tier: 'Starter',
-    description: 'Get started with curated AI signals and guided insights without paying a cent.',
-    bullets: ['50 Cortexa Assistant messages / month', 'Signals for the top 5 markets', 'Portfolio analytics lite'],
-    monthly: '$0',
-    annual: '$0',
-    ctaLabel: 'Use Starter',
-    secondaryLabel: 'Download sample report',
+    title: 'Advanced explanation',
+    body: 'AI structure notes, invalidation logic, and cleaner context stay behind Premium.',
   },
-  pro: {
-    tier: 'Pro',
-    description: 'Scale your trading workflow with unlimited assistant chats and advanced automation.',
-    bullets: ['Unlimited AI conversations', 'Full market & backtest coverage', 'Live auto-trading & webhooks'],
-    monthly: '$99',
-    annual: '$990 (save 17%)',
-    ctaLabel: 'Start Pro trial',
-    secondaryLabel: 'View feature matrix',
+  {
+    title: 'Full signal stream',
+    body: 'Starter users see selective access while Premium unlocks the entire market universe.',
   },
-  enterprise: {
-    tier: 'Enterprise',
-    description: 'Enterprise desks get bespoke data integrations, governance, and dedicated support.',
-    bullets: ['Unlimited seats & workspaces', 'Private models and on-prem options', 'Dedicated success manager & SLAs'],
-    monthly: 'Custom',
-    annual: null,
-    ctaLabel: 'Talk to sales',
-    secondaryLabel: 'Download enterprise brief',
+  {
+    title: 'Community write access',
+    body: 'Read the forum freely, then upgrade to post, vote, and participate in desk discussion.',
   },
-};
+];
 
 const PricingPage = () => {
-  const [checkingOut, setCheckingOut] = useState<string | null>(null);
   const token = useAuthStore((state) => state.token);
-  const { plans, loadPlans } = useSubscriptionStore((state) => ({ plans: state.plans, loadPlans: state.loadPlans }));
-  const [billingInterval, setBillingInterval] = useState<BillingInterval>('monthly');
+  const { isPremium, badgeLabel } = usePremiumStatus();
+  const [ctaState, setCtaState] = useState<'idle' | 'clicked'>('idle');
 
-  useEffect(() => {
-    if (!plans.length) {
-      void loadPlans();
-    }
-  }, [loadPlans, plans.length]);
-
-  const orderedPlans = useMemo(
-    () =>
-      [...plans].sort((a, b) => {
-        const order = ['starter', 'pro', 'enterprise'];
-        return order.indexOf(a.code) - order.indexOf(b.code);
-      }),
-    [plans]
-  );
-
-  const handleCheckout = async (planCode: string) => {
-    if (billingInterval === 'annual') {
-      window.location.href = `mailto:finance@cortexaai.net?subject=Cortexa%20annual%20plan%20request%20(${planCode.toUpperCase()})`;
-      return;
-    }
-    if (!token) {
-      window.location.href = '/login';
-      return;
-    }
-    setCheckingOut(planCode);
-    try {
-      const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
-      const session = await createCheckoutSession({
-        plan_code: planCode,
-        success_url: `${currentUrl}/billing`,
-        cancel_url: `${currentUrl}/pricing`,
-      });
-      if (session.checkout_url) {
-        window.location.href = session.checkout_url;
-      }
-    } catch (error) {
-      console.error('checkout failed', error);
-      alert('Checkout could not be started. Please try again or contact support.');
-    } finally {
-      setCheckingOut(null);
-    }
+  const handleUpgrade = () => {
+    setCtaState('clicked');
+    window.location.href = token ? '/billing' : '/register';
   };
 
   return (
-    <div className="space-y-8 sm:space-y-10 lg:space-y-12">
+    <div className="space-y-8 sm:space-y-10">
       <PageHeader
         title="Pricing"
-        description="Choose the plan that matches your desk. Upgrade instantly and unlock premium intelligence."
+        description="One clean subscription. Full market coverage, richer AI context, and premium participation."
       />
 
-      {!orderedPlans.length ? (
-        <div className="grid gap-6 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="h-[340px] w-full" />
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={() => setBillingInterval('monthly')}
-              className={clsx(
-                'rounded-full border px-4 py-2 text-xs font-semibold transition sm:py-1',
-                billingInterval === 'monthly'
-                  ? 'border-primary bg-primary/20 text-primary'
-                  : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-primary/40 hover:text-white'
-              )}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setBillingInterval('annual')}
-              className={clsx(
-                'rounded-full border px-4 py-2 text-xs font-semibold transition sm:py-1',
-                billingInterval === 'annual'
-                  ? 'border-primary bg-primary/20 text-primary'
-                  : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-primary/40 hover:text-white'
-              )}
-            >
-              Annual (2 months free)
-            </button>
+      <section className="mx-auto max-w-3xl">
+        <Card className="rounded-[2rem] border border-primary/25 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.96))] p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <span className="inline-flex rounded-full border border-primary/35 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.32em] text-primary/90">
+                {isPremium ? 'Active premium' : 'Premium plan'}
+              </span>
+              <h2 className="mt-5 text-3xl font-semibold text-white sm:text-4xl">CORTEXA PREMIUM</h2>
+              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
+                The full intelligence layer for traders who want clear structure, complete coverage, and richer context without clutter.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-slate-950/55 px-5 py-4 text-right">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Price</p>
+              <p className="mt-2 text-4xl font-semibold text-white">$9.99</p>
+              <p className="mt-1 text-sm text-slate-400">/ month</p>
+            </div>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-          {orderedPlans.map((plan) => {
-            const highlight = planHighlights[plan.code] ?? {
-              tier: plan.name,
-              description: plan.description,
-              bullets: plan.features,
-              monthly: `$${(plan.amount_cents / 100).toFixed(0)}`,
-              annual: null,
-              ctaLabel: 'Choose plan',
-            };
-            const isPopular = plan.code === 'pro';
-            const badge = billingInterval === 'annual' ? 'per year' : 'per month';
-            return (
-              <Card
-                key={plan.id}
-                className={`relative border border-slate-800/60 bg-slate-900/70 p-5 transition hover:-translate-y-1 hover:border-primary/40 sm:p-6 ${
-                  isPopular ? 'shadow-lg shadow-primary/20' : ''
-                }`}
-              >
-                {isPopular && (
-                  <span className="absolute right-4 top-4 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">
-                    Most popular
-                  </span>
-                )}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">{highlight.tier}</h3>
-                    <p className="mt-1 text-sm text-slate-400">{highlight.description}</p>
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-end gap-3">
-                      <span className="text-2xl font-bold text-white sm:text-3xl">
-                        {formatPrice(plan.amount_cents, plan.currency, billingInterval, highlight.monthly, highlight.annual)}
-                      </span>
-                      {highlight.annual && billingInterval === 'annual' && (
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-300">
-                          Annual savings
-                        </span>
-                      )}
-                    </div>
-                    <span className="ml-1 text-xs uppercase tracking-wide text-slate-500">/{badge}</span>
-                  </div>
-                  <ul className="space-y-2 text-sm text-slate-200">
-                    {highlight.bullets.map((item) => (
-                      <li key={item} className="flex items-start gap-2">
-                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    onClick={() => handleCheckout(plan.code)}
-                    className="mt-6 w-full rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={checkingOut === plan.code}
-                  >
-                    {checkingOut === plan.code ? 'Redirecting…' : 'Choose plan'}
-                  </button>
-                  {highlight.secondaryLabel && (
-                    <button
-                      type="button"
-                      className="w-full rounded-full border border-slate-700 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-primary hover:text-white"
-                      disabled
-                      title="Replace with your own link"
-                    >
-                      {highlight.secondaryLabel}
-                    </button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-        </>
-      )}
-
-      <Card className="border border-slate-800/60 bg-slate-900/80 p-6 text-sm text-slate-300">
-        <h4 className="text-lg font-semibold text-white">Regulatory note</h4>
-        <p className="mt-3">
-          Cortexa Trade AI provides analytics and automation tooling. Nothing here constitutes investment advice. Plans
-          can be cancelled anytime via the customer portal. Enterprise desks receive bespoke compliance reviews and
-          deployment options.
-        </p>
-      </Card>
-
-      <Card className="border border-slate-800/60 bg-slate-900/80 p-6 text-sm text-slate-300">
-        <h4 className="text-lg font-semibold text-white">Compare plans</h4>
-        <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-xs text-left">
-          <thead className="uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-3 py-2">Capability</th>
-              <th className="px-3 py-2">Starter</th>
-              <th className="px-3 py-2">Pro</th>
-              <th className="px-3 py-2">Enterprise</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { label: 'AI chat messages', starter: '50 / mo', pro: 'Unlimited', enterprise: 'Unlimited + private workspace' },
-              { label: 'Market coverage', starter: 'Top 5 pairs', pro: 'Full universe', enterprise: 'Custom universe & OTC' },
-              { label: 'Backtests & sweeps', starter: 'Snapshots', pro: 'Full analytics', enterprise: 'Fine-tuned & export API' },
-              { label: 'Automations', starter: 'Manual triggers', pro: 'Auto execute', enterprise: 'Custom routing + SLAs' },
-              { label: 'Support', starter: 'Community', pro: 'Priority desk', enterprise: 'Dedicated success manager' },
-            ].map((row) => (
-              <tr key={row.label} className="border-t border-slate-800/70 text-slate-200">
-                <td className="px-3 py-2 font-medium text-slate-300">{row.label}</td>
-                <td className="px-3 py-2">{row.starter}</td>
-                <td className="px-3 py-2">{row.pro}</td>
-                <td className="px-3 py-2">{row.enterprise}</td>
-              </tr>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {PREMIUM_FEATURES.map((feature) => (
+              <div key={feature} className="rounded-2xl border border-outline/30 bg-slate-950/35 px-4 py-4 text-sm text-slate-200">
+                <span className="mr-2 inline-flex size-5 items-center justify-center rounded-full bg-primary/15 text-[11px] text-primary">
+                  ✓
+                </span>
+                {feature}
+              </div>
             ))}
-          </tbody>
-        </table>
-        </div>
-      </Card>
+          </div>
 
-      <Card className="border border-slate-800/60 bg-slate-900/80 p-6 text-sm text-slate-300">
-        <h4 className="text-lg font-semibold text-white">Frequently asked questions</h4>
-        <div className="mt-4 space-y-4">
-          {[
-            {
-              q: 'Which payment provider powers checkout?',
-              a: 'Depending on the PAYMENT_PROVIDER value we route through Stripe, Paddle, Lemon Squeezy, or Iyzico with full PCI compliance.',
-            },
-            {
-              q: 'Will upgrading affect my existing data?',
-              a: 'No. Portfolio history, signals, and automations stay intact and new features unlock instantly.',
-            },
-            {
-              q: 'Do you offer bespoke integrations for Enterprise?',
-              a: 'Yes. Enterprise desks get custom models, private data feeds, and seat management. Reach us at finance@cortexaai.net.',
-            },
-          ].map((item) => (
-            <div key={item.q} className="rounded-lg border border-slate-800/70 bg-slate-900/60 p-4">
-              <p className="text-sm font-semibold text-white">{item.q}</p>
-              <p className="mt-2 text-xs text-slate-300">{item.a}</p>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-outline/25 bg-slate-950/30 px-5 py-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Current access</p>
+              <p className="mt-2 text-sm text-slate-200">{badgeLabel}</p>
             </div>
+            <button
+              type="button"
+              onClick={handleUpgrade}
+              className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-slate-200"
+            >
+              {isPremium ? 'Manage Premium' : ctaState === 'clicked' ? 'Redirecting…' : 'Upgrade to Premium'}
+            </button>
+          </div>
+        </Card>
+      </section>
+
+      {!isPremium && (
+        <section className="grid gap-4 lg:grid-cols-3">
+          {LOCKED_PREVIEWS.map((item) => (
+            <Card key={item.title} className="relative rounded-3xl border border-outline/25 bg-slate-950/50 p-5">
+              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-transparent to-slate-950/30" />
+              <div className="absolute right-4 top-4 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-primary/90">
+                Locked
+              </div>
+              <div className="blur-[2px] select-none">
+                <h3 className="text-lg font-semibold text-white">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-300">{item.body}</p>
+              </div>
+              <p className="mt-6 text-sm font-medium text-slate-100">Upgrade to access full features</p>
+            </Card>
           ))}
-        </div>
-      </Card>
+        </section>
+      )}
     </div>
   );
 };

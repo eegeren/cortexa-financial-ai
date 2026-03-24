@@ -4,6 +4,9 @@ import Card from '@/components/Card';
 import NewsCard from '@/components/NewsCard';
 import { useToast } from '@/components/ToastProvider';
 import SignalSentimentPoll from '@/components/SignalSentimentPoll';
+import PremiumLock from '@/components/PremiumLock';
+import usePremiumStatus from '@/hooks/usePremiumStatus';
+import { useAuthStore } from '@/store/auth';
 import { fetchNews, fetchPortfolio, fetchSignal, NewsResponse, PortfolioResponse, SignalResponse } from '@/services/api';
 
 const MarketWidget = lazy(() => import('@/components/MarketWidget'));
@@ -100,6 +103,13 @@ const DashboardPage = () => {
   const [newsError, setNewsError] = useState<string | null>(null);
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const { pushToast } = useToast();
+  const { isPremium } = usePremiumStatus();
+  const { firstName, lastName, email } = useAuthStore((state) => ({
+    firstName: state.firstName,
+    lastName: state.lastName,
+    email: state.email,
+  }));
+  const greetingName = firstName?.trim() || lastName?.trim() || email?.split('@')[0] || 'there';
 
   useEffect(() => {
     const loadPortfolio = async () => {
@@ -244,6 +254,7 @@ const DashboardPage = () => {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-[11px] uppercase tracking-[0.36em] text-slate-500">Overview</p>
+              <p className="mt-3 text-sm font-medium text-slate-300">Welcome back, {greetingName}</p>
               <div className="mt-4 flex items-end gap-3">
                 <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
                   {signalLoading ? '...' : signal?.side ?? 'HOLD'}
@@ -259,9 +270,9 @@ const DashboardPage = () => {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="rounded-3xl p-5 sm:p-6 lg:p-7">
+        <Card className="relative rounded-3xl p-5 sm:p-6 lg:p-7">
           <p className="text-[11px] uppercase tracking-[0.36em] text-slate-500">What&apos;s Happening</p>
-          <div className="mt-5 space-y-5">
+          <div className={`mt-5 space-y-5 ${!isPremium ? 'blur-[2px]' : ''}`}>
             <div className="rounded-2xl border border-outline/30 bg-slate-950/35 p-4 sm:p-5">
               <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Scenario</p>
               <p className="mt-3 text-lg leading-8 text-white">
@@ -277,6 +288,7 @@ const DashboardPage = () => {
               </p>
             </div>
           </div>
+          {!isPremium && <PremiumLock message="Upgrade to access full features" />}
         </Card>
 
         <div className="space-y-6">
@@ -386,7 +398,7 @@ const DashboardPage = () => {
           ) : null}
         </Card>
 
-        <Card className="rounded-3xl p-5 sm:p-6">
+        <Card className="relative rounded-3xl p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Community</p>
@@ -396,9 +408,10 @@ const DashboardPage = () => {
               BTCUSDT
             </span>
           </div>
-          <div className="mt-5">
+          <div className={`mt-5 ${!isPremium ? 'blur-[2px]' : ''}`}>
             <SignalSentimentPoll symbol={signal?.symbol ?? 'BTCUSDT'} />
           </div>
+          {!isPremium && <PremiumLock message="Upgrade to access full features" />}
         </Card>
       </section>
 

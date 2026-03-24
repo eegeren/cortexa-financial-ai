@@ -2,6 +2,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { Link } from 'react-router-dom';
 import { fetchSignal, fetchBacktest, fetchInsight, fetchMarketSymbols, type SignalResponse, type BacktestResponse } from '@/services/api';
 import SignalSentimentPoll from '@/components/SignalSentimentPoll';
+import PremiumLock from '@/components/PremiumLock';
+import usePremiumStatus from '@/hooks/usePremiumStatus';
 import { useToast } from '@/components/ToastProvider';
 
 const FALLBACK_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT', 'ADAUSDT'] as const;
@@ -81,6 +83,7 @@ const SignalsPage = () => {
   const [backtestError, setBacktestError] = useState<string | null>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   const { pushToast } = useToast();
+  const { isPremium } = usePremiumStatus();
   const resultsRef = useRef<HTMLElement | null>(null);
   const symbolPickerRef = useRef<HTMLDivElement | null>(null);
 
@@ -555,22 +558,25 @@ const SignalsPage = () => {
                     )}
 
                     {(signal || insightLoading) && (
-                      <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-5">
+                      <div className="relative rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-5">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/80">AI Insight</p>
                           {insightError && (
                             <span className="text-[11px] text-slate-400">Fallback applied</span>
                           )}
                         </div>
-                        {insightLoading ? (
-                          <div className="mt-3 h-16 animate-pulse rounded-2xl border border-cyan-400/10 bg-cyan-500/5" />
-                        ) : insight ? (
-                          <p className="mt-3 text-sm leading-7 text-slate-100">{insight}</p>
-                        ) : (
-                          <p className="mt-3 text-sm leading-7 text-slate-300">
-                            Additional AI interpretation is unavailable right now.
-                          </p>
-                        )}
+                        <div className={!isPremium ? 'blur-[2px]' : ''}>
+                          {insightLoading ? (
+                            <div className="mt-3 h-16 animate-pulse rounded-2xl border border-cyan-400/10 bg-cyan-500/5" />
+                          ) : insight ? (
+                            <p className="mt-3 text-sm leading-7 text-slate-100">{insight}</p>
+                          ) : (
+                            <p className="mt-3 text-sm leading-7 text-slate-300">
+                              Additional AI interpretation is unavailable right now.
+                            </p>
+                          )}
+                        </div>
+                        {!isPremium && <PremiumLock message="Upgrade to access full features" />}
                       </div>
                     )}
 
@@ -582,7 +588,14 @@ const SignalsPage = () => {
                       </div>
                     )}
 
-                    {activeSymbol && <SignalSentimentPoll symbol={activeSymbol} />}
+                    {activeSymbol && (
+                      <div className="relative">
+                        <div className={!isPremium ? 'blur-[2px]' : ''}>
+                          <SignalSentimentPoll symbol={activeSymbol} />
+                        </div>
+                        {!isPremium && <PremiumLock message="Upgrade to access full features" />}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import { createForumComment, createForumVote, fetchForumThreads, type ForumThread } from '@/services/api';
 import { useToast } from '@/components/ToastProvider';
+import usePremiumStatus from '@/hooks/usePremiumStatus';
 
 const TOPICS = ['All', 'Announcements', 'Strategy', 'Automation', 'Support'] as const;
 type TopicFilter = (typeof TOPICS)[number];
@@ -19,6 +20,9 @@ const formatTime = (iso: string) => new Date(iso).toLocaleString();
 const ForumPage = () => {
   const token = useAuthStore((state) => state.token);
   const email = useAuthStore((state) => state.email);
+  const firstName = useAuthStore((state) => state.firstName);
+  const lastName = useAuthStore((state) => state.lastName);
+  const { isPremium } = usePremiumStatus();
   const { pushToast } = useToast();
   const [topic, setTopic] = useState<TopicFilter>('All');
   const [query, setQuery] = useState('');
@@ -56,15 +60,20 @@ const ForumPage = () => {
   }, [pushToast, query, topic]);
 
   const username = useMemo(() => {
-    if (!email) {
-      return null;
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    if (fullName) {
+      return fullName;
     }
-    return `@${email.split('@')[0]}`;
-  }, [email]);
+    return email ?? null;
+  }, [email, firstName, lastName]);
 
   const handleVote = async (threadID: string, vote: VoteKey) => {
     if (!token) {
       pushToast('Please login to comment', 'warning');
+      return;
+    }
+    if (!isPremium) {
+      pushToast('Upgrade to access full features', 'warning');
       return;
     }
     setBusyThread(threadID);
@@ -82,6 +91,10 @@ const ForumPage = () => {
     event.preventDefault();
     if (!token) {
       pushToast('Please login to comment', 'warning');
+      return;
+    }
+    if (!isPremium) {
+      pushToast('Upgrade to access full features', 'warning');
       return;
     }
     const body = commentDrafts[threadID]?.trim() ?? '';
@@ -187,10 +200,10 @@ const ForumPage = () => {
                         <button
                           key={vote}
                           type="button"
-                          disabled={!token || busyThread === thread.id}
+                          disabled={!token || !isPremium || busyThread === thread.id}
                           onClick={() => handleVote(thread.id, vote)}
                           className={`rounded-2xl border px-4 py-3 text-sm transition ${
-                            token
+                            token && isPremium
                               ? 'border-outline/40 bg-slate-950/35 text-slate-200 hover:border-outline hover:text-white'
                               : 'cursor-not-allowed border-outline/20 bg-slate-900/30 text-slate-500 opacity-70'
                           }`}
@@ -199,20 +212,27 @@ const ForumPage = () => {
                         </button>
                       ))}
                     </div>
-                    {!token && (
+                    {!token ? (
                       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-400">
                         <span>Login to participate in discussion</span>
                         <Link to="/login" className="rounded-full border border-outline/40 px-3 py-1.5 text-slate-200 transition hover:text-white">
                           Login
                         </Link>
                       </div>
-                    )}
+                    ) : !isPremium ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-400">
+                        <span>Upgrade to access full features</span>
+                        <Link to="/pricing" className="rounded-full border border-outline/40 px-3 py-1.5 text-slate-200 transition hover:text-white">
+                          Pricing
+                        </Link>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="mt-5 rounded-2xl border border-outline/30 bg-muted/50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Comments</p>
-                      {username ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Comments</p>
+                        {username ? (
                         <span className="text-xs text-slate-400">You are commenting as {username}</span>
                       ) : (
                         <span className="text-xs text-slate-500">Login to participate in discussion</span>
@@ -224,9 +244,9 @@ const ForumPage = () => {
                         value={commentDrafts[thread.id] ?? ''}
                         onChange={(event) => setCommentDrafts((prev) => ({ ...prev, [thread.id]: event.target.value }))}
                         placeholder={token ? 'Add your comment' : 'Login to participate in discussion'}
-                        disabled={!token || busyThread === thread.id}
+                        disabled={!token || !isPremium || busyThread === thread.id}
                         className={`min-h-[96px] w-full rounded-2xl border px-4 py-3 text-sm transition focus:outline-none ${
-                          token
+                          token && isPremium
                             ? 'border-outline/40 bg-slate-950/35 text-slate-100 placeholder:text-slate-500 focus:border-outline focus:ring-2 focus:ring-primary'
                             : 'cursor-not-allowed border-outline/20 bg-slate-900/20 text-slate-500'
                         }`}
@@ -237,6 +257,13 @@ const ForumPage = () => {
                             <span>Login to participate in discussion</span>
                             <Link to="/login" className="rounded-full border border-outline/40 px-3 py-1.5 text-slate-200 transition hover:text-white">
                               Login
+                            </Link>
+                          </div>
+                        ) : !isPremium ? (
+                          <div className="flex items-center gap-3 text-sm text-slate-400">
+                            <span>Upgrade to access full features</span>
+                            <Link to="/pricing" className="rounded-full border border-outline/40 px-3 py-1.5 text-slate-200 transition hover:text-white">
+                              Pricing
                             </Link>
                           </div>
                         ) : (
@@ -255,7 +282,7 @@ const ForumPage = () => {
                         thread.comments.map((comment) => (
                           <div key={comment.id} className="rounded-2xl border border-outline/20 bg-slate-950/25 px-4 py-3">
                             <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
-                              <span className="text-slate-200">@{comment.username}</span>
+                              <span className="text-sm font-medium text-slate-200">{comment.username || 'Anonymous'}</span>
                               <span>{formatTime(comment.created_at)}</span>
                             </div>
                             <p className="mt-2 text-sm leading-6 text-slate-200">{comment.body}</p>

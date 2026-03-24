@@ -15,6 +15,8 @@ type RegisterPayload = {
 type AuthState = {
   token: string | null;
   email: string | null;
+  firstName: string | null;
+  lastName: string | null;
   role: string | null;
   hydrated: boolean;
   loading: boolean;
@@ -29,6 +31,8 @@ type AuthState = {
 
 const TOKEN_KEY = 'cortexa.token';
 const EMAIL_KEY = 'cortexa.email';
+const FIRST_NAME_KEY = 'cortexa.first_name';
+const LAST_NAME_KEY = 'cortexa.last_name';
 const PERSIST_KEY = 'cortexa-auth';
 const storage = typeof window !== 'undefined' ? createJSONStorage(() => window.localStorage) : undefined;
 
@@ -79,6 +83,8 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       token: null,
       email: null,
+      firstName: null,
+      lastName: null,
       role: null,
       hydrated: false,
       loading: false,
@@ -91,18 +97,28 @@ export const useAuthStore = create<AuthState>()(
         try {
           const stateToken = get().token;
           const stateEmail = get().email;
+          const stateFirstName = get().firstName;
+          const stateLastName = get().lastName;
           if (stateToken) {
             setAuthToken(stateToken);
-            set({ role: decodeRole(stateToken) });
+            set({ role: decodeRole(stateToken), firstName: stateFirstName, lastName: stateLastName });
             return;
           }
           if (typeof window !== 'undefined') {
             const fallbackToken = window.localStorage.getItem(TOKEN_KEY);
             const fallbackEmail = window.localStorage.getItem(EMAIL_KEY);
+            const fallbackFirstName = window.localStorage.getItem(FIRST_NAME_KEY);
+            const fallbackLastName = window.localStorage.getItem(LAST_NAME_KEY);
             if (fallbackToken) {
               setAuthToken(fallbackToken);
             }
-            set({ token: fallbackToken, email: fallbackEmail, role: decodeRole(fallbackToken) });
+            set({
+              token: fallbackToken,
+              email: fallbackEmail,
+              firstName: fallbackFirstName,
+              lastName: fallbackLastName,
+              role: decodeRole(fallbackToken),
+            });
           }
         } finally {
           set({ hydrated: true });
@@ -116,16 +132,25 @@ export const useAuthStore = create<AuthState>()(
             password,
           };
           console.log('[auth] login payload', loginPayload);
-          const { data } = await api.post<{ token: string }>('/auth/login', loginPayload);
+          const { data } = await api.post<{ token: string; email?: string; first_name?: string; last_name?: string }>('/auth/login', loginPayload);
           if (!data?.token || typeof data.token !== 'string') {
             throw new Error('Login response did not include a token.');
           }
           if (typeof window !== 'undefined') {
             window.localStorage.setItem(TOKEN_KEY, data.token);
-            window.localStorage.setItem(EMAIL_KEY, loginPayload.email);
+            window.localStorage.setItem(EMAIL_KEY, data.email ?? loginPayload.email);
+            window.localStorage.setItem(FIRST_NAME_KEY, data.first_name ?? '');
+            window.localStorage.setItem(LAST_NAME_KEY, data.last_name ?? '');
           }
           setAuthToken(data.token);
-          set({ token: data.token, email: loginPayload.email, role: decodeRole(data.token), loading: false });
+          set({
+            token: data.token,
+            email: data.email ?? loginPayload.email,
+            firstName: data.first_name ?? null,
+            lastName: data.last_name ?? null,
+            role: decodeRole(data.token),
+            loading: false,
+          });
         } catch (error) {
           const message = getErrorMessage(error, 'Login failed');
           set({ error: message, loading: false });
@@ -156,17 +181,19 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem(TOKEN_KEY);
           window.localStorage.removeItem(EMAIL_KEY);
+          window.localStorage.removeItem(FIRST_NAME_KEY);
+          window.localStorage.removeItem(LAST_NAME_KEY);
           window.localStorage.removeItem(PERSIST_KEY);
         }
         setAuthToken(null);
-        set({ token: null, email: null, role: null, error: null, loading: false, hydrated: true });
+        set({ token: null, email: null, firstName: null, lastName: null, role: null, error: null, loading: false, hydrated: true });
       },
       clearError: () => set({ error: null })
     }),
     {
       name: 'cortexa-auth',
       storage,
-      partialize: (state) => ({ token: state.token, email: state.email }),
+      partialize: (state) => ({ token: state.token, email: state.email, firstName: state.firstName, lastName: state.lastName }),
       onRehydrateStorage: () => (state) => {
         if (state?.token) {
           setAuthToken(state.token);
