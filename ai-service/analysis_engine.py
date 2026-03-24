@@ -81,11 +81,23 @@ def clamp(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, value))
 
 
+def spread_confidence(value: float, *, lower: float = 10.0, upper: float = 92.0) -> int:
+    normalized = clamp((value - 10.0) / 80.0, 0.0, 1.0)
+    if normalized <= 0.5:
+        shaped = 0.5 * ((normalized / 0.5) ** 1.18)
+    else:
+        shaped = 0.5 + 0.5 * (((normalized - 0.5) / 0.5) ** 0.82)
+    return int(round(clamp(lower + (upper - lower) * shaped, lower, upper)))
+
+
 def confidence_from_raw_score(raw_score: float) -> int:
-    # Keep the midpoint anchored while compressing extremes and lifting the
-    # practical floor so weak bearish structure still has usable separation.
-    adjusted = 50.0 + ((raw_score - 50.0) * 0.68)
-    return int(round(clamp(adjusted, 16.0, 90.0)))
+    centered = raw_score - 50.0
+    adjusted = 50.0 + (centered * 0.78)
+    if centered > 0:
+        adjusted += ((centered / 50.0) ** 1.2) * 10.0
+    elif centered < 0:
+        adjusted -= (((-centered) / 50.0) ** 1.12) * 12.0
+    return spread_confidence(adjusted)
 
 
 def normalize_timeframe(timeframe: str | None) -> str:
@@ -478,23 +490,27 @@ def apply_quality_first_signal_filter(
     neutral_adx_min = float(rules["neutral_adx_min"])
 
     if volume_ratio is not None and volume_ratio < directional_volume_min:
-        market_quality_adjustment -= 3
+        market_quality_adjustment -= 5
         flags.append("weak_volume_confirmation")
     if volume_ratio is not None and volume_ratio < neutral_volume_min:
-        market_quality_adjustment -= 7
+        market_quality_adjustment -= 12
         flags.append("low_volume")
 
     if adx is not None and adx < neutral_adx_min:
-        market_quality_adjustment -= 10
+        market_quality_adjustment -= 12
         flags.append("weak_trend_strength")
     elif adx is not None and adx < 25:
-        market_quality_adjustment -= 4
+        market_quality_adjustment -= 5
+    elif adx is not None and adx >= 30:
+        market_quality_adjustment += 7
+    elif adx is not None and adx >= 25:
+        market_quality_adjustment += 4
 
     if regime in {"Range-Bound", "Low Participation"}:
-        market_quality_adjustment -= 8
+        market_quality_adjustment -= 10
         flags.append("choppy_structure")
     elif choppy_structure:
-        market_quality_adjustment -= 4
+        market_quality_adjustment -= 10
         flags.append("choppy_structure")
 
     higher_is_bullish = higher_timeframe_trend in {"Bullish", "Strong Bullish"}
@@ -538,16 +554,16 @@ def apply_quality_first_signal_filter(
         bearish_confirmations += 1
 
     if higher_is_bullish and bearish_confirmations > bullish_confirmations:
-        mtf_adjustment -= 10
+        mtf_adjustment -= 14
         flags.append("mtf_conflict")
     elif higher_is_bearish and bullish_confirmations > bearish_confirmations:
-        mtf_adjustment -= 10
+        mtf_adjustment -= 14
         flags.append("mtf_conflict")
     elif higher_is_bullish and bullish_confirmations >= bearish_confirmations and bullish_confirmations >= 4:
-        mtf_adjustment += 10
+        mtf_adjustment += 12
         flags.append("mtf_aligned")
     elif higher_is_bearish and bearish_confirmations >= bullish_confirmations and bearish_confirmations >= 4:
-        mtf_adjustment += 10
+        mtf_adjustment += 12
         flags.append("mtf_aligned")
 
     trend_is_strong = (
@@ -557,10 +573,12 @@ def apply_quality_first_signal_filter(
     )
     if volume_ratio is not None and volume_ratio > 1.2 and trend_is_strong:
         market_quality_adjustment += 10
+    elif volume_ratio is not None and volume_ratio >= 1.05 and trend_is_strong:
+        market_quality_adjustment += 5
     elif volume_ratio is not None and volume_ratio < 0.7:
-        market_quality_adjustment -= 10
+        market_quality_adjustment -= 14
 
-    confidence = int(round(max(16, min(90, confidence + market_quality_adjustment + mtf_adjustment))))
+    confidence = spread_confidence(confidence + market_quality_adjustment + mtf_adjustment)
     flags = _dedupe_flags(flags)
 
     bullish_exhausted = rsi is not None and rsi > 72

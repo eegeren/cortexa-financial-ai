@@ -66,9 +66,11 @@ class AnalysisEngineTests(unittest.TestCase):
         self.assertLessEqual(scoring["confidence"], 90)
 
     def test_confidence_mapping_preserves_non_zero_bearish_conviction(self):
-        self.assertEqual(confidence_from_raw_score(0), 16)
-        self.assertEqual(confidence_from_raw_score(50), 50)
-        self.assertEqual(confidence_from_raw_score(100), 84)
+        self.assertEqual(confidence_from_raw_score(0), 10)
+        self.assertEqual(confidence_from_raw_score(25), 23)
+        self.assertEqual(confidence_from_raw_score(50), 51)
+        self.assertEqual(confidence_from_raw_score(75), 78)
+        self.assertEqual(confidence_from_raw_score(100), 92)
 
     def test_trend_label_mapping(self):
         self.assertEqual(trend_label(16), "Strong Bearish")

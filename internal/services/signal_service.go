@@ -145,6 +145,17 @@ func normalizeSigned(value, maxAbs float64) float64 {
 	return clampFloat(value/maxAbs, -1, 1)
 }
 
+func spreadConfidence(value float64) int {
+	normalized := clampFloat((value-10.0)/80.0, 0.0, 1.0)
+	shaped := 0.0
+	if normalized <= 0.5 {
+		shaped = 0.5 * math.Pow(normalized/0.5, 1.18)
+	} else {
+		shaped = 0.5 + 0.5*math.Pow((normalized-0.5)/0.5, 0.82)
+	}
+	return int(math.Round(clampFloat(10.0+(92.0-10.0)*shaped, 10.0, 92.0)))
+}
+
 func classifyMomentum(macd, signal, histogram, rsi *float64) string {
 	macdUp := macd != nil && signal != nil && *macd > *signal
 	macdDown := macd != nil && signal != nil && *macd < *signal
@@ -434,16 +445,16 @@ func computeSignalBreakdown(data *struct {
 
 	regimeScore := 0.0
 	if trendStrength <= 0 {
-		regimeScore -= 10
+		regimeScore -= 12
 		flags = appendUnique(flags, "weak_trend_strength")
 	}
 	if volumeParticipation <= -8 {
-		regimeScore -= 10
+		regimeScore -= 14
 		flags = appendUnique(flags, "low_volume")
 		flags = appendUnique(flags, "weak_volume_confirmation")
 	}
 	if math.Abs(trendStructure) < 12 {
-		regimeScore -= 10
+		regimeScore -= 12
 		flags = appendUnique(flags, "choppy_structure")
 	}
 	if math.Abs(momentumConfirmation) < 5 {
@@ -462,10 +473,10 @@ func computeSignalBreakdown(data *struct {
 	for _, flag := range flags {
 		switch flag {
 		case "mtf_aligned":
-			multiTimeframeConfirmation += 8
+			multiTimeframeConfirmation += 12
 			alignedFromFlags = true
 		case "mtf_conflict":
-			multiTimeframeConfirmation -= 10
+			multiTimeframeConfirmation -= 14
 		}
 	}
 	if !alignedFromFlags {
@@ -496,22 +507,41 @@ func computeSignalBreakdown(data *struct {
 	trend := structuralTrendFromComponents(trendStructure, momentumConfirmation, bullishStack, bearishStack, priceAboveEMA20, priceBelowEMA20)
 
 	qualityPenalty := 0.0
+	qualityBonus := 0.0
 	if volumeParticipation <= -8 {
-		qualityPenalty += 14
+		qualityPenalty += 18
+	} else if volumeParticipation >= 8 {
+		qualityBonus += 8
+	} else if volumeParticipation >= 4 {
+		qualityBonus += 4
 	}
 	if trendStrength <= 0 {
-		qualityPenalty += 12
+		qualityPenalty += 14
+	} else if trendStrength >= 12 {
+		qualityBonus += 10
+	} else if trendStrength >= 8 {
+		qualityBonus += 6
 	}
 	if regimeScore <= -10 {
-		qualityPenalty += 10
+		qualityPenalty += 14
 	}
 	if multiTimeframeConfirmation < 0 {
-		qualityPenalty += math.Abs(multiTimeframeConfirmation) * 1.2
+		qualityPenalty += math.Abs(multiTimeframeConfirmation) * 1.5
+	} else if multiTimeframeConfirmation >= 10 {
+		qualityBonus += 12
+	} else if multiTimeframeConfirmation >= 4 {
+		qualityBonus += 5
 	}
 	if math.Abs(trendStructure) < 12 {
-		qualityPenalty += 10
+		qualityPenalty += 12
+	} else if math.Abs(trendStructure) >= 24 {
+		qualityBonus += 6
 	}
-	confidence := int(math.Round(clampFloat(22+(math.Abs(finalScore)*0.72)-qualityPenalty, 18, 92)))
+	preliminaryConfidence := 20 + (math.Abs(finalScore) * 0.62) + qualityBonus - qualityPenalty
+	if math.Abs(finalScore) >= 60 && multiTimeframeConfirmation > 0 && trendStrength >= 8 {
+		preliminaryConfidence += 6
+	}
+	confidence := spreadConfidence(preliminaryConfidence)
 	risk := riskLabelFromInputs(adx, atr, price, volumeRatio, flags, regimeScore)
 	actionableReady := math.Abs(finalScore) >= 35 && multiTimeframeConfirmation >= -4 && regimeScore > -18
 	if trendStrength <= 0 || volumeParticipation <= -8 || confidence < 45 {
