@@ -167,26 +167,26 @@ const NavBar = () => {
               <button
                 type="button"
                 onClick={() => setAccountOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-700/40 bg-slate-900/45 px-3 py-2.5 text-sm text-slate-300 transition hover:border-slate-500/70 hover:text-white"
+                className="flex w-full items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/35 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-600/70 hover:bg-slate-900/55 hover:text-white"
                 aria-haspopup="menu"
                 aria-expanded={accountOpen}
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-semibold text-primary uppercase">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/8 bg-slate-800/90 text-[10px] font-semibold text-slate-100 uppercase shadow-inner shadow-black/30">
                     {displayName[0] ?? 'A'}
                   </div>
-                  <div className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-100">{displayName}</span>
-                    {email && <span className="mt-0.5 block truncate text-[11px] text-slate-400">{email}</span>}
+                  <div className="min-w-0 text-left">
+                    <span className="block truncate text-[13px] font-medium leading-5 text-slate-100">{displayName}</span>
+                    {email && <span className="block truncate text-[11px] leading-4 text-slate-500">{email}</span>}
                     {isPremium && (
-                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-[linear-gradient(135deg,#1e293b,#111827)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#facc15]">
-                        <span aria-hidden>★</span>
+                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-200/10 bg-slate-800/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-amber-100/70">
+                        <span aria-hidden className="text-[8px]">★</span>
                         PREMIUM
                       </span>
                     )}
                   </div>
                 </div>
-                <svg aria-hidden viewBox="0 0 12 8" className={`h-3 w-3 shrink-0 transition-transform ${accountOpen ? 'rotate-180' : ''}`} fill="none">
+                <svg aria-hidden viewBox="0 0 12 8" className={`h-3 w-3 shrink-0 text-slate-500 transition-transform ${accountOpen ? 'rotate-180' : ''}`} fill="none">
                   <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
