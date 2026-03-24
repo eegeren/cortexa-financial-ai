@@ -84,13 +84,15 @@ def parse_symbol_list(value: str) -> list[str]:
         raise HTTPException(400, "invalid symbols list") from exc
 
 
-SUPPORTED_SYMBOLS = [
+BASE_SUPPORTED_SYMBOLS = [
     "BTCUSDT",
     "ETHUSDT",
     "SOLUSDT",
     "BNBUSDT",
     "XRPUSDT",
 ]
+SUPPORTED_SYMBOLS = list(BASE_SUPPORTED_SYMBOLS)
+BASE_SUPPORTED_SYMBOL_SET = frozenset(BASE_SUPPORTED_SYMBOLS)
 SUPPORTED_SYMBOL_SET = frozenset(SUPPORTED_SYMBOLS)
 
 TIMEFRAME_TO_INTERVAL = {
@@ -157,11 +159,93 @@ _SESSION.mount("http://", HTTPAdapter(max_retries=_retry))
 
 _BINANCE_BASE_URL = os.getenv("BINANCE_BASE_URL", "https://api.binance.com").rstrip("/")
 _BINANCE_TICKER_URL = f"{_BINANCE_BASE_URL}/api/v3/ticker/24hr"
+_BINANCE_EXCHANGE_INFO_URL = f"{_BINANCE_BASE_URL}/api/v3/exchangeInfo"
 _BINANCE_KLINES_URL = f"{_BINANCE_BASE_URL}/api/v3/klines"
 _OHLCV_CACHE: Dict[tuple[str, str, int], tuple[float, pd.DataFrame]] = {}
 _OHLCV_TTL_SEC = int(os.getenv("OHLCV_TTL_SEC", "20"))
 _ANALYSIS_CACHE: Dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 _ANALYSIS_TTL_SEC = int(os.getenv("SIG_TTL_SEC", "60"))
+_SYMBOLS_CACHE: tuple[float, list[str]] | None = None
+_SYMBOLS_TTL_SEC = int(os.getenv("SYMBOLS_TTL_SEC", "900"))
+_MIN_USDT_QUOTE_VOLUME = float(os.getenv("BINANCE_MIN_USDT_QUOTE_VOLUME", "1000000"))
+_TARGET_SYMBOL_COVERAGE = float(os.getenv("BINANCE_TARGET_SYMBOL_COVERAGE", "0.8"))
+_MAX_SUPPORTED_SYMBOLS = int(os.getenv("BINANCE_MAX_SUPPORTED_SYMBOLS", "180"))
+_MIN_SUPPORTED_SYMBOLS = int(os.getenv("BINANCE_MIN_SUPPORTED_SYMBOLS", "40"))
+
+
+def _leveraged_or_wrapper_symbol(base_asset: str, symbol: str) -> bool:
+    base = (base_asset or "").upper()
+    normalized = (symbol or "").upper()
+    leveraged_suffixes = ("UP", "DOWN", "BULL", "BEAR")
+    return any(base.endswith(suffix) for suffix in leveraged_suffixes) or normalized.endswith(("UPUSDT", "DOWNUSDT", "BULLUSDT", "BEARUSDT"))
+
+
+def fetch_supported_symbols(*, force_refresh: bool = False) -> list[str]:
+    global _SYMBOLS_CACHE
+
+    if not force_refresh and _SYMBOLS_CACHE is not None:
+        cached_at, cached_symbols = _SYMBOLS_CACHE
+        if time.time() - cached_at <= _SYMBOLS_TTL_SEC and cached_symbols:
+            return list(cached_symbols)
+
+    try:
+        exchange_info = _SESSION.get(_BINANCE_EXCHANGE_INFO_URL, timeout=12)
+        tickers_response = _SESSION.get(_BINANCE_TICKER_URL, timeout=12)
+        if exchange_info.status_code != 200 or tickers_response.status_code != 200:
+            raise HTTPException(502, "binance symbol universe unavailable")
+
+        exchange_payload = exchange_info.json()
+        tickers_payload = tickers_response.json()
+        if not isinstance(exchange_payload, dict) or not isinstance(tickers_payload, list):
+            raise HTTPException(502, "unexpected binance symbol payload")
+
+        ticker_map: dict[str, float] = {}
+        for item in tickers_payload:
+            symbol = str(item.get("symbol", "")).upper()
+            try:
+                ticker_map[symbol] = float(item.get("quoteVolume", 0) or 0.0)
+            except (TypeError, ValueError):
+                ticker_map[symbol] = 0.0
+
+        liquid_candidates: list[tuple[str, float]] = []
+        for item in exchange_payload.get("symbols", []):
+            if not isinstance(item, dict):
+                continue
+            symbol = str(item.get("symbol", "")).upper()
+            quote_asset = str(item.get("quoteAsset", "")).upper()
+            base_asset = str(item.get("baseAsset", "")).upper()
+            status = str(item.get("status", "")).upper()
+            if quote_asset != "USDT" or status != "TRADING":
+                continue
+            if item.get("isSpotTradingAllowed") is False:
+                continue
+            if _leveraged_or_wrapper_symbol(base_asset, symbol):
+                continue
+            liquid_candidates.append((symbol, ticker_map.get(symbol, 0.0)))
+
+        if not liquid_candidates:
+            raise HTTPException(502, "no liquid USDT pairs returned")
+
+        liquid_candidates.sort(key=lambda entry: entry[1], reverse=True)
+        target_count = min(
+            len(liquid_candidates),
+            max(_MIN_SUPPORTED_SYMBOLS, int(math.ceil(len(liquid_candidates) * max(0.25, min(_TARGET_SYMBOL_COVERAGE, 0.95))))),
+            _MAX_SUPPORTED_SYMBOLS,
+        )
+
+        selected = [
+            symbol
+            for index, (symbol, quote_volume) in enumerate(liquid_candidates)
+            if index < target_count and (quote_volume >= _MIN_USDT_QUOTE_VOLUME or index < _MIN_SUPPORTED_SYMBOLS)
+        ]
+        symbols = list(dict.fromkeys(selected + BASE_SUPPORTED_SYMBOLS))
+        _SYMBOLS_CACHE = (time.time(), symbols)
+        return list(symbols)
+    except Exception as exc:
+        logger.warning("falling back to baseline symbols: %s", exc)
+        fallback = list(BASE_SUPPORTED_SYMBOLS)
+        _SYMBOLS_CACHE = (time.time(), fallback)
+        return fallback
 
 
 def _cache_get(symbol: str, interval: str, limit: int) -> pd.DataFrame | None:
@@ -202,8 +286,11 @@ def _analysis_cache_put(symbol: str, timeframe: str, payload: dict[str, Any]) ->
 
 def validate_symbol(symbol: str) -> str:
     normalized = (symbol or "").strip().upper()
-    if normalized not in SUPPORTED_SYMBOL_SET:
-        raise HTTPException(400, f"unsupported symbol; supported symbols: {', '.join(SUPPORTED_SYMBOLS)}")
+    if normalized in BASE_SUPPORTED_SYMBOL_SET:
+        return normalized
+    supported_symbols = fetch_supported_symbols()
+    if normalized not in set(supported_symbols):
+        raise HTTPException(400, f"unsupported symbol; supported symbols: {', '.join(supported_symbols[:40])}")
     return normalized
 
 
@@ -336,6 +423,7 @@ def apply_market_quality_filters(
     stale: bool,
     higher_timeframe_trend: str | None = None,
     higher_timeframe_stale: bool = False,
+    mtf_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return apply_quality_first_signal_filter(
         analysis,
@@ -344,6 +432,7 @@ def apply_market_quality_filters(
         stale=stale,
         higher_timeframe_trend=higher_timeframe_trend,
         higher_timeframe_stale=higher_timeframe_stale,
+        mtf_context=mtf_context,
     )
 
 
@@ -360,16 +449,51 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
 
     higher_timeframe_trend: str | None = None
     higher_timeframe_stale = False
-    if timeframe == "1h":
+    mtf_context: dict[str, Any] = {
+        "aligned_count": 0,
+        "conflict_count": 0,
+        "aligned_timeframes": [],
+        "conflicting_timeframes": [],
+        "reference_trend": None,
+    }
+    reference_bias = trend_bias(str(analysis.get("trend", "Neutral")))
+    companion_timeframes = [candidate for candidate in ("1h", "4h", "1d") if candidate != timeframe]
+    companion_biases: list[int] = []
+    companion_trends: list[str] = []
+    for companion in companion_timeframes:
         try:
-            higher_frame_raw, higher_served_from_stale_cache = fetch_ohlcv_with_meta(symbol, "4h", max(limit, MIN_CANDLES_REQUIRED))
-            higher_frame = build_indicator_frame(higher_frame_raw)
-            if len(higher_frame) >= 200:
-                higher_analysis = build_analysis(higher_frame, symbol=symbol, timeframe="4h")
-                higher_timeframe_trend = str(higher_analysis["trend"])
-                higher_timeframe_stale = higher_served_from_stale_cache or is_data_stale(higher_frame_raw, "4h")
+            companion_raw, companion_served_from_stale_cache = fetch_ohlcv_with_meta(symbol, companion, max(limit, MIN_CANDLES_REQUIRED))
+            companion_frame = build_indicator_frame(companion_raw)
+            if len(companion_frame) < 200:
+                continue
+            companion_analysis = build_analysis(companion_frame, symbol=symbol, timeframe=companion)
+            companion_trend = str(companion_analysis["trend"])
+            companion_bias = trend_bias(companion_trend)
+            companion_stale = companion_served_from_stale_cache or is_data_stale(companion_raw, companion)
+            companion_trends.append(companion_trend)
+            if companion_stale:
+                higher_timeframe_stale = True
+                continue
+            if companion_bias == 0 or reference_bias == 0:
+                continue
+            companion_biases.append(companion_bias)
+            if companion_bias * reference_bias > 0:
+                mtf_context["aligned_count"] += 1
+                mtf_context["aligned_timeframes"].append(companion)
+            else:
+                mtf_context["conflict_count"] += 1
+                mtf_context["conflicting_timeframes"].append(companion)
         except HTTPException as exc:
-            logger.warning("skipping 4h confirmation for %s: %s", symbol, exc.detail)
+            logger.warning("skipping %s confirmation for %s: %s", companion, symbol, exc.detail)
+
+    if companion_trends:
+        bullish_votes = sum(1 for item in companion_trends if item in {"Bullish", "Strong Bullish"})
+        bearish_votes = sum(1 for item in companion_trends if item in {"Bearish", "Strong Bearish"})
+        if bullish_votes > bearish_votes:
+            higher_timeframe_trend = "Bullish"
+        elif bearish_votes > bullish_votes:
+            higher_timeframe_trend = "Bearish"
+        mtf_context["reference_trend"] = higher_timeframe_trend
 
     analysis = apply_market_quality_filters(
         analysis,
@@ -378,6 +502,7 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
         stale=stale,
         higher_timeframe_trend=higher_timeframe_trend,
         higher_timeframe_stale=higher_timeframe_stale,
+        mtf_context=mtf_context,
     )
 
     validation_input = {
@@ -523,23 +648,20 @@ def health():
 @app.get("/symbols")
 def get_symbols(top_n: int = 0, only_usdt: bool = True):
     try:
-        symbols = list(dict.fromkeys(SUPPORTED_SYMBOLS))
+        symbols = fetch_supported_symbols()
         if top_n > 0:
-            for ticker in fetch_24h_tickers(None, top_n=top_n):
-                symbol = str(ticker.get("symbol", "")).upper()
-                if symbol not in SUPPORTED_SYMBOL_SET:
-                    continue
-                if only_usdt and not symbol.endswith("USDT"):
-                    continue
-                symbols.append(symbol)
+            symbols = symbols[:top_n]
+        if only_usdt:
+            symbols = [symbol for symbol in symbols if symbol.endswith("USDT")]
         return {"ok": True, "symbols": list(dict.fromkeys(symbols))}
     except Exception:
-        return JSONResponse(status_code=200, content={"ok": False, "symbols": SUPPORTED_SYMBOLS})
+        return JSONResponse(status_code=200, content={"ok": False, "symbols": BASE_SUPPORTED_SYMBOLS})
 
 
 @app.get("/market/symbols")
 def market_symbols():
-    return {"ok": True, "provider": "binance", "symbols": SUPPORTED_SYMBOLS, "timeframes": list(SUPPORTED_TIMEFRAMES)}
+    symbols = fetch_supported_symbols()
+    return {"ok": True, "provider": "binance", "symbols": symbols, "timeframes": list(SUPPORTED_TIMEFRAMES)}
 
 
 @app.get("/signals")

@@ -8,7 +8,6 @@ import usePremiumStatus from '@/hooks/usePremiumStatus';
 const TOPICS = ['All', 'Announcements', 'Strategy', 'Automation', 'Support'] as const;
 type TopicFilter = (typeof TOPICS)[number];
 type VoteKey = 'bullish' | 'bearish' | 'chop';
-type ReactionKey = 'like' | 'dislike';
 
 const LIVE_UPDATES = [
   { id: 'l1', title: 'Assistant prompt pack refreshed', href: '/assistant' },
@@ -29,39 +28,6 @@ const avatarTone = (seed: string) => {
 
 const formatTime = (iso: string) => new Date(iso).toLocaleString();
 
-const seedReactions = (threadID: string, commentID: number) => {
-  const base = threadID.length + commentID;
-  return {
-    like: 2 + (base % 5),
-    dislike: base % 3,
-  };
-};
-
-const ReactionButton = ({
-  type,
-  count,
-  active,
-  onClick,
-}: {
-  type: ReactionKey;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
-      active
-        ? 'border-primary/40 bg-primary/15 text-white'
-        : 'border-outline/25 bg-slate-950/35 text-slate-400 hover:border-outline/45 hover:text-slate-200'
-    }`}
-  >
-    <span aria-hidden>{type === 'like' ? '👍' : '👎'}</span>
-    {count}
-  </button>
-);
-
 const ForumPage = () => {
   const token = useAuthStore((state) => state.token);
   const email = useAuthStore((state) => state.email);
@@ -76,8 +42,6 @@ const ForumPage = () => {
   const [composerBody, setComposerBody] = useState('');
   const [activeThreadID, setActiveThreadID] = useState<string>('');
   const [busyThread, setBusyThread] = useState<string | null>(null);
-  const [reactionCounts, setReactionCounts] = useState<Record<string, { like: number; dislike: number }>>({});
-  const [selectedReactions, setSelectedReactions] = useState<Record<string, ReactionKey | null>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -116,17 +80,6 @@ const ForumPage = () => {
       setActiveThreadID(threads[0].id);
     }
   }, [activeThreadID, threads]);
-
-  useEffect(() => {
-    const nextCounts: Record<string, { like: number; dislike: number }> = {};
-    threads.forEach((thread) => {
-      thread.comments.forEach((comment) => {
-        const key = `${thread.id}:${comment.id}`;
-        nextCounts[key] = reactionCounts[key] ?? seedReactions(thread.id, comment.id);
-      });
-    });
-    setReactionCounts(nextCounts);
-  }, [threads]);
 
   const displayName = useMemo(() => {
     const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
@@ -191,29 +144,10 @@ const ForumPage = () => {
     }
   };
 
-  const handleReaction = (threadID: string, commentID: number, reaction: ReactionKey) => {
-    const key = `${threadID}:${commentID}`;
-    const current = selectedReactions[key];
-    setReactionCounts((prev) => {
-      const next = { ...(prev[key] ?? seedReactions(threadID, commentID)) };
-      if (current) {
-        next[current] = Math.max(0, next[current] - 1);
-      }
-      if (current !== reaction) {
-        next[reaction] += 1;
-      }
-      return { ...prev, [key]: next };
-    });
-    setSelectedReactions((prev) => ({
-      ...prev,
-      [key]: current === reaction ? null : reaction,
-    }));
-  };
-
   const activeThread = useMemo(() => threads.find((thread) => thread.id === activeThreadID) ?? null, [activeThreadID, threads]);
 
   return (
-    <div className="relative space-y-8 pb-32 sm:space-y-10 lg:space-y-12">
+    <div className="relative space-y-8 pb-8 sm:space-y-10 lg:space-y-12">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.08),transparent_30%),linear-gradient(180deg,#020617_0%,#081120_48%,#020617_100%)]" />
 
       <section className="space-y-6">
@@ -227,7 +161,7 @@ const ForumPage = () => {
           </p>
         </header>
 
-        <div className="sticky top-20 z-20 rounded-[1.75rem] border border-white/10 bg-slate-950/80 px-5 py-4 shadow-[0_18px_50px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+        <div className="rounded-[1.5rem] border border-white/10 bg-slate-950/70 px-5 py-4 shadow-[0_18px_50px_rgba(2,6,23,0.35)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Pinned prompt</p>
@@ -277,7 +211,7 @@ const ForumPage = () => {
               return (
                 <article
                   key={thread.id}
-                  className="rounded-[1.9rem] border border-white/10 bg-slate-950/58 p-5 shadow-[0_20px_60px_rgba(2,6,23,0.35)] transition duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_24px_80px_rgba(8,47,73,0.22)] sm:p-6"
+                  className="rounded-3xl border border-white/10 bg-slate-950/58 p-5 shadow-[0_20px_60px_rgba(2,6,23,0.28)] transition duration-200 hover:-translate-y-0.5 hover:border-white/15 sm:p-6"
                 >
                   <header className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
@@ -340,13 +274,10 @@ const ForumPage = () => {
                   <div className="mt-6 space-y-4">
                     {thread.comments.length ? (
                       thread.comments.map((comment) => {
-                        const reactionKey = `${thread.id}:${comment.id}`;
-                        const reactions = reactionCounts[reactionKey] ?? seedReactions(thread.id, comment.id);
-
                         return (
                           <div
                             key={comment.id}
-                            className="rounded-[1.6rem] border border-white/8 bg-slate-900/52 px-4 py-4 transition duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-slate-900/68 sm:px-5"
+                            className="rounded-2xl border border-white/10 bg-slate-900/52 px-4 py-4 transition duration-200 hover:border-white/15 hover:bg-slate-900/60 sm:px-5"
                           >
                             <div className="flex items-start gap-3">
                               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${avatarTone(comment.username || 'A')} text-xs font-semibold`}>
@@ -358,20 +289,6 @@ const ForumPage = () => {
                                   <p className="text-xs text-slate-500">{formatTime(comment.created_at)}</p>
                                 </div>
                                 <p className="mt-2 text-sm leading-7 text-slate-200">{comment.body}</p>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                  <ReactionButton
-                                    type="like"
-                                    count={reactions.like}
-                                    active={selectedReactions[reactionKey] === 'like'}
-                                    onClick={() => handleReaction(thread.id, comment.id, 'like')}
-                                  />
-                                  <ReactionButton
-                                    type="dislike"
-                                    count={reactions.dislike}
-                                    active={selectedReactions[reactionKey] === 'dislike'}
-                                    onClick={() => handleReaction(thread.id, comment.id, 'dislike')}
-                                  />
-                                </div>
                               </div>
                             </div>
                           </div>
@@ -445,10 +362,10 @@ const ForumPage = () => {
         </aside>
       </section>
 
-      <div className="sticky bottom-3 z-30">
+      <div>
         <form
           onSubmit={handleCommentSubmit}
-          className="rounded-[1.75rem] border border-white/10 bg-slate-950/88 p-4 shadow-[0_24px_70px_rgba(2,6,23,0.5)] backdrop-blur-xl sm:p-5"
+          className="rounded-[1.5rem] border border-white/10 bg-slate-950/78 p-4 shadow-[0_20px_60px_rgba(2,6,23,0.3)] sm:p-5"
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
             <div className="min-w-0 flex-1">
@@ -459,7 +376,7 @@ const ForumPage = () => {
                     {activeThread ? `Posting into ${activeThread.topic}` : 'Choose a thread to reply.'}
                   </p>
                 </div>
-                {username && <p className="text-xs text-slate-500">{username}</p>}
+                {token && <p className="text-xs text-slate-500">You are commenting as {displayName}</p>}
               </div>
 
               <textarea

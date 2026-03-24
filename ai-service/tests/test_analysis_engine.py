@@ -26,10 +26,11 @@ from analysis_engine import (  # noqa: E402
 )
 from explanation_engine import generate_endpoint_insight, templated_insight  # noqa: E402
 from signal_api import (  # noqa: E402
-    SUPPORTED_SYMBOLS,
+    BASE_SUPPORTED_SYMBOLS,
     SUPPORTED_TIMEFRAMES,
     apply_market_quality_filters,
     analysis_payload,
+    fetch_supported_symbols,
     parse_predict_payload,
     validate_symbol,
     validate_timeframe,
@@ -62,8 +63,8 @@ class AnalysisEngineTests(unittest.TestCase):
         frame = build_indicator_frame(sample_frame())
         latest = frame.iloc[-1]
         scoring = score_row(latest)
-        self.assertGreaterEqual(scoring["confidence"], 16)
-        self.assertLessEqual(scoring["confidence"], 90)
+        self.assertGreaterEqual(scoring["confidence"], 10)
+        self.assertLessEqual(scoring["confidence"], 92)
 
     def test_confidence_mapping_preserves_non_zero_bearish_conviction(self):
         self.assertEqual(confidence_from_raw_score(0), 10)
@@ -149,15 +150,46 @@ class AnalysisEngineTests(unittest.TestCase):
 
     def test_symbol_validation_allows_supported_symbol(self):
         self.assertEqual(validate_symbol("btcusdt"), "BTCUSDT")
-        self.assertIn("BTCUSDT", SUPPORTED_SYMBOLS)
+        self.assertIn("BTCUSDT", BASE_SUPPORTED_SYMBOLS)
 
     def test_timeframe_validation_allows_supported_timeframe(self):
         self.assertEqual(validate_timeframe("1H"), "1h")
         self.assertIn("1h", SUPPORTED_TIMEFRAMES)
         self.assertNotIn("15m", SUPPORTED_TIMEFRAMES)
 
-    def test_supported_symbols_are_restricted_to_major_liquid_pairs(self):
-        self.assertEqual(SUPPORTED_SYMBOLS, ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"])
+    @patch("signal_api._SESSION.get")
+    def test_supported_symbols_expand_using_binance_liquidity(self, session_get):
+        exchange_payload = {
+            "symbols": [
+                {"symbol": "BTCUSDT", "quoteAsset": "USDT", "baseAsset": "BTC", "status": "TRADING", "isSpotTradingAllowed": True},
+                {"symbol": "ETHUSDT", "quoteAsset": "USDT", "baseAsset": "ETH", "status": "TRADING", "isSpotTradingAllowed": True},
+                {"symbol": "DOGEUSDT", "quoteAsset": "USDT", "baseAsset": "DOGE", "status": "TRADING", "isSpotTradingAllowed": True},
+                {"symbol": "ADAUSDT", "quoteAsset": "USDT", "baseAsset": "ADA", "status": "TRADING", "isSpotTradingAllowed": True},
+                {"symbol": "XRPBTC", "quoteAsset": "BTC", "baseAsset": "XRP", "status": "TRADING", "isSpotTradingAllowed": True},
+            ]
+        }
+        ticker_payload = [
+            {"symbol": "BTCUSDT", "quoteVolume": "100000000"},
+            {"symbol": "ETHUSDT", "quoteVolume": "50000000"},
+            {"symbol": "DOGEUSDT", "quoteVolume": "9000000"},
+            {"symbol": "ADAUSDT", "quoteVolume": "7500000"},
+            {"symbol": "XRPBTC", "quoteVolume": "1200000"},
+        ]
+
+        class Response:
+            def __init__(self, payload):
+                self.status_code = 200
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        session_get.side_effect = [Response(exchange_payload), Response(ticker_payload)]
+        symbols = fetch_supported_symbols(force_refresh=True)
+        self.assertIn("DOGEUSDT", symbols)
+        self.assertIn("ADAUSDT", symbols)
+        self.assertNotIn("XRPBTC", symbols)
+        self.assertEqual(symbols[0], "BTCUSDT")
 
     def test_predict_payload_parses_symbol_and_timeframe(self):
         symbol, timeframe = parse_predict_payload({"symbol": "ethusdt", "timeframe": "4H"})
@@ -184,7 +216,7 @@ class AnalysisEngineTests(unittest.TestCase):
 
         filtered = apply_market_quality_filters(analysis, latest, stale=True, higher_timeframe_trend="Bearish")
         self.assertEqual(filtered["trend"], "Neutral")
-        self.assertGreaterEqual(filtered["confidence"], 16)
+        self.assertGreaterEqual(filtered["confidence"], 10)
         self.assertIn("low_volume", filtered["quality_flags"])
         self.assertIn("stale_data", filtered["quality_flags"])
         self.assertIn("weak_trend_strength", filtered["quality_flags"])
@@ -275,6 +307,36 @@ class AnalysisEngineTests(unittest.TestCase):
             {"valid_setup": True, "setup_quality": "high", "confidence_adjustment": 3, "reason": "Clean alignment."},
         )
         self.assertEqual(promoted["trend"], "Strong Bullish")
+
+    def test_multi_timeframe_alignment_can_boost_confidence(self):
+        frame = build_indicator_frame(sample_frame())
+        analysis = build_analysis(frame, symbol="BTCUSDT", timeframe="1h")
+        latest = frame.iloc[-1].copy()
+        latest["ema20"] = 108
+        latest["ema50"] = 104
+        latest["ema200"] = 99
+        latest["close"] = 110
+        latest["macd"] = 2.1
+        latest["macd_signal"] = 1.2
+        latest["macd_histogram"] = 0.9
+        latest["rsi"] = 61
+        latest["adx"] = 31
+        latest["volume_ratio"] = 1.25
+        analysis["confidence"] = 69
+        analysis["risk"] = "Low"
+        analysis["market_regime"] = "Trending"
+
+        baseline = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend="Bullish")
+        aligned = apply_market_quality_filters(
+            analysis,
+            latest,
+            timeframe="1h",
+            stale=False,
+            higher_timeframe_trend="Bullish",
+            mtf_context={"aligned_count": 2, "conflict_count": 0},
+        )
+        self.assertGreaterEqual(aligned["confidence"], baseline["confidence"])
+        self.assertEqual(aligned["scoring"]["mtf_alignment_count"], 2)
 
     def test_exhaustion_guard_blocks_bullish_output(self):
         frame = build_indicator_frame(sample_frame())

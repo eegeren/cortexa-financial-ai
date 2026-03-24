@@ -119,7 +119,7 @@ def coin_profile_rules(symbol: str | None) -> dict[str, float | int | bool]:
 
 
 def detect_regime(adx: float | None, volume_ratio: float | None) -> str:
-    if adx is not None and adx > 25:
+    if adx is not None and adx >= 20:
         return "TRENDING"
     if volume_ratio is not None and volume_ratio < 0.8:
         return "LOW_PARTICIPATION"
@@ -288,6 +288,29 @@ def _volume_component_score(volume_ratio: float | None, *, trend_is_strong: bool
     return 0.0, 0
 
 
+def _adx_strength_factor(adx: float | None) -> float:
+    if adx is None:
+        return 0.2
+    return clamp((adx - 15.0) / 20.0, 0.0, 1.0)
+
+
+def _structure_clarity_score(ema20: float | None, ema50: float | None, ema200: float | None, price: float | None) -> float:
+    clarity = 0.0
+    if ema20 is not None and ema50 is not None:
+        clarity += 0.25
+        if abs(ema20 - ema50) / max(abs(ema50), 1e-9) > 0.004:
+            clarity += 0.15
+    if ema50 is not None and ema200 is not None:
+        clarity += 0.25
+        if abs(ema50 - ema200) / max(abs(ema200), 1e-9) > 0.008:
+            clarity += 0.15
+    if price is not None and ema20 is not None:
+        clarity += 0.1 if abs(price - ema20) / max(abs(ema20), 1e-9) > 0.0025 else 0.04
+    if price is not None and ema200 is not None:
+        clarity += 0.1 if abs(price - ema200) / max(abs(ema200), 1e-9) > 0.01 else 0.04
+    return clamp(clarity, 0.0, 1.0)
+
+
 def score_row(row: pd.Series) -> dict[str, Any]:
     ema20 = safe_float(row.get("ema20"))
     ema50 = safe_float(row.get("ema50"))
@@ -304,35 +327,40 @@ def score_row(row: pd.Series) -> dict[str, Any]:
     trend_signal = _trend_signal_strength(ema20, ema50, ema200, price)
     momentum_signal = _macd_signal_strength(macd, macd_signal, macd_histogram)
     rsi_signal = _rsi_signal_strength(rsi, regime)
+    adx_strength = _adx_strength_factor(adx)
+    structure_clarity = _structure_clarity_score(ema20, ema50, ema200, price)
     trend_is_strong = adx is not None and adx >= 25 and abs(trend_signal) >= 0.65
 
     if regime == "TRENDING":
-        trend_weight = 28.0
-        momentum_weight = 12.0
+        trend_weight = 24.0 + (10.0 * adx_strength)
+        momentum_weight = 10.0 + (4.0 * adx_strength)
         rsi_weight = 4.0
     elif regime == "RANGE":
-        trend_weight = 12.0
-        momentum_weight = 10.0
+        trend_weight = 10.0
+        momentum_weight = 9.0
         rsi_weight = 18.0
     else:
-        trend_weight = 16.0
+        trend_weight = 12.0 + (4.0 * adx_strength)
         momentum_weight = 8.0
         rsi_weight = 6.0
 
     trend_points = int(round(trend_signal * trend_weight))
     momentum_points = int(round((momentum_signal * momentum_weight) + (rsi_signal * rsi_weight)))
+    structure_points = int(round(structure_clarity * 14.0 * np.sign(trend_signal if abs(trend_signal) > 0 else 0.0)))
 
-    if adx is not None and adx >= 30:
-        strength_points = 8
+    if adx is not None and adx >= 32:
+        strength_points = 12
     elif adx is not None and adx >= 25:
-        strength_points = 4
+        strength_points = 7
+    elif adx is not None and adx >= 20:
+        strength_points = 2
     elif adx is not None and adx < 18:
-        strength_points = -10
+        strength_points = -12
     else:
-        strength_points = -4 if regime == "LOW_PARTICIPATION" else 0
+        strength_points = -6 if regime == "LOW_PARTICIPATION" else -2
 
     volume_raw, volume_direction = _volume_component_score(volume_ratio, trend_is_strong=trend_is_strong)
-    volume_points = int(round(volume_raw * max(abs(trend_signal), 0.65))) if volume_direction != 0 else int(round(volume_raw))
+    volume_points = int(round(volume_raw * max(abs(trend_signal), 0.7))) if volume_direction != 0 else int(round(volume_raw))
 
     risk_adjustment = 0
     if atr_pct is not None:
@@ -343,15 +371,16 @@ def score_row(row: pd.Series) -> dict[str, Any]:
         elif atr_pct <= 0.025:
             risk_adjustment += 3
     if regime == "LOW_PARTICIPATION":
-        risk_adjustment -= 8
+        risk_adjustment -= 10
 
-    score = 50.0 + trend_points + momentum_points + strength_points + volume_points + risk_adjustment
+    score = 50.0 + trend_points + momentum_points + structure_points + strength_points + volume_points + risk_adjustment
     confidence = confidence_from_raw_score(score)
 
     return {
         "confidence": confidence,
         "trend_points": trend_points,
         "momentum_points": momentum_points,
+        "structure_points": structure_points,
         "strength_points": strength_points,
         "volume_points": volume_points,
         "risk_adjustment": risk_adjustment,
@@ -361,6 +390,7 @@ def score_row(row: pd.Series) -> dict[str, Any]:
         "trend_score": int(round(abs(trend_signal) * 40)),
         "momentum_score": int(round(min(20.0, abs(momentum_signal * momentum_weight) + abs(rsi_signal * rsi_weight)))),
         "volume_score": int(round(min(20.0, abs(volume_raw)))),
+        "structure_score": int(round(structure_clarity * 20.0)),
         "mtf_score": 0,
     }
 
@@ -446,6 +476,7 @@ def apply_quality_first_signal_filter(
     stale: bool,
     higher_timeframe_trend: str | None = None,
     higher_timeframe_stale: bool = False,
+    mtf_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     updated = {
         **analysis,
@@ -490,14 +521,14 @@ def apply_quality_first_signal_filter(
     neutral_adx_min = float(rules["neutral_adx_min"])
 
     if volume_ratio is not None and volume_ratio < directional_volume_min:
-        market_quality_adjustment -= 5
+        market_quality_adjustment -= 7
         flags.append("weak_volume_confirmation")
     if volume_ratio is not None and volume_ratio < neutral_volume_min:
-        market_quality_adjustment -= 12
+        market_quality_adjustment -= 16
         flags.append("low_volume")
 
     if adx is not None and adx < neutral_adx_min:
-        market_quality_adjustment -= 12
+        market_quality_adjustment -= 14
         flags.append("weak_trend_strength")
     elif adx is not None and adx < 25:
         market_quality_adjustment -= 5
@@ -507,10 +538,10 @@ def apply_quality_first_signal_filter(
         market_quality_adjustment += 4
 
     if regime in {"Range-Bound", "Low Participation"}:
-        market_quality_adjustment -= 10
+        market_quality_adjustment -= 12
         flags.append("choppy_structure")
     elif choppy_structure:
-        market_quality_adjustment -= 10
+        market_quality_adjustment -= 14
         flags.append("choppy_structure")
 
     higher_is_bullish = higher_timeframe_trend in {"Bullish", "Strong Bullish"}
@@ -553,18 +584,28 @@ def apply_quality_first_signal_filter(
     if volume_ratio is not None and volume_ratio >= directional_volume_min:
         bearish_confirmations += 1
 
+    aligned_count = int((mtf_context or {}).get("aligned_count") or 0)
+    conflict_count = int((mtf_context or {}).get("conflict_count") or 0)
+
     if higher_is_bullish and bearish_confirmations > bullish_confirmations:
-        mtf_adjustment -= 14
+        mtf_adjustment -= 16
         flags.append("mtf_conflict")
     elif higher_is_bearish and bullish_confirmations > bearish_confirmations:
-        mtf_adjustment -= 14
+        mtf_adjustment -= 16
         flags.append("mtf_conflict")
     elif higher_is_bullish and bullish_confirmations >= bearish_confirmations and bullish_confirmations >= 4:
-        mtf_adjustment += 12
+        mtf_adjustment += 10
         flags.append("mtf_aligned")
     elif higher_is_bearish and bearish_confirmations >= bullish_confirmations and bearish_confirmations >= 4:
-        mtf_adjustment += 12
+        mtf_adjustment += 10
         flags.append("mtf_aligned")
+
+    if aligned_count > 0:
+        mtf_adjustment += min(12, aligned_count * 6)
+        flags.append("mtf_aligned")
+    if conflict_count > 0:
+        mtf_adjustment -= min(18, conflict_count * 9)
+        flags.append("mtf_conflict")
 
     trend_is_strong = (
         adx is not None
@@ -709,6 +750,8 @@ def apply_quality_first_signal_filter(
     updated["scoring"]["market_quality"] = market_quality_adjustment
     updated["scoring"]["multi_timeframe_confirmation"] = mtf_adjustment
     updated["scoring"]["mtf_score"] = abs(mtf_adjustment)
+    updated["scoring"]["mtf_alignment_count"] = aligned_count
+    updated["scoring"]["mtf_conflict_count"] = conflict_count
     updated["scoring"]["bullish_confirmations"] = bullish_confirmations
     updated["scoring"]["bearish_confirmations"] = bearish_confirmations
     updated["scoring"]["bull_strong_ready"] = bull_strong_ready
@@ -1073,10 +1116,12 @@ def build_analysis(
             "momentum": scoring["momentum_points"],
             "trend_strength": scoring["strength_points"],
             "volume_confirmation": scoring["volume_points"],
+            "structure_clarity": scoring["structure_points"],
             "risk_adjustment": scoring["risk_adjustment"],
             "trend_score": scoring["trend_score"],
             "momentum_score": scoring["momentum_score"],
             "volume_score": scoring["volume_score"],
+            "structure_score": scoring["structure_score"],
             "mtf_score": scoring["mtf_score"],
             "raw_score": safe_float(scoring["raw_score"], 2),
             "market_quality": 0,
