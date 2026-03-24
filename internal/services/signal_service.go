@@ -454,12 +454,7 @@ func computeSignalBreakdown(data *struct {
 
 	finalScore = clampFloat(finalScore, -100, 100)
 	trend := trendLabelFromScore(finalScore)
-	side := "HOLD"
-	if trend == "Bullish" || trend == "Strong Bullish" {
-		side = "BUY"
-	} else if trend == "Bearish" || trend == "Strong Bearish" {
-		side = "SELL"
-	}
+	side := signalSideFromTrend(trend)
 
 	qualityPenalty := 0.0
 	if volumeParticipation <= -8 {
@@ -494,8 +489,19 @@ func computeSignalBreakdown(data *struct {
 		Momentum:                        classifyMomentum(macd, macdSignal, macdHistogram, rsi),
 		MarketRegime:                    classifyRegime(trendStrength, regimeScore, volumeParticipation),
 		QualityFlags:                    flags,
-		Side:                            side,
+		Side:                            signalSideFromTrend(side),
 		CompatibilityScore:              math.Round((math.Abs(finalScore)/100.0)*1000) / 1000,
+	}
+}
+
+func signalSideFromTrend(value string) string {
+	switch strings.TrimSpace(value) {
+	case "Bullish", "Strong Bullish", "BUY":
+		return "BUY"
+	case "Bearish", "Strong Bearish", "SELL":
+		return "SELL"
+	default:
+		return "HOLD"
 	}
 }
 
@@ -753,7 +759,7 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 			RegimeScore:                     breakdown.RegimeScore,
 			MultiTimeframeConfirmationScore: breakdown.MultiTimeframeConfirmationScore,
 		},
-		Side:       breakdown.Side,
+		Side:       signalSideFromTrend(breakdown.Side),
 		Score:      breakdown.CompatibilityScore,
 		FinalScore: breakdown.FinalScore,
 		Price:      pr.Data.Price,

@@ -123,12 +123,18 @@ class AnalysisEngineTests(unittest.TestCase):
             "price",
             "indicators",
             "levels",
+            "side",
             "scenario",
             "insight",
             "explanation",
             "disclaimer",
         ):
             self.assertIn(key, analysis)
+
+    def test_neutral_analysis_uses_explicit_hold_side(self):
+        frame = build_indicator_frame(sample_frame(drift=0.05, volatility=0.3))
+        analysis = build_analysis(frame, symbol="BTCUSDT", timeframe="1h")
+        self.assertIn(analysis["side"], {"BUY", "SELL", "HOLD"})
 
     def test_indicator_snapshot_uses_core_ema_fields(self):
         frame = build_indicator_frame(sample_frame())

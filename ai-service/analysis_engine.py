@@ -650,7 +650,10 @@ def apply_quality_first_signal_filter(
         resistance=updated.get("levels", {}).get("resistance"),
         regime=str(updated.get("market_regime", "Range-Bound")),
         momentum=str(updated.get("momentum", "Weak")),
+        confidence=int(updated.get("confidence", 50)),
+        quality_flags=updated.get("quality_flags", []),
     )
+    updated["side"] = legacy_side_from_trend(str(updated.get("trend", "Neutral")))
 
     return updated
 
@@ -782,6 +785,7 @@ def apply_ai_validation_outcome(analysis: dict[str, Any], ai_validation: dict[st
     if setup_quality == "low" or valid_setup is False:
         updated["trend"] = "Neutral"
         updated["confidence"] = max(16, min(42, confidence + confidence_adjustment))
+        updated["side"] = "HOLD"
         return updated
 
     updated["confidence"] = max(16, min(90, confidence + confidence_adjustment))
@@ -793,6 +797,7 @@ def apply_ai_validation_outcome(analysis: dict[str, Any], ai_validation: dict[st
             updated["trend"] = "Strong Bullish"
         elif bear_ready and current_trend == "Bearish" and int(updated["confidence"]) >= 75:
             updated["trend"] = "Strong Bearish"
+    updated["side"] = legacy_side_from_trend(str(updated.get("trend", "Neutral")))
     return updated
 
 
@@ -868,6 +873,8 @@ def scenario_summary(
     resistance: float | None,
     regime: str,
     momentum: str,
+    confidence: int | None = None,
+    quality_flags: list[str] | None = None,
 ) -> str:
     if price is None:
         return "Market structure is unavailable because the latest price data is incomplete."
@@ -899,6 +906,16 @@ def scenario_summary(
             else ", while recovery through recent highs would weaken the bearish structure."
         )
         return base + downside + rebound
+
+    weak_flags = [flag for flag in (quality_flags or []) if flag in {"low_volume", "weak_trend_strength", "choppy_structure"}]
+    if confidence is not None and 35 <= confidence <= 45 and len(weak_flags) == 1:
+        constraint = weak_flags[0].replace("_", " ")
+        support_text = f" Support near {support:.2f} is the first level to watch." if support is not None else ""
+        resistance_text = f" Resistance near {resistance:.2f} caps upside for now." if resistance is not None else ""
+        return (
+            f"The structure is still neutral, but only one weak constraint is blocking a cleaner directional read: {constraint}."
+            f"{support_text}{resistance_text} A stronger break in participation or trend quality is needed before bias improves."
+        )
 
     return (
         f"The market is currently {regime.lower()} with {momentum.lower()} momentum. "
@@ -948,6 +965,8 @@ def build_analysis(
         resistance=levels.resistance,
         regime=regime,
         momentum=momentum,
+        confidence=confidence,
+        quality_flags=[],
     )
 
     indicators = build_indicator_snapshot(latest)
@@ -965,6 +984,7 @@ def build_analysis(
             "support": levels.support,
             "resistance": levels.resistance,
         },
+        "side": legacy_side_from_trend(trend),
         "scenario": scenario,
         "insight": explanation or scenario,
         "explanation": explanation or scenario,

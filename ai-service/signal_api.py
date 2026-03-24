@@ -463,6 +463,7 @@ def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
         },
         "quality_flags": ["stale_data"],
         "stale": True,
+        "side": "HOLD",
         "ai_validated": None,
         "ai_setup_quality": "medium",
         "ai_validation_reason": "AI validation unavailable; deterministic fallback used.",
