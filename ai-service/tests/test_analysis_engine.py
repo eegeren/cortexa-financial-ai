@@ -17,8 +17,10 @@ from analysis_engine import (  # noqa: E402
     build_indicator_frame,
     coin_profile,
     confidence_from_raw_score,
+    detect_regime,
     risk_label,
     score_row,
+    should_emit_signal,
     trend_bias,
     trend_label,
 )
@@ -95,6 +97,17 @@ class AnalysisEngineTests(unittest.TestCase):
         self.assertEqual(risk_label(row), "Medium")
         row["volume_ratio"] = 0.55
         self.assertEqual(risk_label(row), "High")
+
+    def test_detect_regime_uses_adx_and_volume_priority(self):
+        self.assertEqual(detect_regime(28, 1.1), "TRENDING")
+        self.assertEqual(detect_regime(18, 0.7), "LOW_PARTICIPATION")
+        self.assertEqual(detect_regime(18, 1.0), "RANGE")
+
+    def test_should_emit_signal_blocks_low_confidence_and_bad_flags(self):
+        self.assertFalse(should_emit_signal(24, []))
+        self.assertFalse(should_emit_signal(55, ["low_volume"]))
+        self.assertFalse(should_emit_signal(55, ["choppy_structure"]))
+        self.assertTrue(should_emit_signal(55, ["mtf_aligned"]))
 
     def test_response_structure_contains_required_keys(self):
         frame = build_indicator_frame(sample_frame())

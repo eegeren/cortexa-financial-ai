@@ -54,6 +54,11 @@ PROFILE_RULES: dict[str, dict[str, float | int | bool]] = {
         "strong_confidence_min": 78,
     },
 }
+REGIME_LABELS = {
+    "TRENDING": "Trending",
+    "LOW_PARTICIPATION": "Low Participation",
+    "RANGE": "Range-Bound",
+}
 
 
 @dataclass(frozen=True)
@@ -99,6 +104,25 @@ def coin_profile(symbol: str | None) -> str:
 
 def coin_profile_rules(symbol: str | None) -> dict[str, float | int | bool]:
     return dict(PROFILE_RULES[coin_profile(symbol)])
+
+
+def detect_regime(adx: float | None, volume_ratio: float | None) -> str:
+    if adx is not None and adx > 25:
+        return "TRENDING"
+    if volume_ratio is not None and volume_ratio < 0.8:
+        return "LOW_PARTICIPATION"
+    return "RANGE"
+
+
+def should_emit_signal(confidence: int, quality_flags: list[str]) -> bool:
+    flags = set(quality_flags)
+    if confidence < 25:
+        return False
+    if "low_volume" in flags:
+        return False
+    if "choppy_structure" in flags:
+        return False
+    return True
 
 
 def build_indicator_frame(df: pd.DataFrame) -> pd.DataFrame:
@@ -190,14 +214,69 @@ def detect_support_resistance(frame: pd.DataFrame, lookback: int = 60, pivot_win
     )
 
 
-def score_row(row: pd.Series) -> dict[str, Any]:
-    score = 50.0
-    trend_points = 0
-    momentum_points = 0
-    strength_points = 0
-    volume_points = 0
-    risk_adjustment = 0
+def _trend_signal_strength(ema20: float | None, ema50: float | None, ema200: float | None, price: float | None) -> float:
+    signal = 0.0
+    if ema20 is not None and ema50 is not None:
+        signal += 0.35 if ema20 > ema50 else -0.35
+    if ema50 is not None and ema200 is not None:
+        signal += 0.35 if ema50 > ema200 else -0.35
+    if price is not None and ema20 is not None:
+        signal += 0.15 if price > ema20 else -0.15
+    if price is not None and ema200 is not None:
+        signal += 0.15 if price > ema200 else -0.15
+    return clamp(signal, -1.0, 1.0)
 
+
+def _macd_signal_strength(macd: float | None, macd_signal: float | None, macd_histogram: float | None) -> float:
+    if macd is None or macd_signal is None or macd_histogram is None:
+        return 0.0
+    signal = 0.0
+    signal += 0.6 if macd > macd_signal else -0.6
+    signal += 0.4 if macd_histogram > 0 else -0.4
+    return clamp(signal, -1.0, 1.0)
+
+
+def _rsi_signal_strength(rsi: float | None, regime: str) -> float:
+    if rsi is None:
+        return 0.0
+    if regime == "TRENDING":
+        if 55 <= rsi <= 68:
+            return 0.35
+        if 32 <= rsi <= 45:
+            return -0.35
+        if rsi > 72:
+            return -0.25
+        if rsi < 28:
+            return 0.25
+        return 0.0
+    if regime == "RANGE":
+        if 58 <= rsi <= 70:
+            return 0.8
+        if 30 <= rsi <= 42:
+            return -0.8
+        return 0.0
+    if 55 <= rsi <= 68:
+        return 0.2
+    if 32 <= rsi <= 45:
+        return -0.2
+    return 0.0
+
+
+def _volume_component_score(volume_ratio: float | None, *, trend_is_strong: bool) -> tuple[float, int]:
+    if volume_ratio is None:
+        return -4.0, -1
+    if volume_ratio > 1.2 and trend_is_strong:
+        return 10.0, 1
+    if volume_ratio >= 1.0:
+        return 6.0, 1
+    if volume_ratio < 0.7:
+        return -10.0, -1
+    if volume_ratio < 0.8:
+        return -6.0, -1
+    return 0.0, 0
+
+
+def score_row(row: pd.Series) -> dict[str, Any]:
     ema20 = safe_float(row.get("ema20"))
     ema50 = safe_float(row.get("ema50"))
     ema200 = safe_float(row.get("ema200"))
@@ -205,70 +284,45 @@ def score_row(row: pd.Series) -> dict[str, Any]:
     rsi = safe_float(row.get("rsi"))
     macd = safe_float(row.get("macd"))
     macd_signal = safe_float(row.get("macd_signal"))
+    macd_histogram = safe_float(row.get("macd_histogram"))
     adx = safe_float(row.get("adx"))
     atr_pct = safe_float(row.get("atr_pct"))
     volume_ratio = safe_float(row.get("volume_ratio"))
-    reversal_context = False
+    regime = detect_regime(adx, volume_ratio)
+    trend_signal = _trend_signal_strength(ema20, ema50, ema200, price)
+    momentum_signal = _macd_signal_strength(macd, macd_signal, macd_histogram)
+    rsi_signal = _rsi_signal_strength(rsi, regime)
+    trend_is_strong = adx is not None and adx >= 25 and abs(trend_signal) >= 0.65
 
-    bullish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 > ema50 > ema200
-    bearish_stack = ema20 is not None and ema50 is not None and ema200 is not None and ema20 < ema50 < ema200
-
-    if bullish_stack:
-        trend_points += 30
-    elif bearish_stack:
-        trend_points -= 30
+    if regime == "TRENDING":
+        trend_weight = 28.0
+        momentum_weight = 12.0
+        rsi_weight = 4.0
+    elif regime == "RANGE":
+        trend_weight = 12.0
+        momentum_weight = 10.0
+        rsi_weight = 18.0
     else:
-        if ema20 is not None and ema50 is not None:
-            trend_points += 8 if ema20 > ema50 else -8
-        if ema50 is not None and ema200 is not None:
-            trend_points += 10 if ema50 > ema200 else -10
+        trend_weight = 16.0
+        momentum_weight = 8.0
+        rsi_weight = 6.0
 
-    if price is not None and ema20 is not None:
-        trend_points += 6 if price > ema20 else -6
-    if price is not None and ema200 is not None:
-        trend_points += 8 if price > ema200 else -8
+    trend_points = int(round(trend_signal * trend_weight))
+    momentum_points = int(round((momentum_signal * momentum_weight) + (rsi_signal * rsi_weight)))
 
-    if rsi is not None:
-        if 55 <= rsi <= 68:
-            momentum_points += 8
-        elif 45 <= rsi < 55:
-            momentum_points += 0
-        elif 30 <= rsi < 45:
-            momentum_points -= 6
-        elif rsi < 30:
-            momentum_points -= 8
-            reversal_context = True
-        elif rsi > 68:
-            momentum_points -= 6
+    if adx is not None and adx >= 30:
+        strength_points = 8
+    elif adx is not None and adx >= 25:
+        strength_points = 4
+    elif adx is not None and adx < 18:
+        strength_points = -10
+    else:
+        strength_points = -4 if regime == "LOW_PARTICIPATION" else 0
 
-    if macd is not None and macd_signal is not None:
-        if macd > macd_signal and macd >= 0:
-            momentum_points += 12
-        elif macd > macd_signal and macd < 0:
-            momentum_points += 4
-        elif macd < macd_signal and macd < 0:
-            momentum_points -= 12
-        elif macd < macd_signal and macd >= 0:
-            momentum_points -= 8
+    volume_raw, volume_direction = _volume_component_score(volume_ratio, trend_is_strong=trend_is_strong)
+    volume_points = int(round(volume_raw * max(abs(trend_signal), 0.65))) if volume_direction != 0 else int(round(volume_raw))
 
-    if adx is not None:
-        if adx >= 28:
-            strength_points += 10
-        elif adx >= 22:
-            strength_points += 4
-        elif adx < 18:
-            strength_points -= 12
-        elif adx < 22:
-            strength_points -= 6
-
-    if volume_ratio is not None:
-        if volume_ratio >= 1.1:
-            volume_points += 6
-        elif volume_ratio < 0.65:
-            volume_points -= 16
-        elif volume_ratio < 0.85:
-            volume_points -= 10
-
+    risk_adjustment = 0
     if atr_pct is not None:
         if atr_pct >= 0.07:
             risk_adjustment -= 14
@@ -276,8 +330,10 @@ def score_row(row: pd.Series) -> dict[str, Any]:
             risk_adjustment -= 8
         elif atr_pct <= 0.025:
             risk_adjustment += 3
+    if regime == "LOW_PARTICIPATION":
+        risk_adjustment -= 8
 
-    score += trend_points + momentum_points + strength_points + volume_points + risk_adjustment
+    score = 50.0 + trend_points + momentum_points + strength_points + volume_points + risk_adjustment
     confidence = confidence_from_raw_score(score)
 
     return {
@@ -288,7 +344,12 @@ def score_row(row: pd.Series) -> dict[str, Any]:
         "volume_points": volume_points,
         "risk_adjustment": risk_adjustment,
         "raw_score": score,
-        "reversal_context": reversal_context,
+        "reversal_context": bool(rsi is not None and (rsi < 30 or rsi > 70)),
+        "regime": regime,
+        "trend_score": int(round(abs(trend_signal) * 40)),
+        "momentum_score": int(round(min(20.0, abs(momentum_signal * momentum_weight) + abs(rsi_signal * rsi_weight)))),
+        "volume_score": int(round(min(20.0, abs(volume_raw)))),
+        "mtf_score": 0,
     }
 
 
@@ -432,17 +493,27 @@ def apply_quality_first_signal_filter(
         bearish_confirmations += 1
 
     if higher_is_bullish and bearish_confirmations > bullish_confirmations:
-        mtf_adjustment -= 8
+        mtf_adjustment -= 10
         flags.append("mtf_conflict")
     elif higher_is_bearish and bullish_confirmations > bearish_confirmations:
-        mtf_adjustment -= 8
+        mtf_adjustment -= 10
         flags.append("mtf_conflict")
     elif higher_is_bullish and bullish_confirmations >= bearish_confirmations and bullish_confirmations >= 4:
-        mtf_adjustment += 6
+        mtf_adjustment += 10
         flags.append("mtf_aligned")
     elif higher_is_bearish and bearish_confirmations >= bullish_confirmations and bearish_confirmations >= 4:
-        mtf_adjustment += 6
+        mtf_adjustment += 10
         flags.append("mtf_aligned")
+
+    trend_is_strong = (
+        adx is not None
+        and adx >= 25
+        and ((bullish_stack and bullish_confirmations >= 5) or (bearish_stack and bearish_confirmations >= 5))
+    )
+    if volume_ratio is not None and volume_ratio > 1.2 and trend_is_strong:
+        market_quality_adjustment += 10
+    elif volume_ratio is not None and volume_ratio < 0.7:
+        market_quality_adjustment -= 10
 
     confidence = int(round(max(16, min(90, confidence + market_quality_adjustment + mtf_adjustment))))
     flags = _dedupe_flags(flags)
@@ -548,6 +619,10 @@ def apply_quality_first_signal_filter(
         trend = "Neutral"
     if bearish_exhausted and trend in {"Bearish", "Strong Bearish"}:
         trend = "Neutral"
+    if not should_emit_signal(confidence, flags):
+        trend = "Neutral"
+    if confidence < 30:
+        trend = "Neutral"
 
     updated["confidence"] = confidence
     updated["trend"] = trend
@@ -556,6 +631,7 @@ def apply_quality_first_signal_filter(
     updated["coin_profile"] = profile
     updated["scoring"]["market_quality"] = market_quality_adjustment
     updated["scoring"]["multi_timeframe_confirmation"] = mtf_adjustment
+    updated["scoring"]["mtf_score"] = abs(mtf_adjustment)
     updated["scoring"]["bullish_confirmations"] = bullish_confirmations
     updated["scoring"]["bearish_confirmations"] = bearish_confirmations
     updated["scoring"]["bull_strong_ready"] = bull_strong_ready
@@ -780,16 +856,8 @@ def risk_label(row: pd.Series) -> str:
 
 def market_regime(row: pd.Series) -> str:
     adx = safe_float(row.get("adx"))
-    atr_pct = safe_float(row.get("atr_pct"))
     volume_ratio = safe_float(row.get("volume_ratio"))
-
-    if adx is not None and adx >= 25:
-        return "Trending"
-    if atr_pct is not None and atr_pct >= 0.05:
-        return "Volatile"
-    if volume_ratio is not None and volume_ratio < 0.8:
-        return "Low Participation"
-    return "Range-Bound"
+    return REGIME_LABELS[detect_regime(adx, volume_ratio)]
 
 
 def scenario_summary(
@@ -907,6 +975,10 @@ def build_analysis(
             "trend_strength": scoring["strength_points"],
             "volume_confirmation": scoring["volume_points"],
             "risk_adjustment": scoring["risk_adjustment"],
+            "trend_score": scoring["trend_score"],
+            "momentum_score": scoring["momentum_score"],
+            "volume_score": scoring["volume_score"],
+            "mtf_score": scoring["mtf_score"],
             "raw_score": safe_float(scoring["raw_score"], 2),
             "market_quality": 0,
             "multi_timeframe_confirmation": 0,
