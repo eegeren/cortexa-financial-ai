@@ -29,11 +29,20 @@ const heatmapData = {
   },
 };
 
+const normalizeConfidence = (value?: number) => {
+  if (value == null || Number.isNaN(value)) {
+    return null;
+  }
+  const normalized = value <= 1 ? value * 100 : value;
+  return Math.max(0, Math.min(100, normalized));
+};
+
 const formatPercent = (value?: number) => {
-  if (value == null) {
+  const normalized = normalizeConfidence(value);
+  if (normalized == null) {
     return '-';
   }
-  return `${Math.round(value * 100)}%`;
+  return `${Math.round(normalized)}%`;
 };
 
 const formatNumber = (value?: number) => {
@@ -230,7 +239,7 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+      <section>
         <Card className="rounded-3xl p-5 sm:p-6 lg:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -245,73 +254,7 @@ const DashboardPage = () => {
               </div>
               <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">{heroSummary}</p>
             </div>
-
-            <div className="rounded-2xl border border-outline/35 bg-muted/45 px-4 py-3 text-right">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Action state</p>
-              <p className="mt-2 text-sm text-slate-200">
-                {signal?.side === 'HOLD' ? 'Conditions are not favorable for action.' : 'Directional structure is actionable.'}
-              </p>
-            </div>
           </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {[
-              { label: 'Confidence', value: formatPercent(signal?.confidence) },
-              { label: 'Risk', value: signal?.risk ?? '-' },
-              { label: 'Market Regime', value: signal?.market_regime ?? '-' },
-            ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-outline/30 bg-slate-950/35 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">{item.label}</p>
-                <p className={`mt-3 text-xl font-semibold ${statTone(item.value)}`}>{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="rounded-3xl p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Key Levels</p>
-              <h2 className="mt-3 text-xl font-semibold text-white">Support / Resistance</h2>
-            </div>
-            <Link to="/signals" className="text-xs text-accent transition hover:text-white">
-              Full signal →
-            </Link>
-          </div>
-
-          <div className="mt-5 grid gap-3">
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/6 p-4">
-              <p className="text-[11px] uppercase tracking-[0.26em] text-emerald-200/70">Support</p>
-              <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(signal?.levels?.support)}</p>
-            </div>
-            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/6 p-4">
-              <p className="text-[11px] uppercase tracking-[0.26em] text-rose-200/70">Resistance</p>
-              <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(signal?.levels?.resistance)}</p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIndicatorsOpen((value) => !value)}
-            className="mt-5 flex w-full items-center justify-between rounded-2xl border border-outline/30 bg-slate-950/35 px-4 py-3 text-left transition hover:border-outline/55"
-          >
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Indicators</p>
-              <p className="mt-1 text-sm text-slate-300">RSI, MACD, EMA</p>
-            </div>
-            <span className="text-sm text-slate-300">{indicatorsOpen ? 'Hide' : 'Show'}</span>
-          </button>
-
-          {indicatorsOpen ? (
-            <div className="mt-3 grid gap-3">
-              {indicatorRows.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-outline/25 bg-muted/35 px-4 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
-                  <p className="mt-2 text-sm text-slate-200">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </Card>
       </section>
 
@@ -336,21 +279,66 @@ const DashboardPage = () => {
           </div>
         </Card>
 
+        <div className="space-y-6">
+          <Card className="rounded-3xl p-5 sm:p-6">
+            <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Quick Stats</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+              {[
+                { label: 'Confidence', value: formatPercent(signal?.confidence) },
+                { label: 'Risk', value: signal?.risk ?? '-' },
+                { label: 'Market Regime', value: signal?.market_regime ?? '-' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border border-outline/30 bg-slate-950/35 px-4 py-4">
+                  <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">{item.label}</p>
+                  <p className={`mt-3 text-xl font-semibold ${statTone(item.value)}`}>{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="rounded-3xl p-5 sm:p-6">
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Key Levels</p>
+                  <h2 className="mt-3 text-xl font-semibold text-white">Support / Resistance</h2>
+                </div>
+                <Link to="/signals" className="text-xs text-accent transition hover:text-white">
+                  Full signal →
+                </Link>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/6 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.26em] text-emerald-200/70">Support</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(signal?.levels?.support)}</p>
+                </div>
+                <div className="rounded-2xl border border-rose-400/20 bg-rose-500/6 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.26em] text-rose-200/70">Resistance</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(signal?.levels?.resistance)}</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <section>
         <Card className="rounded-3xl p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Latest News</p>
-              <h2 className="mt-3 text-xl font-semibold text-white">Market sentiment check</h2>
+              <h2 className="mt-3 text-lg font-semibold text-white">Market sentiment check</h2>
             </div>
             <Link to="/news" className="text-xs text-accent transition hover:text-white">
               View all →
             </Link>
           </div>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
             {newsLoading ? (
               Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-28 animate-pulse rounded-3xl border border-outline/25 bg-slate-900/45" />
+                <div key={index} className="h-24 animate-pulse rounded-3xl border border-outline/25 bg-slate-900/45" />
               ))
             ) : newsItems.length > 0 ? (
               newsItems.map((item) => (
@@ -374,6 +362,31 @@ const DashboardPage = () => {
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Card className="rounded-3xl p-5 sm:p-6">
+          <button
+            type="button"
+            onClick={() => setIndicatorsOpen((value) => !value)}
+            className="flex w-full items-center justify-between rounded-2xl border border-outline/30 bg-slate-950/35 px-4 py-3 text-left transition hover:border-outline/55"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Indicators</p>
+              <p className="mt-1 text-sm text-slate-300">RSI, MACD, EMA</p>
+            </div>
+            <span className="text-sm text-slate-300">{indicatorsOpen ? 'Hide' : 'Show'}</span>
+          </button>
+
+          {indicatorsOpen ? (
+            <div className="mt-3 grid gap-3">
+              {indicatorRows.map((item) => (
+                <div key={item.label} className="rounded-2xl border border-outline/25 bg-muted/35 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
+                  <p className="mt-2 text-sm text-slate-200">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </Card>
+
+        <Card className="rounded-3xl p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Community</p>
@@ -387,7 +400,9 @@ const DashboardPage = () => {
             <SignalSentimentPoll symbol={signal?.symbol ?? 'BTCUSDT'} />
           </div>
         </Card>
+      </section>
 
+      <section>
         <Card className="rounded-3xl p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
