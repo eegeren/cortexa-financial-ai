@@ -35,6 +35,9 @@ type Signal struct {
 	Symbol       string                  `json:"symbol"`
 	Timeframe    string                  `json:"timeframe,omitempty"`
 	Trend        string                  `json:"trend,omitempty"`
+	Sentiment    string                  `json:"sentiment,omitempty"`
+	Edge         string                  `json:"edge,omitempty"`
+	EdgeReason   string                  `json:"edge_reason,omitempty"`
 	Momentum     string                  `json:"momentum,omitempty"`
 	Risk         string                  `json:"risk,omitempty"`
 	MarketRegime string                  `json:"market_regime,omitempty"`

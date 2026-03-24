@@ -1,13 +1,16 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import AllMarketsModal from '@/components/AllMarketsModal';
 import Card from '@/components/Card';
+import MarketTopBar from '@/components/MarketTopBar';
 import NewsCard from '@/components/NewsCard';
 import { useToast } from '@/components/ToastProvider';
 import SignalSentimentPoll from '@/components/SignalSentimentPoll';
 import PremiumLock from '@/components/PremiumLock';
 import usePremiumStatus from '@/hooks/usePremiumStatus';
 import { useAuthStore } from '@/store/auth';
-import { fetchNews, fetchPortfolio, fetchSignal, NewsResponse, PortfolioResponse, SignalResponse } from '@/services/api';
+import { useMarketStore } from '@/store/market';
+import { fetchForumThreads, fetchMarketSummary, fetchNews, fetchPortfolio, fetchSignal, NewsResponse, PortfolioResponse, SignalResponse, type ForumThread, type MarketSummaryItem } from '@/services/api';
 
 const MarketWidget = lazy(() => import('@/components/MarketWidget'));
 const HeatmapMatrix = lazy(() => import('@/components/HeatmapMatrix'));
@@ -92,7 +95,33 @@ const statTone = (label: string) => {
   return 'text-slate-100';
 };
 
+const TOP_MARKET_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT'];
+
+const aggregateCommunitySentiment = (threads: ForumThread[]) => {
+  const votes = threads.reduce(
+    (acc, thread) => {
+      acc.bullish += thread.votes.bullish;
+      acc.bearish += thread.votes.bearish;
+      acc.chop += thread.votes.chop;
+      return acc;
+    },
+    { bullish: 0, bearish: 0, chop: 0 }
+  );
+
+  if (votes.bullish === 0 && votes.bearish === 0 && votes.chop === 0) {
+    return 'Neutral';
+  }
+  if (votes.bearish > votes.bullish && votes.bearish >= votes.chop) {
+    return 'Bearish';
+  }
+  if (votes.bullish > votes.bearish && votes.bullish >= votes.chop) {
+    return 'Bullish';
+  }
+  return 'Neutral';
+};
+
 const DashboardPage = () => {
+  const navigate = useNavigate();
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
@@ -101,9 +130,15 @@ const DashboardPage = () => {
   const [newsItems, setNewsItems] = useState<NewsResponse['items']>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
+  const [marketItems, setMarketItems] = useState<MarketSummaryItem[]>([]);
+  const [marketLoading, setMarketLoading] = useState(true);
+  const [marketModalOpen, setMarketModalOpen] = useState(false);
+  const [communitySentiment, setCommunitySentiment] = useState<'Bullish' | 'Bearish' | 'Neutral'>('Neutral');
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const { pushToast } = useToast();
   const { isPremium } = usePremiumStatus();
+  const selectedSymbol = useMarketStore((state) => state.selectedSymbol);
+  const setSelectedSymbol = useMarketStore((state) => state.setSelectedSymbol);
   const { firstName, lastName, email } = useAuthStore((state) => ({
     firstName: state.firstName,
     lastName: state.lastName,
@@ -132,7 +167,7 @@ const DashboardPage = () => {
 
     const loadSignal = async () => {
       try {
-        const latest = await fetchSignal('BTCUSDT');
+        const latest = await fetchSignal(selectedSymbol);
         if (!alive) {
           return;
         }
@@ -156,7 +191,7 @@ const DashboardPage = () => {
       alive = false;
       window.clearInterval(timer);
     };
-  }, [pushToast]);
+  }, [pushToast, selectedSymbol]);
 
   useEffect(() => {
     let alive = true;
@@ -187,6 +222,56 @@ const DashboardPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+
+    const loadMarkets = async () => {
+      try {
+        const items = await fetchMarketSummary({ limit: 120 });
+        if (!alive) {
+          return;
+        }
+        setMarketItems(items);
+      } catch {
+        if (alive) {
+          setMarketItems([]);
+        }
+      } finally {
+        if (alive) {
+          setMarketLoading(false);
+        }
+      }
+    };
+
+    void loadMarkets();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadCommunity = async () => {
+      try {
+        const rows = await fetchForumThreads();
+        if (!alive) {
+          return;
+        }
+        setCommunitySentiment(aggregateCommunitySentiment(rows) as 'Bullish' | 'Bearish' | 'Neutral');
+      } catch {
+        if (alive) {
+          setCommunitySentiment('Neutral');
+        }
+      }
+    };
+
+    void loadCommunity();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const metrics = useMemo(() => {
     if (!portfolio || portfolioLoading) {
       return null;
@@ -212,15 +297,14 @@ const DashboardPage = () => {
 
   const heroSummary = useMemo(() => {
     if (!signal) {
-      return 'Signal snapshot is loading.';
+      return 'Market context is loading.';
     }
 
+    if (signal.edge === 'No Clear Edge' || signal.side === 'HOLD') {
+      return signal.edge_reason || 'No clear directional bias. Conditions are not favorable for action.';
+    }
     if (signal.scenario) {
       return signal.scenario;
-    }
-
-    if (signal.side === 'HOLD') {
-      return 'Low confidence, no clear edge.';
     }
 
     return `${signal.trend ?? 'Market structure'} with ${formatPercent(signal.confidence)} confidence.`;
@@ -247,8 +331,41 @@ const DashboardPage = () => {
     [signal]
   );
 
+  const handleSelectMarket = (symbol: string) => {
+    setSelectedSymbol(symbol);
+    setMarketModalOpen(false);
+    navigate(`/signals?symbol=${encodeURIComponent(symbol)}`);
+  };
+
+  const topMarketItems = useMemo(() => {
+    const lookup = new Map(marketItems.map((item) => [item.symbol, item]));
+    return TOP_MARKET_SYMBOLS.map((symbol) => lookup.get(symbol)).filter(Boolean) as MarketSummaryItem[];
+  }, [marketItems]);
+
   return (
     <div className="space-y-6 sm:space-y-8">
+      <MarketTopBar
+        items={topMarketItems}
+        loading={marketLoading}
+        activeSymbol={selectedSymbol}
+        onSelectSymbol={(symbol) => {
+          setSelectedSymbol(symbol);
+          void (async () => {
+            setSignalLoading(true);
+            try {
+              const latest = await fetchSignal(symbol);
+              setSignal(latest);
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Unable to load market context';
+              pushToast(message, 'warning');
+            } finally {
+              setSignalLoading(false);
+            }
+          })();
+        }}
+        onViewAll={() => setMarketModalOpen(true)}
+      />
+
       <section>
         <Card className="rounded-3xl p-5 sm:p-6 lg:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -271,19 +388,41 @@ const DashboardPage = () => {
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="relative rounded-3xl p-5 sm:p-6 lg:p-7">
+          <p className="text-[11px] uppercase tracking-[0.36em] text-slate-500">Market Context</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {[
+              { label: 'Structure', value: signal?.trend ?? 'Neutral' },
+              { label: 'Momentum', value: signal?.momentum ?? '-' },
+              { label: 'Sentiment', value: signal?.sentiment ?? 'Neutral' },
+              { label: 'Edge', value: signal?.edge ?? 'No Clear Edge' },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-outline/25 bg-slate-950/35 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">{item.label}</p>
+                <p className={`mt-3 text-base font-semibold ${statTone(item.value)}`}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-outline/25 bg-slate-950/30 px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Community sentiment</p>
+            <p className="mt-3 text-sm text-slate-200">Community sentiment: {communitySentiment}</p>
+          </div>
+        </Card>
+
+        <Card className="relative rounded-3xl p-5 sm:p-6 lg:p-7">
           <p className="text-[11px] uppercase tracking-[0.36em] text-slate-500">What&apos;s Happening</p>
           <div className={`mt-5 space-y-5 ${!isPremium ? 'blur-[2px]' : ''}`}>
             <div className="rounded-2xl border border-outline/30 bg-slate-950/35 p-4 sm:p-5">
               <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Scenario</p>
               <p className="mt-3 text-lg leading-8 text-white">
-                {signalLoading ? 'Loading market structure...' : signal?.scenario ?? 'No explanation available yet.'}
+                {signalLoading ? 'Loading market context...' : signal?.scenario ?? 'No explanation available yet.'}
               </p>
             </div>
             <div className="rounded-2xl border border-outline/30 bg-muted/35 p-4 sm:p-5">
               <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Insight</p>
               <p className="mt-3 text-sm leading-7 text-slate-300">
                 {signalLoading
-                  ? 'Pulling the latest context from the signal engine.'
+                  ? 'Pulling the latest market context from the engine.'
                   : signal?.insight ?? signal?.explanation ?? 'The engine has not produced a richer insight for this snapshot.'}
               </p>
             </div>
@@ -316,7 +455,7 @@ const DashboardPage = () => {
                   <h2 className="mt-3 text-xl font-semibold text-white">Support / Resistance</h2>
                 </div>
                 <Link to="/signals" className="text-xs text-accent transition hover:text-white">
-                  Full signal →
+                  Full market insight →
                 </Link>
               </div>
 
@@ -475,6 +614,14 @@ const DashboardPage = () => {
           </Card>
         </Suspense>
       </section>
+
+      <AllMarketsModal
+        open={marketModalOpen}
+        items={marketItems}
+        activeSymbol={selectedSymbol}
+        onClose={() => setMarketModalOpen(false)}
+        onSelectSymbol={handleSelectMarket}
+      />
     </div>
   );
 };

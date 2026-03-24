@@ -18,6 +18,9 @@ export interface SignalResponse {
   symbol: string;
   timeframe?: string;
   trend?: string;
+  sentiment?: 'Bullish' | 'Bearish' | 'Neutral' | string;
+  edge?: string;
+  edge_reason?: string;
   momentum?: string;
   risk?: string;
   market_regime?: string;
@@ -336,6 +339,21 @@ export interface MarketSymbolsResponse {
   symbols: string[];
 }
 
+export interface MarketSummaryItem {
+  symbol: string;
+  last_price?: number | null;
+  price_change_percent?: number | null;
+  volume?: number | null;
+  quote_volume?: number | null;
+  high_price?: number | null;
+  low_price?: number | null;
+}
+
+export interface MarketSummaryResponse {
+  ok: boolean;
+  items: MarketSummaryItem[];
+}
+
 export interface NewsItem {
   title: string;
   source: string;
@@ -494,6 +512,17 @@ export const fetchSignalUsage = async () => {
 export const fetchMarketSymbols = async () => {
   const { data } = await http.get<MarketSymbolsResponse>('/api/market/symbols');
   return data.symbols;
+};
+
+export const fetchMarketSummary = async (params: { symbols?: string[]; limit?: number } = {}) => {
+  const { symbols, limit } = params;
+  const { data } = await http.get<MarketSummaryResponse>('/api/market/summary', {
+    params: {
+      symbols: symbols?.length ? symbols.join(',') : undefined,
+      limit,
+    },
+  });
+  return data.items ?? [];
 };
 
 export const fetchNews = async (

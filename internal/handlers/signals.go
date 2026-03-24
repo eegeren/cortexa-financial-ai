@@ -89,6 +89,34 @@ func (h *Handlers) GetMarketSymbols(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handlers) GetMarketSummary(w http.ResponseWriter, r *http.Request) {
+	rawSymbols := strings.TrimSpace(r.URL.Query().Get("symbols"))
+	var symbols []string
+	if rawSymbols != "" {
+		for _, symbol := range strings.Split(rawSymbols, ",") {
+			trimmed := strings.ToUpper(strings.TrimSpace(symbol))
+			if trimmed != "" {
+				symbols = append(symbols, trimmed)
+			}
+		}
+	}
+	limit := 0
+	if s := r.URL.Query().Get("limit"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			limit = v
+		}
+	}
+	items, err := h.Signal.MarketSummary(r.Context(), symbols, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":    true,
+		"items": items,
+	})
+}
+
 func (h *Handlers) GetNews(w http.ResponseWriter, r *http.Request) {
 	currency := strings.TrimSpace(r.URL.Query().Get("currency"))
 	if currency == "" {

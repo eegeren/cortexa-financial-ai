@@ -1,11 +1,12 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ApiError, fetchSignal, fetchBacktest, fetchInsight, fetchMarketSymbols, fetchSignalUsage, type SignalResponse, type BacktestResponse, type SignalUsage } from '@/services/api';
 import SignalSentimentPoll from '@/components/SignalSentimentPoll';
 import PremiumLock from '@/components/PremiumLock';
 import DailyLimitUpgradeModal from '@/components/DailyLimitUpgradeModal';
 import usePremiumStatus from '@/hooks/usePremiumStatus';
 import { useToast } from '@/components/ToastProvider';
+import { useMarketStore } from '@/store/market';
 
 const FALLBACK_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT', 'ADAUSDT'] as const;
 
@@ -65,6 +66,8 @@ const LoadingState = () => (
 );
 
 const SignalsPage = () => {
+  const location = useLocation();
+  const setSelectedSymbol = useMarketStore((state) => state.setSelectedSymbol);
   const [activeSymbol, setActiveSymbol] = useState('');
   const [searchValue, setSearchValue] = useState('');
   const [availableSymbols, setAvailableSymbols] = useState<string[]>([...FALLBACK_SYMBOLS]);
@@ -113,6 +116,7 @@ const SignalsPage = () => {
       }
       setHasData(true);
       setActiveSymbol(symbol);
+      setSelectedSymbol(symbol);
       setSearchValue(symbol);
       setInsightLoading(true);
       try {
@@ -154,7 +158,7 @@ const SignalsPage = () => {
     } finally {
       setSignalLoading(false);
     }
-  }, []);
+  }, [setSelectedSymbol]);
 
   useEffect(() => {
     let cancelled = false;
@@ -242,6 +246,16 @@ const SignalsPage = () => {
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    const initialSymbol = new URLSearchParams(location.search).get('symbol')?.trim().toUpperCase();
+    if (!initialSymbol) {
+      return;
+    }
+    setSearchValue(initialSymbol);
+    setSymbolMenuOpen(false);
+    void loadSignal(initialSymbol, { scrollToResults: true });
+  }, [loadSignal, location.search]);
 
   const filteredSymbols = useMemo(() => {
     const query = searchValue.trim().toUpperCase();

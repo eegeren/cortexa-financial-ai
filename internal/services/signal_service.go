@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -88,6 +89,31 @@ type symbolsResp struct {
 	Provider string   `json:"provider"`
 }
 
+type marketSummaryResp struct {
+	OK    bool `json:"ok"`
+	Count int  `json:"count"`
+	Data  []struct {
+		Symbol             string   `json:"symbol"`
+		LastPrice          *float64 `json:"lastPrice"`
+		PriceChangePercent *float64 `json:"priceChangePercent"`
+		Volume             *float64 `json:"volume"`
+		QuoteVolume        *float64 `json:"quoteVolume"`
+		HighPrice          *float64 `json:"highPrice"`
+		LowPrice           *float64 `json:"lowPrice"`
+	} `json:"data"`
+	Error string `json:"error"`
+}
+
+type MarketSummaryItem struct {
+	Symbol             string   `json:"symbol"`
+	LastPrice          *float64 `json:"last_price"`
+	PriceChangePercent *float64 `json:"price_change_percent"`
+	Volume             *float64 `json:"volume,omitempty"`
+	QuoteVolume        *float64 `json:"quote_volume,omitempty"`
+	HighPrice          *float64 `json:"high_price,omitempty"`
+	LowPrice           *float64 `json:"low_price,omitempty"`
+}
+
 type NewsItem struct {
 	Title       string `json:"title"`
 	Source      string `json:"source"`
@@ -128,6 +154,9 @@ type signalScoreBreakdown struct {
 	MultiTimeframeConfirmationScore float64
 	FinalScore                      float64
 	Confidence                      int
+	Sentiment                       string
+	Edge                            string
+	EdgeReason                      string
 	Risk                            string
 	Trend                           string
 	Momentum                        string
@@ -218,6 +247,46 @@ func classifyRegime(trendStrengthScore, regimeScore, volumeScore float64) string
 	default:
 		return "Balanced"
 	}
+}
+
+func classifySentiment(trendStructure, momentumConfirmation, volumeParticipation, regimeScore float64) string {
+	biasScore := (trendStructure * 0.55) + (momentumConfirmation * 0.30) + (volumeParticipation * 0.10) + (regimeScore * 0.05)
+	switch {
+	case biasScore >= 12:
+		return "Bullish"
+	case biasScore <= -12:
+		return "Bearish"
+	default:
+		return "Neutral"
+	}
+}
+
+func classifyEdge(confidence int, trend string, flags []string, regime string) (string, string) {
+	flagSet := make(map[string]struct{}, len(flags))
+	for _, flag := range flags {
+		flagSet[flag] = struct{}{}
+	}
+
+	if trend == "Neutral" || confidence < 35 {
+		reasons := make([]string, 0, 3)
+		if _, ok := flagSet["low_volume"]; ok || regime == "Low participation" {
+			reasons = append(reasons, "weak volume")
+		}
+		if _, ok := flagSet["choppy_structure"]; ok || regime == "Range-bound" {
+			reasons = append(reasons, "choppy structure")
+		}
+		if _, ok := flagSet["weak_trend_strength"]; ok {
+			reasons = append(reasons, "lack of trend")
+		}
+		if len(reasons) == 0 {
+			reasons = append(reasons, "mixed structure")
+		}
+		return "No Clear Edge", "Conditions are not favorable for action because of " + strings.Join(reasons, ", ") + "."
+	}
+	if confidence >= 60 {
+		return "Directional Edge", "Structure, momentum, and participation are aligned enough to keep a directional read."
+	}
+	return "Limited Edge", "There is directional bias, but confirmation is not clean enough to treat it as a high-quality setup."
 }
 
 func trendLabelFromScore(score float64) string {
@@ -586,6 +655,8 @@ func computeSignalBreakdown(data *struct {
 	} else if side == "SELL" && finalScore <= -60 {
 		trend = "Strong Bearish"
 	}
+	sentiment := classifySentiment(trendStructure, momentumConfirmation, volumeParticipation, regimeScore)
+	edge, edgeReason := classifyEdge(confidence, trend, flags, classifyRegime(trendStrength, regimeScore, volumeParticipation))
 
 	return signalScoreBreakdown{
 		TrendStructureScore:             math.Round(trendStructure*10) / 10,
@@ -596,6 +667,9 @@ func computeSignalBreakdown(data *struct {
 		MultiTimeframeConfirmationScore: math.Round(multiTimeframeConfirmation*10) / 10,
 		FinalScore:                      math.Round(finalScore*10) / 10,
 		Confidence:                      confidence,
+		Sentiment:                       sentiment,
+		Edge:                            edge,
+		EdgeReason:                      edgeReason,
 		Risk:                            risk,
 		Trend:                           trend,
 		Momentum:                        classifyMomentum(macd, macdSignal, macdHistogram, rsi),
@@ -836,6 +910,9 @@ func (s *SignalService) Predict(ctx context.Context, symbol string) (models.Sign
 		Symbol:       pr.Data.Symbol,
 		Timeframe:    pr.Data.Timeframe,
 		Trend:        breakdown.Trend,
+		Sentiment:    breakdown.Sentiment,
+		Edge:         breakdown.Edge,
+		EdgeReason:   breakdown.EdgeReason,
 		Momentum:     breakdown.Momentum,
 		Risk:         breakdown.Risk,
 		MarketRegime: breakdown.MarketRegime,
@@ -923,6 +1000,64 @@ func (s *SignalService) Symbols(ctx context.Context) ([]string, error) {
 	}
 
 	return symbols, nil
+}
+
+func (s *SignalService) MarketSummary(ctx context.Context, symbols []string, limit int) ([]MarketSummaryItem, error) {
+	summaryURL := s.aiBaseURL() + "/market/summary"
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, summaryURL, nil)
+	q := req.URL.Query()
+	if len(symbols) > 0 {
+		q.Set("symbols", strings.Join(symbols, ","))
+	}
+	if limit > 0 {
+		q.Set("top_n", strconv.Itoa(limit))
+	}
+	q.Set("with_indicators", "false")
+	req.URL.RawQuery = q.Encode()
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("market summary upstream request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(resp.Body)
+		trimmed := strings.TrimSpace(string(msg))
+		if trimmed == "" {
+			trimmed = "ai service error"
+		}
+		return nil, fmt.Errorf("ai service status %d: %s", resp.StatusCode, trimmed)
+	}
+
+	var sr marketSummaryResp
+	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+		return nil, fmt.Errorf("ai service decode failed: %w", err)
+	}
+	if !sr.OK {
+		message := strings.TrimSpace(sr.Error)
+		if message == "" {
+			message = "ai service returned empty market summary"
+		}
+		return nil, fmt.Errorf("ai service unavailable: %s", message)
+	}
+
+	items := make([]MarketSummaryItem, 0, len(sr.Data))
+	for _, item := range sr.Data {
+		items = append(items, MarketSummaryItem{
+			Symbol:             strings.ToUpper(strings.TrimSpace(item.Symbol)),
+			LastPrice:          item.LastPrice,
+			PriceChangePercent: item.PriceChangePercent,
+			Volume:             item.Volume,
+			QuoteVolume:        item.QuoteVolume,
+			HighPrice:          item.HighPrice,
+			LowPrice:           item.LowPrice,
+		})
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].Symbol < items[j].Symbol
+	})
+	return items, nil
 }
 
 func inferNewsSentiment(title string) string {
