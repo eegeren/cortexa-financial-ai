@@ -60,8 +60,8 @@ const MarketStrip = ({ items, loading = false, activeSymbol, onSelectSymbol, onV
   }, [items, loading]);
 
   return (
-    <div className="sticky top-0 z-30 -mx-1 px-1">
-      <div className="rounded-[1.75rem] border border-white/10 border-b-white/12 bg-slate-950/70 px-4 py-3.5 shadow-[0_18px_50px_rgba(2,6,23,0.24)] backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/58">
+    <div className="sticky top-3 z-40 self-start sm:top-4 lg:top-6">
+      <div className="rounded-[1.75rem] border border-white/10 border-b-white/12 bg-slate-950/82 px-4 py-3.5 shadow-[0_18px_50px_rgba(2,6,23,0.24)] backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/72">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Markets</p>
           <button
