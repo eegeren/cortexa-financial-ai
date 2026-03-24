@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
-import CortexaWordmark from '@/components/CortexaWordmark';
+import BrandWordmark from '@/components/BrandWordmark';
 
 const FEATURE_BULLETS = [
   {
@@ -143,41 +143,30 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="relative min-h-[100dvh] bg-canvas text-ink">
-      <video
-        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-40"
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        src="/videoplayback.mp4"
-        aria-hidden
-      />
-      <div className="pointer-events-none fixed inset-0 bg-black/35" />
+    <div className="relative min-h-[100dvh] overflow-hidden bg-[#020617] text-ink">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.1),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.09),transparent_32%),linear-gradient(180deg,#020617_0%,#06101f_48%,#020617_100%)]" />
+      <div className="pointer-events-none absolute -left-24 top-[-80px] h-72 w-72 rounded-full bg-cyan-400/10 blur-[120px]" />
+      <div className="pointer-events-none absolute -right-20 bottom-[-60px] h-80 w-80 rounded-full bg-indigo-500/10 blur-[140px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.03)_1px,transparent_1px)] bg-[size:72px_72px] opacity-30" />
       <div className="relative mx-auto flex min-h-[100dvh] max-w-6xl items-start justify-center px-4 py-6 sm:px-6 sm:py-10 lg:items-center lg:py-12">
         <div className="relative grid w-full items-start gap-6 sm:gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-center lg:gap-10">
           <section className="order-2 space-y-5 sm:space-y-8 lg:order-1 lg:space-y-10">
-            <div className="relative overflow-hidden rounded-[2rem] border border-outline/30 p-6 shadow-inner-glow sm:rounded-[2.25rem] sm:p-8 lg:rounded-[2.5rem] lg:p-10">
-              <video
-                className="absolute inset-0 h-full w-full object-cover opacity-60"
-                src="/videoplayback.mp4"
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="auto"
-                aria-hidden
-              />
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/70 via-slate-900/70 to-emerald-700/60" />
+            <div className="relative overflow-hidden rounded-[2rem] border border-outline/30 bg-slate-950/45 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.45)] backdrop-blur-sm sm:rounded-[2.25rem] sm:p-8 lg:rounded-[2.5rem] lg:p-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(129,140,248,0.08),transparent_36%)]" />
               <div className="relative space-y-3 sm:space-y-4">
-                <CortexaWordmark compact />
+                <BrandWordmark className="text-sm" />
                 <h1 className="max-w-xl text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
                   Sign in. Unlock signal intelligence in minutes.
                 </h1>
                 <p className="max-w-xl text-sm leading-6 text-slate-200/80 sm:text-[15px]">
                   Live signals, disciplined automation, and a trading assistant that speaks your desk’s language.
                 </p>
+                <div className="pt-2">
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Perspective</p>
+                  <p className="mt-2 max-w-md text-base leading-7 text-slate-200">
+                    Understand the market, not just the signal.
+                  </p>
+                </div>
               </div>
               <SparklineGraphic />
             </div>
@@ -201,7 +190,7 @@ const LoginPage = () => {
             </div>
           </section>
 
-          <section className="order-1 mx-auto w-full max-w-md rounded-[1.75rem] border border-outline/40 bg-surface/85 p-5 shadow-elevation-soft sm:p-6 lg:order-2 lg:max-w-none lg:rounded-3xl lg:p-8">
+          <section className="order-1 mx-auto w-full max-w-md rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.55)] backdrop-blur-xl sm:p-6 lg:order-2 lg:max-w-none lg:rounded-3xl lg:p-8">
             <header className="mb-5 space-y-2 text-left sm:mb-6">
               <h2 className="text-xl font-semibold text-white sm:text-2xl">Welcome back</h2>
               <p className="text-sm text-slate-400">Use your workspace credentials to continue.</p>

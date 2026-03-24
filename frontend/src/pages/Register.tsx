@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import Card from '@/components/Card';
-import CortexaWordmark from '@/components/CortexaWordmark';
+import BrandWordmark from '@/components/BrandWordmark';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -105,27 +105,26 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="relative min-h-[100dvh] bg-canvas text-ink">
-      <video
-        className="pointer-events-none fixed inset-0 hidden h-full w-full object-cover opacity-30 sm:block"
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        src="/videoplayback.mp4"
-        aria-hidden
-      />
-      <div className="pointer-events-none fixed inset-0 bg-black/50" />
+    <div className="relative min-h-[100dvh] overflow-hidden bg-[#020617] text-ink">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.1),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.09),transparent_32%),linear-gradient(180deg,#020617_0%,#06101f_48%,#020617_100%)]" />
+      <div className="pointer-events-none absolute -left-24 top-[-80px] h-72 w-72 rounded-full bg-cyan-400/10 blur-[120px]" />
+      <div className="pointer-events-none absolute -right-20 bottom-[-60px] h-80 w-80 rounded-full bg-indigo-500/10 blur-[140px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.03)_1px,transparent_1px)] bg-[size:72px_72px] opacity-30" />
 
       <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col px-4 py-6 sm:px-6 sm:py-10 lg:flex-row lg:items-center lg:gap-12 lg:py-12">
         <section className="order-2 w-full space-y-6 text-slate-200 lg:order-1 lg:w-1/2 lg:space-y-8">
-          <div className="relative overflow-hidden rounded-[2rem] border border-outline/40 bg-surface/80 p-6 shadow-elevation-soft sm:p-8 lg:p-10">
-            <CortexaWordmark compact />
+          <div className="relative overflow-hidden rounded-[2rem] border border-outline/40 bg-slate-950/50 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.45)] backdrop-blur-sm sm:p-8 lg:p-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(129,140,248,0.08),transparent_36%)]" />
+            <div className="relative">
+            <BrandWordmark className="text-sm" />
             <h1 className="mt-5 text-2xl font-semibold text-white sm:text-4xl">Build your edge with institutional grade intelligence.</h1>
             <p className="mt-3 max-w-xl text-sm text-slate-300">
               Cortexa surfaces AI-calibrated trade ideas, live risk analytics, and automated execution in a single workspace. Create an account to unlock tailored strategies and concierge onboarding.
             </p>
+            <p className="mt-5 max-w-md text-base leading-7 text-slate-200">
+              Understand the market, not just the signal.
+            </p>
+            </div>
 
             <span className="orb-float pointer-events-none" style={{ background: 'rgba(38, 132, 255, 0.35)', left: '-120px', top: '-160px' }} />
             <span className="orb-float pointer-events-none" data-delay="1" style={{ background: 'rgba(16, 163, 127, 0.3)', right: '-140px', top: '-80px' }} />
@@ -158,7 +157,7 @@ const RegisterPage = () => {
         </section>
 
         <section className="order-1 w-full lg:order-2 lg:w-1/2">
-          <Card className="border border-slate-800/70 bg-slate-950/90 p-5 shadow-2xl sm:p-6 lg:p-8">
+          <Card className="border border-white/10 bg-slate-950/70 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.55)] backdrop-blur-xl sm:p-6 lg:p-8">
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold text-white">Create your account</h2>
