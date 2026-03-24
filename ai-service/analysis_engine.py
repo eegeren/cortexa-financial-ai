@@ -381,6 +381,51 @@ def _dedupe_flags(flags: list[str]) -> list[str]:
     return list(dict.fromkeys(flags))
 
 
+def structural_trend_from_context(
+    *,
+    bullish_confirmations: int,
+    bearish_confirmations: int,
+    bullish_stack: bool,
+    bearish_stack: bool,
+    bull_price_confirms: bool,
+    bear_price_confirms: bool,
+    bull_macd_confirms: bool,
+    bear_macd_confirms: bool,
+    choppy_structure: bool,
+) -> str:
+    bullish_bias = bullish_confirmations > bearish_confirmations and (bullish_stack or bull_price_confirms or bull_macd_confirms)
+    bearish_bias = bearish_confirmations > bullish_confirmations and (bearish_stack or bear_price_confirms or bear_macd_confirms)
+
+    if choppy_structure and abs(bullish_confirmations-bearish_confirmations) <= 1:
+        return "Neutral"
+    if bullish_bias and bullish_confirmations >= 3:
+        return "Bullish"
+    if bearish_bias and bearish_confirmations >= 3:
+        return "Bearish"
+    return "Neutral"
+
+
+def actionable_side_for_setup(
+    *,
+    trend: str,
+    confidence: int,
+    risk: str,
+    quality_flags: list[str],
+    actionable_ready: bool,
+) -> str:
+    if trend == "Neutral":
+        return "HOLD"
+    if confidence < 30:
+        return "HOLD"
+    if risk == "High" and confidence < 65:
+        return "HOLD"
+    if not actionable_ready:
+        return "HOLD"
+    if not should_emit_signal(confidence, quality_flags):
+        return "HOLD"
+    return legacy_side_from_trend(trend)
+
+
 def apply_quality_first_signal_filter(
     analysis: dict[str, Any],
     latest_row: pd.Series,
@@ -604,25 +649,39 @@ def apply_quality_first_signal_filter(
         and confidence >= strong_confidence_min
     )
 
-    trend = "Neutral"
-    if not no_trade and confidence >= directional_confidence_min and not (risk == "High" and confidence < 65):
-        if bull_candidate and bullish_confirmations > bearish_confirmations:
-            trend = "Bullish"
-        elif bear_candidate and bearish_confirmations > bullish_confirmations:
-            trend = "Bearish"
+    trend = structural_trend_from_context(
+        bullish_confirmations=bullish_confirmations,
+        bearish_confirmations=bearish_confirmations,
+        bullish_stack=bullish_stack,
+        bearish_stack=bearish_stack,
+        bull_price_confirms=bull_price_confirms,
+        bear_price_confirms=bear_price_confirms,
+        bull_macd_confirms=bull_macd_confirms,
+        bear_macd_confirms=bear_macd_confirms,
+        choppy_structure=choppy_structure,
+    )
+    if bullish_exhausted and trend == "Bullish":
+        trend = "Bullish"
+    if bearish_exhausted and trend == "Bearish":
+        trend = "Bearish"
 
-    if confidence < 45:
-        trend = "Neutral"
-    if risk == "High" and confidence < 65:
-        trend = "Neutral"
-    if bullish_exhausted and trend in {"Bullish", "Strong Bullish"}:
-        trend = "Neutral"
-    if bearish_exhausted and trend in {"Bearish", "Strong Bearish"}:
-        trend = "Neutral"
-    if not should_emit_signal(confidence, flags):
-        trend = "Neutral"
-    if confidence < 30:
-        trend = "Neutral"
+    actionable_ready = (
+        not no_trade
+        and confidence >= directional_confidence_min
+        and not bullish_exhausted
+        and not bearish_exhausted
+        and (
+            (trend == "Bullish" and bull_candidate)
+            or (trend == "Bearish" and bear_candidate)
+        )
+    )
+    side = actionable_side_for_setup(
+        trend=trend,
+        confidence=confidence,
+        risk=risk,
+        quality_flags=flags,
+        actionable_ready=actionable_ready,
+    )
 
     updated["confidence"] = confidence
     updated["trend"] = trend
@@ -653,7 +712,7 @@ def apply_quality_first_signal_filter(
         confidence=int(updated.get("confidence", 50)),
         quality_flags=updated.get("quality_flags", []),
     )
-    updated["side"] = legacy_side_from_trend(str(updated.get("trend", "Neutral")))
+    updated["side"] = side
 
     return updated
 
@@ -783,7 +842,6 @@ def apply_ai_validation_outcome(analysis: dict[str, Any], ai_validation: dict[st
 
     confidence = int(updated.get("confidence", 50))
     if setup_quality == "low" or valid_setup is False:
-        updated["trend"] = "Neutral"
         updated["confidence"] = max(16, min(42, confidence + confidence_adjustment))
         updated["side"] = "HOLD"
         return updated
@@ -797,7 +855,10 @@ def apply_ai_validation_outcome(analysis: dict[str, Any], ai_validation: dict[st
             updated["trend"] = "Strong Bullish"
         elif bear_ready and current_trend == "Bearish" and int(updated["confidence"]) >= 75:
             updated["trend"] = "Strong Bearish"
-    updated["side"] = legacy_side_from_trend(str(updated.get("trend", "Neutral")))
+    if str(updated.get("trend", "Neutral")) == "Neutral":
+        updated["side"] = "HOLD"
+    elif setup_quality == "high" and valid_setup is True:
+        updated["side"] = legacy_side_from_trend(str(updated.get("trend", "Neutral")))
     return updated
 
 

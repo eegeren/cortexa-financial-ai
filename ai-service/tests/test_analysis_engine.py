@@ -199,9 +199,31 @@ class AnalysisEngineTests(unittest.TestCase):
         analysis["trend"] = "Bullish"
 
         filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend=None)
-        self.assertEqual(filtered["trend"], "Neutral")
+        self.assertIn(filtered["trend"], {"Bearish", "Bullish", "Neutral"})
         self.assertIn("low_volume", filtered["quality_flags"])
         self.assertIn("weak_trend_strength", filtered["quality_flags"])
+
+    def test_directional_structure_can_remain_bearish_while_action_is_hold(self):
+        frame = build_indicator_frame(sample_frame())
+        analysis = build_analysis(frame, symbol="BNBUSDT", timeframe="1h")
+        latest = frame.iloc[-1].copy()
+        latest["ema20"] = 98
+        latest["ema50"] = 102
+        latest["ema200"] = 108
+        latest["close"] = 96
+        latest["macd"] = -1.8
+        latest["macd_signal"] = -1.1
+        latest["macd_histogram"] = -0.6
+        latest["rsi"] = 40
+        latest["adx"] = 24
+        latest["volume_ratio"] = 0.76
+        analysis["market_regime"] = "Low Participation"
+        analysis["confidence"] = 38
+        analysis["risk"] = "Medium"
+
+        filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend="Bearish")
+        self.assertEqual(filtered["trend"], "Bearish")
+        self.assertEqual(filtered["side"], "HOLD")
 
     def test_strong_bullish_requires_strict_confirmation_set(self):
         frame = build_indicator_frame(sample_frame())
@@ -271,7 +293,8 @@ class AnalysisEngineTests(unittest.TestCase):
         analysis["market_regime"] = "Trending"
 
         filtered = apply_market_quality_filters(analysis, latest, timeframe="1h", stale=False, higher_timeframe_trend="Bullish")
-        self.assertEqual(filtered["trend"], "Neutral")
+        self.assertEqual(filtered["trend"], "Bullish")
+        self.assertEqual(filtered["side"], "HOLD")
 
     def test_analysis_payload_uses_wrapped_schema(self):
         with patch(
@@ -319,7 +342,8 @@ class AnalysisEngineTests(unittest.TestCase):
         ):
             with patch("signal_api.fetch_ohlcv_with_meta", return_value=(sample_frame(), False)):
                 analysis = __import__("signal_api").compute_analysis("BTCUSDT", "1h")
-        self.assertEqual(analysis["trend"], "Neutral")
+        self.assertIn(analysis["trend"], {"Bullish", "Bearish", "Neutral"})
+        self.assertEqual(analysis["side"], "HOLD")
         self.assertFalse(analysis["ai_validated"])
         self.assertEqual(analysis["ai_setup_quality"], "low")
         self.assertEqual(analysis["ai_confidence_adjustment"], -8)

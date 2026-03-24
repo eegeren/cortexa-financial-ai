@@ -191,6 +191,40 @@ func trendLabelFromScore(score float64) string {
 	}
 }
 
+func structuralTrendFromComponents(trendStructure, momentumConfirmation float64, bullishStack, bearishStack, priceAboveEMA20, priceBelowEMA20 bool) string {
+	switch {
+	case math.Abs(trendStructure) < 12 && math.Abs(momentumConfirmation) < 6:
+		return "Neutral"
+	case trendStructure > 0 && (bullishStack || priceAboveEMA20 || momentumConfirmation > 0):
+		return "Bullish"
+	case trendStructure < 0 && (bearishStack || priceBelowEMA20 || momentumConfirmation < 0):
+		return "Bearish"
+	default:
+		return "Neutral"
+	}
+}
+
+func actionableSideFromContext(trend string, confidence int, risk string, flags []string, actionableReady bool) string {
+	if strings.TrimSpace(trend) == "" || trend == "Neutral" {
+		return "HOLD"
+	}
+	if confidence < 30 {
+		return "HOLD"
+	}
+	if risk == "High" && confidence < 65 {
+		return "HOLD"
+	}
+	if !actionableReady {
+		return "HOLD"
+	}
+	for _, flag := range flags {
+		if flag == "low_volume" || flag == "choppy_structure" {
+			return "HOLD"
+		}
+	}
+	return signalSideFromTrend(trend)
+}
+
 func riskLabelFromInputs(adx, atr, price, volumeRatio *float64, flags []string, regimeScore float64) string {
 	riskPoints := 20.0
 
@@ -306,12 +340,16 @@ func computeSignalBreakdown(data *struct {
 	macdHistogram := data.Indicators.MACD.Histogram
 
 	trendStructure := 0.0
+	bullishStack := false
+	bearishStack := false
 	if ema20 != nil && ema50 != nil && ema200 != nil {
 		switch {
 		case *ema20 > *ema50 && *ema50 > *ema200:
 			trendStructure += 24
+			bullishStack = true
 		case *ema20 < *ema50 && *ema50 < *ema200:
 			trendStructure -= 24
+			bearishStack = true
 		case *ema20 > *ema50:
 			trendStructure += 10
 		case *ema20 < *ema50:
@@ -453,8 +491,9 @@ func computeSignalBreakdown(data *struct {
 	}
 
 	finalScore = clampFloat(finalScore, -100, 100)
-	trend := trendLabelFromScore(finalScore)
-	side := signalSideFromTrend(trend)
+	priceAboveEMA20 := price != nil && ema20 != nil && *price > *ema20
+	priceBelowEMA20 := price != nil && ema20 != nil && *price < *ema20
+	trend := structuralTrendFromComponents(trendStructure, momentumConfirmation, bullishStack, bearishStack, priceAboveEMA20, priceBelowEMA20)
 
 	qualityPenalty := 0.0
 	if volumeParticipation <= -8 {
@@ -474,6 +513,16 @@ func computeSignalBreakdown(data *struct {
 	}
 	confidence := int(math.Round(clampFloat(22+(math.Abs(finalScore)*0.72)-qualityPenalty, 18, 92)))
 	risk := riskLabelFromInputs(adx, atr, price, volumeRatio, flags, regimeScore)
+	actionableReady := math.Abs(finalScore) >= 35 && multiTimeframeConfirmation >= -4 && regimeScore > -18
+	if trendStrength <= 0 || volumeParticipation <= -8 || confidence < 45 {
+		actionableReady = false
+	}
+	side := actionableSideFromContext(trend, confidence, risk, flags, actionableReady)
+	if side == "BUY" && finalScore >= 60 {
+		trend = "Strong Bullish"
+	} else if side == "SELL" && finalScore <= -60 {
+		trend = "Strong Bearish"
+	}
 
 	return signalScoreBreakdown{
 		TrendStructureScore:             math.Round(trendStructure*10) / 10,
@@ -489,7 +538,7 @@ func computeSignalBreakdown(data *struct {
 		Momentum:                        classifyMomentum(macd, macdSignal, macdHistogram, rsi),
 		MarketRegime:                    classifyRegime(trendStrength, regimeScore, volumeParticipation),
 		QualityFlags:                    flags,
-		Side:                            signalSideFromTrend(side),
+		Side:                            side,
 		CompatibilityScore:              math.Round((math.Abs(finalScore)/100.0)*1000) / 1000,
 	}
 }
