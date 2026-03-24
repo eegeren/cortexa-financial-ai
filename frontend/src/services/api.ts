@@ -1,4 +1,18 @@
+import { isAxiosError } from 'axios';
 import http, { setAuthHeader } from './httpClient';
+
+export interface SignalUsage {
+  used: number;
+  limit: number;
+  remaining: number;
+  is_premium: boolean;
+  reset_at?: string;
+}
+
+export class ApiError extends Error {
+  code?: string;
+  usage?: SignalUsage;
+}
 
 export interface SignalResponse {
   symbol: string;
@@ -34,6 +48,7 @@ export interface SignalResponse {
   adx?: number;
   sl?: number;
   tp?: number;
+  usage?: SignalUsage;
   indicators?: {
     ema20?: number;
     ema50?: number;
@@ -335,6 +350,11 @@ export interface NewsResponse {
   items: NewsItem[];
 }
 
+export interface SignalUsageResponse {
+  ok: boolean;
+  usage: SignalUsage;
+}
+
 export interface ForumComment {
   id: number;
   thread_id: string;
@@ -440,8 +460,35 @@ export interface InvoiceSummary {
 export const setAuthToken = setAuthHeader;
 
 export const fetchSignal = async (symbol: string) => {
-  const { data } = await http.get<SignalResponse>(`/api/signals/${symbol}`);
-  return data;
+  try {
+    const { data } = await http.get<SignalResponse>(`/api/signals/${symbol}`);
+    return data;
+  } catch (error) {
+    if (isAxiosError(error)) {
+      const detail = error.response?.data;
+      if (detail && typeof detail === 'object') {
+        const apiError = new ApiError(
+          ('error' in detail && typeof detail.error === 'string' && detail.error) || error.message
+        );
+        if ('error' in detail && typeof detail.error === 'string') {
+          apiError.code = detail.error;
+        }
+        if ('usage' in detail && detail.usage && typeof detail.usage === 'object') {
+          apiError.usage = detail.usage as SignalUsage;
+        }
+        throw apiError;
+      }
+      if (typeof detail === 'string' && detail.trim()) {
+        throw new Error(detail.trim());
+      }
+    }
+    throw error;
+  }
+};
+
+export const fetchSignalUsage = async () => {
+  const { data } = await http.get<SignalUsageResponse>('/api/usage/signals');
+  return data.usage;
 };
 
 export const fetchMarketSymbols = async () => {

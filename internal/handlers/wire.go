@@ -14,14 +14,15 @@ type Handlers struct {
 	Signal    *services.SignalService
 	Forum     *services.ForumService
 	Portfolio *services.PortfolioService
+	Usage     *services.UsageService
 	Webhook   *services.WebhookService
 	Billing   *services.BillingService
 	Chat      *services.ChatService
 	Cfg       config.Config
 }
 
-func NewHandlers(a *services.AuthService, p *services.PriceService, s *services.SignalService, forum *services.ForumService, pf *services.PortfolioService, wh *services.WebhookService, bill *services.BillingService, chat *services.ChatService, cfg config.Config) *Handlers {
-	return &Handlers{Auth: a, Price: p, Signal: s, Forum: forum, Portfolio: pf, Webhook: wh, Billing: bill, Chat: chat, Cfg: cfg}
+func NewHandlers(a *services.AuthService, p *services.PriceService, s *services.SignalService, forum *services.ForumService, pf *services.PortfolioService, usage *services.UsageService, wh *services.WebhookService, bill *services.BillingService, chat *services.ChatService, cfg config.Config) *Handlers {
+	return &Handlers{Auth: a, Price: p, Signal: s, Forum: forum, Portfolio: pf, Usage: usage, Webhook: wh, Billing: bill, Chat: chat, Cfg: cfg}
 }
 
 func (h *Handlers) UserIDFromCtx(ctx context.Context) int64 {

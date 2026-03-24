@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,18 +11,70 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cortexa-labs/cortexa-trade-ai-backend/internal/models"
+	"github.com/cortexa-labs/cortexa-trade-ai-backend/internal/services"
 	"github.com/go-chi/chi/v5"
 )
 
 func (h *Handlers) GetSignals(w http.ResponseWriter, r *http.Request) {
 	symbol := chi.URLParam(r, "symbol")
+	uid := h.UserIDFromCtx(r.Context())
+	role := h.RoleFromCtx(r.Context())
+	isPremium := role == "premium" || role == "admin"
+
+	usage, err := h.Usage.CheckAndIncrementSignalUsage(r.Context(), uid, isPremium)
+	if err != nil {
+		if errors.Is(err, services.ErrDailyLimitReached) {
+			writeJSON(w, http.StatusTooManyRequests, map[string]any{
+				"error": "daily_limit_reached",
+				"usage": map[string]any{
+					"used":       usage.Used,
+					"limit":      usage.Limit,
+					"remaining":  usage.Remaining,
+					"is_premium": usage.IsPremium,
+					"reset_at":   usage.ResetAt.Format(time.RFC3339),
+				},
+			})
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	res, err := h.Signal.Predict(r.Context(), symbol)
 	if err != nil {
 		log.Printf("GetSignals failed for %s: %v", symbol, err)
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
+	res.Usage = &models.SignalUsage{
+		Used:      usage.Used,
+		Limit:     usage.Limit,
+		Remaining: usage.Remaining,
+		IsPremium: usage.IsPremium,
+		ResetAt:   usage.ResetAt.Format(time.RFC3339),
+	}
 	writeJSON(w, http.StatusOK, res)
+}
+
+func (h *Handlers) GetSignalUsage(w http.ResponseWriter, r *http.Request) {
+	uid := h.UserIDFromCtx(r.Context())
+	role := h.RoleFromCtx(r.Context())
+	isPremium := role == "premium" || role == "admin"
+	usage, err := h.Usage.CurrentSignalUsage(r.Context(), uid, isPremium)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok": true,
+		"usage": map[string]any{
+			"used":       usage.Used,
+			"limit":      usage.Limit,
+			"remaining":  usage.Remaining,
+			"is_premium": usage.IsPremium,
+			"reset_at":   usage.ResetAt.Format(time.RFC3339),
+		},
+	})
 }
 
 func (h *Handlers) GetMarketSymbols(w http.ResponseWriter, r *http.Request) {

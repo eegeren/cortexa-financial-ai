@@ -1,8 +1,9 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchSignal, fetchBacktest, fetchInsight, fetchMarketSymbols, type SignalResponse, type BacktestResponse } from '@/services/api';
+import { ApiError, fetchSignal, fetchBacktest, fetchInsight, fetchMarketSymbols, fetchSignalUsage, type SignalResponse, type BacktestResponse, type SignalUsage } from '@/services/api';
 import SignalSentimentPoll from '@/components/SignalSentimentPoll';
 import PremiumLock from '@/components/PremiumLock';
+import DailyLimitUpgradeModal from '@/components/DailyLimitUpgradeModal';
 import usePremiumStatus from '@/hooks/usePremiumStatus';
 import { useToast } from '@/components/ToastProvider';
 
@@ -82,6 +83,9 @@ const SignalsPage = () => {
   const [backtestLoading, setBacktestLoading] = useState(false);
   const [backtestError, setBacktestError] = useState<string | null>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
+  const [usage, setUsage] = useState<SignalUsage | null>(null);
+  const [usageLoading, setUsageLoading] = useState(true);
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
   const { pushToast } = useToast();
   const { isPremium } = usePremiumStatus();
   const resultsRef = useRef<HTMLElement | null>(null);
@@ -103,6 +107,10 @@ const SignalsPage = () => {
     try {
       const data = await fetchSignal(symbol);
       setSignal(data);
+      if (data.usage) {
+        setUsage(data.usage);
+        setDailyLimitReached(!data.usage.is_premium && data.usage.used >= data.usage.limit);
+      }
       setHasData(true);
       setActiveSymbol(symbol);
       setSearchValue(symbol);
@@ -125,7 +133,18 @@ const SignalsPage = () => {
         setInsightLoading(false);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load signal';
+      const message =
+        error instanceof ApiError && error.code === 'daily_limit_reached'
+          ? "You've reached your daily limit"
+          : error instanceof Error
+            ? error.message
+            : 'Unable to load signal';
+      if (error instanceof ApiError && error.code === 'daily_limit_reached') {
+        setDailyLimitReached(true);
+        if (error.usage) {
+          setUsage(error.usage);
+        }
+      }
       setSignal(null);
       setHasData(false);
       setSignalError(message);
@@ -175,6 +194,37 @@ const SignalsPage = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadUsage = async () => {
+      setUsageLoading(true);
+      try {
+        const snapshot = await fetchSignalUsage();
+        if (cancelled) {
+          return;
+        }
+        setUsage(snapshot);
+        setDailyLimitReached(!snapshot.is_premium && snapshot.used >= snapshot.limit);
+      } catch {
+        if (!cancelled) {
+          setUsage(null);
+          setDailyLimitReached(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setUsageLoading(false);
+        }
+      }
+    };
+
+    void loadUsage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!shouldAutoScroll || signalLoading || !signal || !resultsRef.current) {
       return;
     }
@@ -216,7 +266,7 @@ const SignalsPage = () => {
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (signalLoading) {
+    if (signalLoading || dailyLimitReached) {
       return;
     }
     const normalizedSymbol = searchValue.trim().toUpperCase();
@@ -368,9 +418,16 @@ const SignalsPage = () => {
 
   const confidenceBucketPreview = useMemo(() => backtest?.confidence_buckets?.slice(0, 5) ?? [], [backtest]);
   const scoreBucketPreview = useMemo(() => backtest?.score_buckets?.slice(0, 5) ?? [], [backtest]);
+  const usageLabel = useMemo(() => {
+    if (!usage || usage.is_premium) {
+      return null;
+    }
+    return `${usage.used} / ${usage.limit} analyses used`;
+  }, [usage]);
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
+      {!isPremium && dailyLimitReached && <DailyLimitUpgradeModal />}
       <section
         className={`hero rounded-[2rem] border border-outline/20 bg-gradient-to-b from-surface via-surface to-transparent px-4 text-center transition-all duration-300 ease-out sm:px-6 ${
           hasData ? 'hero-compact py-4 sm:py-5' : 'py-8 sm:py-10 lg:py-12'
@@ -458,9 +515,9 @@ const SignalsPage = () => {
           </div>
           <button
             type="submit"
-            disabled={!hasSelectedSymbol || signalLoading}
+            disabled={!hasSelectedSymbol || signalLoading || dailyLimitReached}
             className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-5 font-medium shadow-inner-glow transition-all duration-300 sm:w-auto ${hasData ? 'py-2.5' : 'py-3'} ${
-              hasSelectedSymbol && !signalLoading
+              hasSelectedSymbol && !signalLoading && !dailyLimitReached
                 ? 'bg-white text-black hover:bg-slate-200'
                 : 'cursor-not-allowed bg-slate-700/70 text-slate-300 opacity-60'
             }`}
@@ -468,6 +525,15 @@ const SignalsPage = () => {
             {signalLoading ? 'Loading...' : 'Load signal'}
           </button>
         </form>
+        {!isPremium && (
+          <div className="mt-3 flex flex-col items-center gap-2">
+            {usageLoading ? (
+              <p className="text-xs text-slate-500">Checking daily usage...</p>
+            ) : usageLabel ? (
+              <p className="text-xs text-slate-400">{usageLabel}</p>
+            ) : null}
+          </div>
+        )}
         <p className={`text-xs transition-all duration-300 ${hasData ? 'mt-3 text-slate-500' : 'mt-4 text-slate-400'}`}>
           {symbolsLoading
             ? 'Syncing supported markets from the signal engine...'

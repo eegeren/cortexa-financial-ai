@@ -20,12 +20,13 @@ func Build(r *chi.Mux, cfg config.Config, db *sqlx.DB) *chi.Mux {
 	signalSvc := services.NewSignalService(cfg)
 	forumSvc := services.NewForumService(db)
 	portfolioSvc := services.NewPortfolioService(db)
+	usageSvc := services.NewUsageService(db)
 	webhookSvc := services.NewWebhookService(cfg)
 	billingSvc := services.NewBillingService(db, cfg)
 	chatSvc := services.NewChatService(cfg)
 
 	// handlers
-	h := handlers.NewHandlers(authSvc, priceSvc, signalSvc, forumSvc, portfolioSvc, webhookSvc, billingSvc, chatSvc, cfg)
+	h := handlers.NewHandlers(authSvc, priceSvc, signalSvc, forumSvc, portfolioSvc, usageSvc, webhookSvc, billingSvc, chatSvc, cfg)
 
 	r.Get("/health", h.Health)
 	r.Get("/healthz", h.Healthz)
@@ -42,6 +43,7 @@ func Build(r *chi.Mux, cfg config.Config, db *sqlx.DB) *chi.Mux {
 		r.Get("/market/symbols", h.GetMarketSymbols)
 		r.Get("/news", h.GetNews)
 		r.Get("/signals/{symbol}", h.GetSignals)
+		r.Get("/usage/signals", h.GetSignalUsage)
 		r.Get("/signals/{symbol}/stream", h.StreamSignal)
 		r.Get("/signals/{symbol}/backtest", h.GetSignalBacktest)
 		r.Get("/signals/{symbol}/backtest/sweep", h.GetSignalBacktestSweep)

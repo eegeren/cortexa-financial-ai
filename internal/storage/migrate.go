@@ -45,6 +45,13 @@ func EnsureSchema(db *sqlx.DB) error {
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
             UNIQUE(thread_id, user_id)
         )`,
+		`CREATE TABLE IF NOT EXISTS signal_daily_usage (
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            usage_date DATE NOT NULL,
+            analyses_used INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (user_id, usage_date)
+        )`,
 		`CREATE TABLE IF NOT EXISTS plans (
             id SERIAL PRIMARY KEY,
             code TEXT NOT NULL UNIQUE,
@@ -110,6 +117,7 @@ func EnsureSchema(db *sqlx.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_invoices_subscription_id ON invoices(subscription_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_forum_comments_thread_id ON forum_comments(thread_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_forum_votes_thread_id ON forum_votes(thread_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_signal_daily_usage_user_date ON signal_daily_usage(user_id, usage_date)`,
 		`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS first_name TEXT DEFAULT ''`,
 		`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS last_name TEXT DEFAULT ''`,
 		`ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS phone TEXT`,

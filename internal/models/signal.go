@@ -57,4 +57,13 @@ type Signal struct {
 	EMASlow      *float64                `json:"ema_slow,omitempty"`
 	SL           *float64                `json:"sl,omitempty"`
 	TP           *float64                `json:"tp,omitempty"`
+	Usage        *SignalUsage            `json:"usage,omitempty"`
+}
+
+type SignalUsage struct {
+	Used      int    `json:"used"`
+	Limit     int    `json:"limit"`
+	Remaining int    `json:"remaining"`
+	IsPremium bool   `json:"is_premium"`
+	ResetAt   string `json:"reset_at,omitempty"`
 }
