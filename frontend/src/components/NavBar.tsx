@@ -57,12 +57,6 @@ const Icon = {
       <path d="M15 11v4M13 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   ),
-  logo: (
-    <svg viewBox="0 0 16 16" fill="none" className="h-4 w-4" aria-hidden>
-      <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ),
 };
 
 type IconKey = keyof typeof Icon;
@@ -140,15 +134,11 @@ const NavBar = () => {
         <button
           type="button"
           onClick={() => navigate(token ? '/overview' : '/')}
-          className="flex items-center gap-2.5 self-start rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-800/35"
+          className="self-start rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-800/35"
         >
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
-            {Icon.logo}
-          </div>
-          <div>
-            <div className="text-[9px] font-semibold uppercase tracking-[0.45em] text-slate-500 leading-none">Cortexa</div>
-            <div className="text-sm font-semibold text-slate-100 leading-tight">Trade</div>
-          </div>
+          <span className="block text-sm font-semibold uppercase tracking-[0.32em] text-[#E5E7EB] [text-shadow:0_0_18px_rgba(148,163,184,0.08)]">
+            CORTEXA
+          </span>
         </button>
 
         <nav className="mt-8 flex flex-1 flex-col gap-1">
@@ -250,12 +240,11 @@ const NavBar = () => {
           <button
             type="button"
             onClick={() => navigate(token ? '/overview' : '/')}
-            className="flex items-center gap-2 text-left transition hover:text-white"
+            className="text-left transition hover:text-white"
           >
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/15 text-primary">
-              {Icon.logo}
-            </div>
-            <span className="text-sm font-semibold text-slate-100">Cortexa</span>
+            <span className="block text-sm font-semibold uppercase tracking-[0.28em] text-[#E5E7EB] [text-shadow:0_0_14px_rgba(148,163,184,0.08)]">
+              CORTEXA
+            </span>
           </button>
 
           <button
