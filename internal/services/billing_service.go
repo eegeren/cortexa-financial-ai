@@ -247,6 +247,24 @@ func (s *BillingService) CanAccessAssistant(ctx context.Context, userID int64) (
 	}
 }
 
+func (s *BillingService) HasPremiumAccess(ctx context.Context, userID int64, role string) (bool, error) {
+	if userID <= 0 {
+		return false, fmt.Errorf("invalid user id")
+	}
+
+	normalizedRole := strings.ToLower(strings.TrimSpace(role))
+	if normalizedRole == "admin" || normalizedRole == "premium" {
+		return true, nil
+	}
+
+	canAccess, _, err := s.CanAccessAssistant(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	return canAccess, nil
+}
+
 func (s *BillingService) CreateCheckoutSession(ctx context.Context, userID int64, planCode, successURL, cancelURL string) (models.CheckoutSession, error) {
 	var session models.CheckoutSession
 	if userID <= 0 {

@@ -20,13 +20,18 @@ func (h *Handlers) GetSignals(w http.ResponseWriter, r *http.Request) {
 	symbol := chi.URLParam(r, "symbol")
 	uid := h.UserIDFromCtx(r.Context())
 	role := h.RoleFromCtx(r.Context())
-	isPremium := role == "premium" || role == "admin"
+	isPremium, err := h.Billing.HasPremiumAccess(r.Context(), uid, role)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	usage, err := h.Usage.CheckAndIncrementSignalUsage(r.Context(), uid, isPremium)
 	if err != nil {
 		if errors.Is(err, services.ErrDailyLimitReached) {
 			writeJSON(w, http.StatusTooManyRequests, map[string]any{
-				"error": "daily_limit_reached",
+				"code":    "daily_limit_reached",
+				"message": "Daily limit reached",
 				"usage": map[string]any{
 					"used":       usage.Used,
 					"limit":      usage.Limit,
@@ -59,7 +64,11 @@ func (h *Handlers) GetSignals(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetSignalUsage(w http.ResponseWriter, r *http.Request) {
 	uid := h.UserIDFromCtx(r.Context())
 	role := h.RoleFromCtx(r.Context())
-	isPremium := role == "premium" || role == "admin"
+	isPremium, err := h.Billing.HasPremiumAccess(r.Context(), uid, role)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	usage, err := h.Usage.CurrentSignalUsage(r.Context(), uid, isPremium)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

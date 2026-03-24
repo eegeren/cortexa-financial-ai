@@ -4,15 +4,13 @@ import Card from '@/components/Card';
 import MarketStrip from '@/components/MarketStrip';
 import MarketsDrawer from '@/components/MarketsDrawer';
 import NewsCard from '@/components/NewsCard';
-import { useToast } from '@/components/ToastProvider';
 import SignalSentimentPoll from '@/components/SignalSentimentPoll';
 import PremiumLock from '@/components/PremiumLock';
 import usePremiumStatus from '@/hooks/usePremiumStatus';
 import { useAuthStore } from '@/store/auth';
 import { useMarketStore } from '@/store/market';
-import { fetchForumThreads, fetchMarketSummary, fetchNews, fetchPortfolio, fetchSignal, NewsResponse, PortfolioResponse, SignalResponse, type ForumThread, type MarketSummaryItem } from '@/services/api';
+import { fetchForumThreads, fetchMarketSummary, fetchNews, fetchPortfolio, NewsResponse, PortfolioResponse, type ForumThread, type MarketSummaryItem } from '@/services/api';
 
-const MarketWidget = lazy(() => import('@/components/MarketWidget'));
 const HeatmapMatrix = lazy(() => import('@/components/HeatmapMatrix'));
 
 const heatmapRows = ['Low Vol', 'Mid Vol', 'High Vol'];
@@ -124,8 +122,6 @@ const DashboardPage = () => {
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
-  const [signal, setSignal] = useState<SignalResponse | null>(null);
-  const [signalLoading, setSignalLoading] = useState(true);
   const [newsItems, setNewsItems] = useState<NewsResponse['items']>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
@@ -134,9 +130,9 @@ const DashboardPage = () => {
   const [marketsOpen, setMarketsOpen] = useState(false);
   const [communitySentiment, setCommunitySentiment] = useState<'Bullish' | 'Bearish' | 'Neutral'>('Neutral');
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
-  const { pushToast } = useToast();
   const { isPremium } = usePremiumStatus();
   const selectedSymbol = useMarketStore((state) => state.selectedSymbol);
+  const cachedSignals = useMarketStore((state) => state.cachedSignals);
   const setSelectedSymbol = useMarketStore((state) => state.setSelectedSymbol);
   const { firstName, lastName, email } = useAuthStore((state) => ({
     firstName: state.firstName,
@@ -144,6 +140,7 @@ const DashboardPage = () => {
     email: state.email,
   }));
   const greetingName = firstName?.trim() || lastName?.trim() || email?.split('@')[0] || 'there';
+  const signal = cachedSignals[selectedSymbol] ?? null;
 
   useEffect(() => {
     const loadPortfolio = async () => {
@@ -160,37 +157,6 @@ const DashboardPage = () => {
 
     void loadPortfolio();
   }, []);
-
-  useEffect(() => {
-    let alive = true;
-
-    const loadSignal = async () => {
-      try {
-        const latest = await fetchSignal(selectedSymbol);
-        if (!alive) {
-          return;
-        }
-        setSignal(latest);
-      } catch (error) {
-        if (alive) {
-          const message = error instanceof Error ? error.message : 'Unable to load signal snapshot';
-          pushToast(message, 'warning');
-        }
-      } finally {
-        if (alive) {
-          setSignalLoading(false);
-        }
-      }
-    };
-
-    void loadSignal();
-    const timer = window.setInterval(loadSignal, 300000);
-
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, [pushToast, selectedSymbol]);
 
   useEffect(() => {
     let alive = true;
@@ -296,7 +262,7 @@ const DashboardPage = () => {
 
   const heroSummary = useMemo(() => {
     if (!signal) {
-      return 'Market context is loading.';
+      return 'No analysis has been loaded for this market yet. Select a coin here, then open Signals and click Load signal when you want a fresh analysis.';
     }
 
     if (signal.edge === 'No Clear Edge' || signal.side === 'HOLD') {
@@ -358,7 +324,7 @@ const DashboardPage = () => {
               <p className="mt-3 text-sm font-medium text-slate-300">Welcome back, {greetingName}</p>
               <div className="mt-4 flex items-end gap-3">
                 <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                  {signalLoading ? '...' : signal?.side ?? 'HOLD'}
+                  {signal?.side ?? 'HOLD'}
                 </h1>
                 <span className="mb-1 rounded-full border border-outline/35 bg-muted/50 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-slate-300">
                   {signal?.symbol ?? 'BTCUSDT'} {signal?.timeframe ? `• ${signal.timeframe}` : ''}
@@ -399,15 +365,13 @@ const DashboardPage = () => {
             <div className="rounded-2xl border border-outline/30 bg-slate-950/35 p-4 sm:p-5">
               <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Scenario</p>
               <p className="mt-3 text-lg leading-8 text-white">
-                {signalLoading ? 'Loading market context...' : signal?.scenario ?? 'No explanation available yet.'}
+                {signal?.scenario ?? 'No explanation available yet. Run a signal analysis when you want fresh market context for this symbol.'}
               </p>
             </div>
             <div className="rounded-2xl border border-outline/30 bg-muted/35 p-4 sm:p-5">
               <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">Insight</p>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                {signalLoading
-                  ? 'Pulling the latest market context from the engine.'
-                  : signal?.insight ?? signal?.explanation ?? 'The engine has not produced a richer insight for this snapshot.'}
+                {signal?.insight ?? signal?.explanation ?? 'Load a signal explicitly from the Signals page to populate the richer market insight layer here.'}
               </p>
             </div>
           </div>
@@ -584,10 +548,7 @@ const DashboardPage = () => {
         </Card>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <Suspense fallback={<Card className="rounded-3xl p-6 text-sm text-slate-300">Loading market watch...</Card>}>
-          <MarketWidget />
-        </Suspense>
+      <section>
         <Suspense fallback={<Card className="rounded-3xl p-6 text-sm text-slate-300">Loading regime matrix...</Card>}>
           <Card className="rounded-3xl p-6">
             <h3 className="text-lg font-semibold text-slate-100">Regime matrix</h3>

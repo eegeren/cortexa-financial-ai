@@ -484,8 +484,14 @@ export const fetchSignal = async (symbol: string) => {
       const detail = error.response?.data;
       if (detail && typeof detail === 'object') {
         const apiError = new ApiError(
-          ('error' in detail && typeof detail.error === 'string' && detail.error) || error.message
+          ('message' in detail && typeof detail.message === 'string' && detail.message) ||
+            ('code' in detail && typeof detail.code === 'string' && detail.code) ||
+            ('error' in detail && typeof detail.error === 'string' && detail.error) ||
+            error.message
         );
+        if ('code' in detail && typeof detail.code === 'string') {
+          apiError.code = detail.code;
+        }
         if ('error' in detail && typeof detail.error === 'string') {
           apiError.code = detail.error;
         }

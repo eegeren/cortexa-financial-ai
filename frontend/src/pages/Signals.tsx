@@ -68,6 +68,7 @@ const LoadingState = () => (
 const SignalsPage = () => {
   const location = useLocation();
   const setSelectedSymbol = useMarketStore((state) => state.setSelectedSymbol);
+  const cacheSignal = useMarketStore((state) => state.cacheSignal);
   const [activeSymbol, setActiveSymbol] = useState('');
   const [searchValue, setSearchValue] = useState('');
   const [availableSymbols, setAvailableSymbols] = useState<string[]>([...FALLBACK_SYMBOLS]);
@@ -110,6 +111,7 @@ const SignalsPage = () => {
     try {
       const data = await fetchSignal(symbol);
       setSignal(data);
+      cacheSignal(symbol, data);
       if (data.usage) {
         setUsage(data.usage);
         setDailyLimitReached(!data.usage.is_premium && data.usage.used >= data.usage.limit);
@@ -158,7 +160,7 @@ const SignalsPage = () => {
     } finally {
       setSignalLoading(false);
     }
-  }, [setSelectedSymbol]);
+  }, [cacheSignal, setSelectedSymbol]);
 
   useEffect(() => {
     let cancelled = false;
