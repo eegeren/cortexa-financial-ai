@@ -1,0 +1,58 @@
+version: '3.9'
+services:
+
+  # ─── PostgreSQL Veritabanı ───────────────────────────────────────────────────
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cta
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Python AI Sinyal Servisi ────────────────────────────────────────────────
+  ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - FRONTEND_ORIGIN=http://localhost:5173
+      - BINANCE_BASE_URL=https://api.binance.com
+      - BINANCE_FALLBACK_URL=https://data-api.binance.vision
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/healthz')\""]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ─── Go Backend API ──────────────────────────────────────────────────────────
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+    environment:
+      # Docker network içinde servis isimleri kullanılır
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/cta?sslmode=disable
+      - AI_SERVICE_URL=http://ai:8001/predict
+
+volumes:
+  pgdata: {}
