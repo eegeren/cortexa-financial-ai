@@ -147,26 +147,26 @@ const NavBar = () => {
   const desktopLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-colors ${
       isActive
-        ? 'border-primary/50 bg-primary/15 font-medium text-slate-100'
-        : 'text-slate-300 hover:border-slate-600/50 hover:bg-slate-900/40 hover:text-white'
+        ? 'border-primary/50 bg-primary/15 font-medium text-white'
+        : 'text-white/60 hover:border-white/[0.07] hover:bg-white/[0.04] hover:text-white'
     }`;
 
   const mobileLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 rounded-2xl border px-3.5 py-3 text-sm transition ${
       isActive
-        ? 'border-primary/60 bg-primary/15 text-slate-100'
-        : 'border-slate-700/50 bg-slate-900/35 text-slate-300 hover:text-white'
+        ? 'border-primary/60 bg-primary/15 text-white'
+        : 'border-white/[0.07] bg-white/[0.03] text-white/60 hover:text-white'
     }`;
 
   return (
     <>
-      <aside className={`sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-700/40 px-3 pb-6 pt-7 lg:flex ${
-        isPublicNav ? 'bg-slate-950/92' : 'bg-slate-950/35 backdrop-blur'
+      <aside className={`sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col overflow-y-auto border-r border-white/[0.07] px-3 pb-6 pt-7 lg:flex ${
+        isPublicNav ? 'bg-canvas/90' : 'bg-canvas/35 backdrop-blur'
       }`}>
         <button
           type="button"
           onClick={() => navigate(token ? '/overview' : '/')}
-          className="self-start rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-800/35"
+          className="self-start rounded-xl px-2 py-1.5 text-left transition hover:bg-white/[0.04]"
         >
           <BrandWordmark className="text-sm" />
         </button>
@@ -194,39 +194,39 @@ const NavBar = () => {
               <button
                 type="button"
                 onClick={() => setAccountOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-800/70 bg-slate-900/35 px-3 py-2 text-sm text-slate-300 transition hover:border-slate-600/70 hover:bg-slate-900/55 hover:text-white"
+                className="flex w-full items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-sm text-white/60 transition hover:border-white/[0.12] hover:bg-white/[0.05] hover:text-white"
                 aria-haspopup="menu"
                 aria-expanded={accountOpen}
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/8 bg-slate-800/90 text-[10px] font-semibold text-slate-100 uppercase shadow-inner shadow-black/30">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] text-[10px] font-semibold text-white uppercase shadow-inner shadow-black/30">
                     {displayName[0] ?? 'A'}
                   </div>
                   <div className="min-w-0 text-left">
-                    <span className="block truncate text-[13px] font-medium leading-5 text-slate-100">{displayName}</span>
-                    {email && <span className="block truncate text-[11px] leading-4 text-slate-500">{email}</span>}
+                    <span className="block truncate text-[13px] font-medium leading-5 text-white">{displayName}</span>
+                    {email && <span className="block truncate text-[11px] leading-4 text-white/30">{email}</span>}
                     {isPremium && (
-                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-200/10 bg-slate-800/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-amber-100/70">
+                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-200/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-amber-100/70">
                         <span aria-hidden className="text-[8px]">★</span>
                         PREMIUM
                       </span>
                     )}
                   </div>
                 </div>
-                <svg aria-hidden viewBox="0 0 12 8" className={`h-3 w-3 shrink-0 text-slate-500 transition-transform ${accountOpen ? 'rotate-180' : ''}`} fill="none">
+                <svg aria-hidden viewBox="0 0 12 8" className={`h-3 w-3 shrink-0 text-white/30 transition-transform ${accountOpen ? 'rotate-180' : ''}`} fill="none">
                   <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
 
               {accountOpen && (
-                <div role="menu" className="absolute bottom-14 left-0 right-0 rounded-xl border border-slate-700/40 bg-slate-950/95 p-1.5 text-sm text-slate-200 shadow-elevation-soft">
+                <div role="menu" className="absolute bottom-14 left-0 right-0 rounded-xl border border-white/[0.07] bg-canvas/95 p-1.5 text-sm text-white/80 shadow-elevation-soft">
                   <button
                     type="button"
                     onClick={() => {
                       navigate('/settings');
                       setAccountOpen(false);
                     }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-slate-800/70"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-white/[0.06]"
                   >
                     Settings
                   </button>
@@ -236,7 +236,7 @@ const NavBar = () => {
                       navigate('/billing');
                       setAccountOpen(false);
                     }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-slate-800/70"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-white/[0.06]"
                   >
                     Billing
                   </button>
@@ -254,12 +254,12 @@ const NavBar = () => {
               )}
             </>
           ) : (
-            <div className="space-y-1.5 rounded-xl border border-slate-700/40 bg-slate-900/45 p-3 text-sm text-slate-300">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-slate-500">Get started</p>
+            <div className="space-y-1.5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 text-sm text-white/60">
+              <p className="text-[10px] font-medium uppercase tracking-widest text-white/30">Get started</p>
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="w-full rounded-lg border border-slate-700/40 px-3 py-2 text-left text-sm transition hover:border-slate-500 hover:text-white"
+                className="w-full rounded-lg border border-white/[0.07] px-3 py-2 text-left text-sm transition hover:border-white/[0.15] hover:text-white"
               >
                 Log in
               </button>
@@ -275,8 +275,8 @@ const NavBar = () => {
         </div>
       </aside>
 
-      <nav className={`sticky top-0 z-30 border-b border-slate-700/40 px-3 py-3 sm:px-4 lg:hidden ${
-        isPublicNav ? 'bg-slate-950/96' : 'bg-slate-950/85 backdrop-blur'
+      <nav className={`sticky top-0 z-30 border-b border-white/[0.07] px-3 py-3 sm:px-4 lg:hidden ${
+        isPublicNav ? 'bg-canvas/95' : 'bg-canvas/85 backdrop-blur'
       }`}>
         <div className="flex items-center justify-between gap-2">
           <button
@@ -290,7 +290,7 @@ const NavBar = () => {
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/55 px-3 py-1.5 text-sm text-slate-200 transition hover:border-slate-500"
+            className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.04] px-3 py-1.5 text-sm text-white/80 transition hover:border-white/[0.15]"
             aria-haspopup="dialog"
             aria-expanded={mobileMenuOpen}
             aria-label="Toggle navigation menu"
@@ -309,25 +309,25 @@ const NavBar = () => {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-canvas/70 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
             aria-label="Close navigation menu"
           />
-          <div className="absolute inset-x-3 top-16 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-[1.75rem] border border-slate-700/50 bg-slate-950/96 p-4 shadow-[0_24px_60px_rgba(2,6,23,0.55)]">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div className="absolute inset-x-3 top-16 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-[1.75rem] border border-white/[0.07] bg-canvas/96 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+            <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] pb-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Navigation</p>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-white/30">Navigation</p>
                 {token && (
                   <>
-                    <p className="mt-1 text-sm font-medium text-slate-200">{displayName}</p>
-                    {email && <p className="mt-0.5 text-xs text-slate-400">{email}</p>}
+                    <p className="mt-1 text-sm font-medium text-white/80">{displayName}</p>
+                    {email && <p className="mt-0.5 text-xs text-white/50">{email}</p>}
                   </>
                 )}
               </div>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="rounded-full border border-slate-700/60 px-3 py-1 text-xs text-slate-300"
+                className="rounded-full border border-white/[0.07] px-3 py-1 text-xs text-white/60"
               >
                 Close
               </button>
@@ -350,14 +350,14 @@ const NavBar = () => {
             </div>
 
             {token ? (
-              <div className="mt-4 grid gap-2 border-t border-slate-800 pt-4">
+              <div className="mt-4 grid gap-2 border-t border-white/[0.07] pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     navigate('/settings');
                     setMobileMenuOpen(false);
                   }}
-                  className="rounded-2xl border border-slate-700/50 bg-slate-900/35 px-3.5 py-3 text-left text-sm text-slate-200"
+                  className="rounded-2xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-3 text-left text-sm text-white/80"
                 >
                   Settings
                 </button>
@@ -367,7 +367,7 @@ const NavBar = () => {
                     navigate('/billing');
                     setMobileMenuOpen(false);
                   }}
-                  className="rounded-2xl border border-slate-700/50 bg-slate-900/35 px-3.5 py-3 text-left text-sm text-slate-200"
+                  className="rounded-2xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-3 text-left text-sm text-white/80"
                 >
                   Billing
                 </button>
@@ -383,14 +383,14 @@ const NavBar = () => {
                 </button>
               </div>
             ) : (
-              <div className="mt-4 grid gap-2 border-t border-slate-800 pt-4">
+              <div className="mt-4 grid gap-2 border-t border-white/[0.07] pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     navigate('/login');
                     setMobileMenuOpen(false);
                   }}
-                  className="rounded-2xl border border-slate-700/50 bg-slate-900/35 px-3.5 py-3 text-left text-sm text-slate-200"
+                  className="rounded-2xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-3 text-left text-sm text-white/80"
                 >
                   Log in
                 </button>

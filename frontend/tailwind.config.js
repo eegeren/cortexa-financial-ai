@@ -10,16 +10,16 @@ export default {
         mono: ['DM Mono', 'monospace']
       },
       colors: {
-        canvas: '#0D0D0D',
-        surface: '#151515',
-        muted: '#1E1E1E',
-        outline: 'rgba(255, 255, 255, 0.08)',
-        primary: '#10A37F',
-        accent: '#2B7CFF',
-        highlight: '#1F7A68',
-        ink: '#F4F4F5',
-        brand: '#1D9E75',
-        'brand-dark': '#0F6E56'
+        canvas:    '#0a0a0a',
+        surface:   'rgba(255, 255, 255, 0.03)',
+        muted:     'rgba(255, 255, 255, 0.05)',
+        outline:   'rgba(255, 255, 255, 0.07)',
+        primary:   '#1D9E75',
+        highlight: '#0F6E56',
+        accent:    '#7F77DD',
+        coral:     '#D85A30',
+        amber:     '#BA7517',
+        ink:       '#ffffff',
       },
       boxShadow: {
         elevation: '0 28px 48px rgba(0, 0, 0, 0.5)',
