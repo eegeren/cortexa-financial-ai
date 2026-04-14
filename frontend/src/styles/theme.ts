@@ -1,0 +1,25 @@
+export const C = {
+  bg:           '#0a0a0a',
+  surface:      'rgba(255,255,255,0.03)',
+  surfaceHover: 'rgba(255,255,255,0.05)',
+  border:       'rgba(255,255,255,0.07)',
+  borderStrong: 'rgba(255,255,255,0.15)',
+  green:        '#1D9E75',
+  greenDark:    '#0F6E56',
+  greenMuted:   'rgba(29,158,117,0.15)',
+  greenFaint:   'rgba(29,158,117,0.06)',
+  purple:       '#7F77DD',
+  purpleMuted:  'rgba(127,119,221,0.15)',
+  amber:        '#BA7517',
+  amberMuted:   'rgba(186,117,23,0.15)',
+  coral:        '#D85A30',
+  coralMuted:   'rgba(216,90,48,0.15)',
+  text:         '#ffffff',
+  textSub:      'rgba(255,255,255,0.5)',
+  textMuted:    'rgba(255,255,255,0.3)',
+  textHint:     'rgba(255,255,255,0.18)',
+  mono:         "'DM Mono', monospace" as string,
+  sans:         "'Inter', system-ui, sans-serif" as string,
+} as const;
+
+export default C;

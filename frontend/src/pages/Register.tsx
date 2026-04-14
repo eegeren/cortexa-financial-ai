@@ -1,8 +1,7 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
-import Card from '@/components/Card';
-import BrandWordmark from '@/components/BrandWordmark';
+import C from '@/styles/theme';
 
 declare global {
   interface Window {
@@ -19,15 +18,31 @@ declare global {
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
+const plans = [
+  { key: 'starter', title: 'Starter', price: 'Free', copy: 'Explore the workspace and limited signal flow.', perks: ['7-day trial', 'Core signal access', 'No card required'], accent: C.textSub, bg: C.surface },
+  { key: 'premium', title: 'Premium', price: '$29', copy: 'Full signal coverage, AI tools and automation workflows.', perks: ['180+ pairs', 'AI advisor', 'Backtest + automation'], accent: C.green, bg: C.greenMuted },
+];
+
+const cardPoints = [
+  { title: 'Signals with provenance', copy: 'Multi-timeframe models with context and clearer audit trails.' },
+  { title: 'Secure by design', copy: 'Privacy controls, encrypted handling and compliance-minded onboarding.' },
+  { title: 'Concierge-ready', copy: 'Built for solo traders and desks that need a smoother activation path.' },
+  { title: 'Enterprise capable', copy: 'Scale into seat controls, integrations and premium support when needed.' },
+];
+
+const inputStyle: CSSProperties = { width: '100%', marginTop: 8, borderRadius: 14, border: `1px solid ${C.borderStrong}`, background: 'rgba(255,255,255,0.03)', color: C.text, padding: '14px 16px', outline: 'none', fontSize: 14 };
+const labelStyle: CSSProperties = { display: 'block', color: C.textSub, fontSize: 11, fontFamily: C.mono, letterSpacing: '0.14em', textTransform: 'uppercase' };
+
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { register, googleLogin, loading, token, error, clearError } = useAuthStore((state) => ({
     register: state.register,
     googleLogin: state.googleLogin,
     loading: state.loading,
     token: state.token,
     error: state.error,
-    clearError: state.clearError
+    clearError: state.clearError,
   }));
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +51,7 @@ const RegisterPage = () => {
       await googleLogin(resp.credential);
       navigate('/overview', { replace: true });
     } catch {
-      // error shown via store
+      // store handles error
     }
   }, [googleLogin, navigate]);
 
@@ -57,10 +72,10 @@ const RegisterPage = () => {
   const [info, setInfo] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const selectedPlan = (searchParams.get('plan') || 'starter').toLowerCase() === 'premium' ? 'premium' : 'starter';
+
   useEffect(() => {
-    if (token) {
-      navigate('/overview', { replace: true });
-    }
+    if (token) navigate('/overview', { replace: true });
   }, [token, navigate]);
 
   useEffect(() => () => clearError(), [clearError]);
@@ -77,29 +92,22 @@ const RegisterPage = () => {
   }, [password]);
 
   const passwordStrength = useMemo(() => {
-    if (!password) return { label: 'Enter a password', tone: 'muted' };
-    if (passwordScore >= 5) return { label: 'Strong password', tone: 'success' };
-    if (passwordScore >= 3) return { label: 'Good password', tone: 'warning' };
-    return { label: 'Weak password', tone: 'error' };
+    if (!password) return { label: 'Enter a password', tone: C.textMuted };
+    if (passwordScore >= 5) return { label: 'Strong password', tone: C.green };
+    if (passwordScore >= 3) return { label: 'Good password', tone: '#fbbf24' };
+    return { label: 'Weak password', tone: '#fb7185' };
   }, [password, passwordScore]);
 
   const validate = () => {
     const errors: Record<string, string> = {};
-
     if (!firstName.trim()) errors.firstName = 'First name is required.';
     if (!lastName.trim()) errors.lastName = 'Last name is required.';
     if (!email.trim()) errors.email = 'Email is required.';
     if (password.length < 8) errors.password = 'Password must be at least 8 characters long.';
-    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-      errors.password = 'Use upper, lower case letters and a number.';
-    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) errors.password = 'Use upper, lower case letters and a number.';
     if (password !== confirmation) errors.confirmation = 'Passwords do not match.';
     if (!termsAccepted) errors.kvkk = 'Please accept the terms and privacy policy.';
-
-    if (phone && !/^\+?[0-9 ()-]{8,}$/.test(phone)) {
-      errors.phone = 'Please provide a valid phone number.';
-    }
-
+    if (phone && !/^\+?[0-9 ()-]{8,}$/.test(phone)) errors.phone = 'Please provide a valid phone number.';
     return errors;
   };
 
@@ -108,19 +116,9 @@ const RegisterPage = () => {
     setInfo('');
     const validation = validate();
     setFieldErrors(validation);
-    if (Object.keys(validation).length > 0) {
-      return;
-    }
-
+    if (Object.keys(validation).length > 0) return;
     try {
-      await register({
-        email: email.trim(),
-        password,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: phone.trim(),
-        kvkkAccepted: termsAccepted
-      });
+      await register({ email: email.trim(), password, firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), kvkkAccepted: termsAccepted });
       setInfo('Registration successful, please log in.');
       setEmail('');
       setPassword('');
@@ -136,292 +134,143 @@ const RegisterPage = () => {
     }
   };
 
+  const clearFieldError = (name: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden bg-[#020617] text-ink">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.1),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.09),transparent_32%),linear-gradient(180deg,#020617_0%,#06101f_48%,#020617_100%)]" />
-      <div className="pointer-events-none absolute -left-24 top-[-80px] h-72 w-72 rounded-full bg-cyan-400/10 blur-[120px]" />
-      <div className="pointer-events-none absolute -right-20 bottom-[-60px] h-80 w-80 rounded-full bg-indigo-500/10 blur-[140px]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.03)_1px,transparent_1px)] bg-[size:72px_72px] opacity-30" />
-
-      <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col px-4 py-6 sm:px-6 sm:py-10 lg:flex-row lg:items-center lg:gap-12 lg:py-12">
-        <section className="order-2 w-full space-y-6 text-slate-200 lg:order-1 lg:w-1/2 lg:space-y-8">
-          <div className="relative overflow-hidden rounded-[2rem] border border-outline/40 bg-slate-950/50 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.45)] backdrop-blur-sm sm:p-8 lg:p-10">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(129,140,248,0.08),transparent_36%)]" />
-            <div className="relative">
-            <BrandWordmark className="text-sm" />
-            <h1 className="mt-5 text-2xl font-semibold text-white sm:text-4xl">Build your edge with institutional grade intelligence.</h1>
-            <p className="mt-3 max-w-xl text-sm text-slate-300">
-              Cortexa surfaces AI-calibrated trade ideas, live risk analytics, and automated execution in a single workspace. Create an account to unlock tailored strategies and concierge onboarding.
-            </p>
-            <p className="mt-5 max-w-md text-base leading-7 text-slate-200">
-              Understand the market, not just the signal.
-            </p>
+    <div style={{ minHeight: '100vh', background: `radial-gradient(circle at top left, ${C.greenFaint}, transparent 24%), radial-gradient(circle at bottom right, ${C.purpleMuted}, transparent 28%), ${C.bg}`, color: C.text, fontFamily: C.sans, padding: '32px 20px' }}>
+      <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', alignItems: 'start' }}>
+        <section style={{ display: 'grid', gap: 18 }}>
+          <div style={{ borderRadius: 32, border: `1px solid ${C.borderStrong}`, background: 'rgba(255,255,255,0.03)', padding: 28, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at top left, ${C.greenMuted}, transparent 30%), radial-gradient(circle at bottom right, ${C.purpleMuted}, transparent 32%)` }} />
+            <div style={{ position: 'relative' }}>
+              <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 14 }}>CORTEXA ONBOARDING</div>
+              <h1 style={{ margin: '0 0 14px', fontSize: 50, lineHeight: 1.02, letterSpacing: '-0.05em', fontWeight: 800 }}>Build your edge with institutional-grade signal tooling.</h1>
+              <p style={{ margin: 0, maxWidth: 560, color: C.textSub, fontSize: 16, lineHeight: 1.7 }}>Create your account to unlock live market reads, automation-ready workflows and a cleaner decision system from day one.</p>
             </div>
-
-            <span className="orb-float pointer-events-none" style={{ background: 'rgba(38, 132, 255, 0.35)', left: '-120px', top: '-160px' }} />
-            <span className="orb-float pointer-events-none" data-delay="1" style={{ background: 'rgba(16, 163, 127, 0.3)', right: '-140px', top: '-80px' }} />
-            <div className="scan-line pointer-events-none absolute left-0 top-0 h-full w-1/3 opacity-30" />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-            <Card className="border border-outline/40 bg-surface/80 p-5">
-              <h3 className="text-sm font-semibold text-white">Signals with provenance</h3>
-              <p className="mt-2 text-xs text-slate-400">Multi-timeframe models, audited backtests, and live hit-rate tracking keep you ahead of market drift.</p>
-            </Card>
-            <Card className="border border-outline/40 bg-surface/80 p-5">
-              <h3 className="text-sm font-semibold text-white">Secure compliance</h3>
-              <p className="mt-2 text-xs text-slate-400">GDPR/CCPA-aligned policies, audit trails, and SOC2-ready infrastructure.</p>
-            </Card>
-            <Card className="border border-outline/40 bg-surface/80 p-5">
-              <h3 className="text-sm font-semibold text-white">Concierge onboarding</h3>
-              <p className="mt-2 text-xs text-slate-400">Portfolio walkthroughs, playbook templates, and analyst support from day one.</p>
-            </Card>
-            <Card className="border border-outline/40 bg-surface/80 p-5">
-              <h3 className="text-sm font-semibold text-white">Enterprise ready</h3>
-              <p className="mt-2 text-xs text-slate-400">Role-based access, audit logs, and custom SLAs for desks running multi-seat operations.</p>
-            </Card>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            {cardPoints.map((item) => (
+              <div key={item.title} style={{ borderRadius: 22, border: `1px solid ${C.border}`, background: C.surface, padding: 18 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{item.title}</div>
+                <div style={{ color: C.textSub, fontSize: 13, lineHeight: 1.7 }}>{item.copy}</div>
+              </div>
+            ))}
           </div>
-          <div className="flex flex-wrap gap-2.5 text-xs text-slate-400">
-            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-emerald-200">99.9% uptime</span>
-            <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-blue-200">AES-256 encryption</span>
-            <span className="rounded-full border border-outline/40 px-4 py-2">SOC2 controls</span>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', color: C.textSub, fontSize: 12 }}>
+            {['99.9% uptime', 'AES-256 encryption', 'SOC2-ready controls'].map((item) => (
+              <div key={item} style={{ borderRadius: 999, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.02)', padding: '10px 14px' }}>{item}</div>
+            ))}
           </div>
         </section>
 
-        <section className="order-1 w-full lg:order-2 lg:w-1/2">
-          <Card className="border border-white/10 bg-slate-950/70 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.55)] backdrop-blur-xl sm:p-6 lg:p-8">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-semibold text-white">Create your account</h2>
-                <p className="text-xs text-slate-400">We use your details to personalise analytics and provide regulatory reporting.</p>
-              </div>
-
-              {error && (
-                <p className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>
-              )}
-              {info && !error && (
-                <p className="rounded border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{info}</p>
-              )}
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="firstName">
-                  First name
-                  <input
-                    id="firstName"
-                    type="text"
-                    value={firstName}
-                onChange={(event) => {
-                  setFirstName(event.target.value);
-                  if (fieldErrors.firstName) {
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.firstName;
-                      return next;
-                    });
-                  }
-                }}
-                    required
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                  />
-                  {fieldErrors.firstName && <span className="text-[11px] text-red-400">{fieldErrors.firstName}</span>}
-                </label>
-                <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="lastName">
-                  Last name
-                  <input
-                    id="lastName"
-                    type="text"
-                    value={lastName}
-                onChange={(event) => {
-                  setLastName(event.target.value);
-                  if (fieldErrors.lastName) {
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.lastName;
-                      return next;
-                    });
-                  }
-                }}
-                    required
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                  />
-                  {fieldErrors.lastName && <span className="text-[11px] text-red-400">{fieldErrors.lastName}</span>}
-                </label>
-              </div>
-
-              <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="email">
-                Work email
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-              onChange={(event) => {
-                setEmail(event.target.value);
-                if (fieldErrors.email) {
-                  setFieldErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.email;
-                    return next;
-                  });
-                }
-              }}
-                  required
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                />
-                {fieldErrors.email && <span className="text-[11px] text-red-400">{fieldErrors.email}</span>}
-              </label>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="password">
-                  Password
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                  onChange={(event) => {
-                    setPassword(event.target.value);
-                    if (fieldErrors.password) {
-                      setFieldErrors((prev) => {
-                        const next = { ...prev };
-                        delete next.password;
-                        return next;
-                      });
-                    }
-                  }}
-                    required
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                  />
-                  <span
-                    className={`mt-1 text-[11px] ${
-                      passwordStrength.tone === 'success'
-                        ? 'text-emerald-300'
-                        : passwordStrength.tone === 'warning'
-                        ? 'text-amber-300'
-                        : passwordStrength.tone === 'error'
-                        ? 'text-red-400'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    {passwordStrength.label}
-                  </span>
-                  {fieldErrors.password && <span className="text-[11px] text-red-400">{fieldErrors.password}</span>}
-                </label>
-                <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="confirmation">
-                  Confirm password
-                  <input
-                    id="confirmation"
-                    type="password"
-                    value={confirmation}
-                  onChange={(event) => {
-                    setConfirmation(event.target.value);
-                    if (fieldErrors.confirmation) {
-                      setFieldErrors((prev) => {
-                        const next = { ...prev };
-                        delete next.confirmation;
-                        return next;
-                      });
-                    }
-                  }}
-                    required
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                  />
-                  {fieldErrors.confirmation && <span className="text-[11px] text-red-400">{fieldErrors.confirmation}</span>}
-                </label>
-              </div>
-
-              <label className="text-xs uppercase tracking-wide text-slate-400" htmlFor="phone">
-                Mobile (for 2FA, optional)
-                <input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                onChange={(event) => {
-                  setPhone(event.target.value);
-                  if (fieldErrors.phone) {
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.phone;
-                      return next;
-                    });
-                  }
-                }}
-                  placeholder="+90 5XX XXX XX XX"
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
-                />
-                {fieldErrors.phone && <span className="text-[11px] text-red-400">{fieldErrors.phone}</span>}
-              </label>
-
-              <div className="space-y-3 rounded-lg border border-outline/40 bg-surface/80 p-4">
-                <label className="flex items-start gap-3 text-xs text-slate-300">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border border-outline/50 bg-canvas text-primary focus:outline-none"
-                    checked={termsAccepted}
-                    onChange={(event) => {
-                      setTermsAccepted(event.target.checked);
-                      if (fieldErrors.kvkk) {
-                        setFieldErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.kvkk;
-                          return next;
-                        });
-                      }
-                    }}
-                    required
-                  />
-                  <span>
-                    I agree to the{' '}
-                    <Link to="/legal/terms" className="text-primary underline">Terms of Service</Link> and{' '}
-                    <Link to="/legal/privacy" className="text-primary underline">Privacy Policy</Link>.
-                  </span>
-                </label>
-                {fieldErrors.kvkk && <span className="mt-2 block text-[11px] text-rose-300">{fieldErrors.kvkk}</span>}
-                <label className="flex items-start gap-3 text-xs text-slate-300">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border border-outline/50 bg-canvas"
-                    checked={marketingAccepted}
-                    onChange={(event) => setMarketingAccepted(event.target.checked)}
-                  />
-                  <span>Send me product updates and trading research (optional).</span>
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? 'Creating account…' : 'Create account'}
-              </button>
-
-              {GOOGLE_CLIENT_ID && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-outline/30" />
-                    <span className="text-xs text-slate-500">or sign up with</span>
-                    <div className="h-px flex-1 bg-outline/30" />
-                  </div>
-                  <div ref={googleBtnRef} className="w-full" />
-                </div>
-              )}
-
-              <p className="text-xs text-slate-400">
-                Already have an account?{' '}
-                <Link to="/login" className="text-accent hover:underline">
-                  Log in
-                </Link>
-              </p>
-            </form>
-
-            <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/40 p-5 text-xs text-slate-400">
-              <h4 className="text-sm font-semibold text-white">What happens next?</h4>
-              <ul className="mt-3 space-y-2">
-                <li>• We’ll verify your email and provision premium market data.</li>
-                <li>• A member of the desk will schedule a strategy walkthrough.</li>
-                <li>• You can invite teammates once onboarding is complete.</li>
-              </ul>
+        <section style={{ width: '100%', maxWidth: 560, margin: '0 auto', borderRadius: 30, border: `1px solid ${C.borderStrong}`, background: 'rgba(9,9,9,0.78)', backdropFilter: 'blur(18px)', padding: 28 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 18 }}>
+            <div>
+              <div style={{ fontSize: 30, fontWeight: 700, marginBottom: 8 }}>Create your account</div>
+              <div style={{ color: C.textSub, fontSize: 14 }}>We use your details to personalize analytics and onboarding.</div>
             </div>
-          </Card>
+
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Choose your plan</div>
+              <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                {plans.map((plan) => {
+                  const active = selectedPlan === plan.key;
+                  return (
+                    <button key={plan.key} type="button" onClick={() => setSearchParams(plan.key === 'premium' ? { plan: 'premium' } : {})} style={{ textAlign: 'left', borderRadius: 20, border: active ? `2px solid ${plan.key === 'premium' ? C.green : C.borderStrong}` : `1px solid ${C.border}`, background: active ? plan.bg : C.surface, padding: 18, cursor: 'pointer', color: C.text }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700 }}>{plan.title}</div>
+                        <div style={{ color: plan.accent, fontFamily: C.mono, fontSize: 12 }}>{plan.price}</div>
+                      </div>
+                      <div style={{ color: C.textSub, fontSize: 13, lineHeight: 1.7, marginBottom: 12 }}>{plan.copy}</div>
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {plan.perks.map((perk) => <div key={perk} style={{ color: C.textSub, fontSize: 12 }}>+ {perk}</div>)}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {error ? <div style={{ borderRadius: 14, border: '1px solid rgba(244,63,94,0.35)', background: 'rgba(244,63,94,0.12)', color: '#fecdd3', padding: '12px 14px', fontSize: 14 }}>{error}</div> : null}
+            {info && !error ? <div style={{ borderRadius: 14, border: `1px solid ${C.green}`, background: C.greenMuted, color: C.text, padding: '12px 14px', fontSize: 14 }}>{info}</div> : null}
+
+            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              <label style={labelStyle} htmlFor="firstName">
+                First name
+                <input id="firstName" type="text" value={firstName} onChange={(event) => { setFirstName(event.target.value); clearFieldError('firstName'); }} required style={inputStyle} />
+                {fieldErrors.firstName ? <span style={{ color: '#fda4af', fontSize: 11, marginTop: 6, display: 'block' }}>{fieldErrors.firstName}</span> : null}
+              </label>
+              <label style={labelStyle} htmlFor="lastName">
+                Last name
+                <input id="lastName" type="text" value={lastName} onChange={(event) => { setLastName(event.target.value); clearFieldError('lastName'); }} required style={inputStyle} />
+                {fieldErrors.lastName ? <span style={{ color: '#fda4af', fontSize: 11, marginTop: 6, display: 'block' }}>{fieldErrors.lastName}</span> : null}
+              </label>
+            </div>
+
+            <label style={labelStyle} htmlFor="email">
+              Work email
+              <input id="email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); clearFieldError('email'); }} required style={inputStyle} />
+              {fieldErrors.email ? <span style={{ color: '#fda4af', fontSize: 11, marginTop: 6, display: 'block' }}>{fieldErrors.email}</span> : null}
+            </label>
+
+            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              <label style={labelStyle} htmlFor="password">
+                Password
+                <input id="password" type="password" value={password} onChange={(event) => { setPassword(event.target.value); clearFieldError('password'); }} required style={inputStyle} />
+                <span style={{ color: passwordStrength.tone, fontSize: 11, marginTop: 6, display: 'block' }}>{passwordStrength.label}</span>
+                {fieldErrors.password ? <span style={{ color: '#fda4af', fontSize: 11, marginTop: 6, display: 'block' }}>{fieldErrors.password}</span> : null}
+              </label>
+              <label style={labelStyle} htmlFor="confirmation">
+                Confirm password
+                <input id="confirmation" type="password" value={confirmation} onChange={(event) => { setConfirmation(event.target.value); clearFieldError('confirmation'); }} required style={inputStyle} />
+                {fieldErrors.confirmation ? <span style={{ color: '#fda4af', fontSize: 11, marginTop: 6, display: 'block' }}>{fieldErrors.confirmation}</span> : null}
+              </label>
+            </div>
+
+            <label style={labelStyle} htmlFor="phone">
+              Mobile (optional)
+              <input id="phone" type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); clearFieldError('phone'); }} placeholder="+90 5XX XXX XX XX" style={inputStyle} />
+              {fieldErrors.phone ? <span style={{ color: '#fda4af', fontSize: 11, marginTop: 6, display: 'block' }}>{fieldErrors.phone}</span> : null}
+            </label>
+
+            <div style={{ borderRadius: 18, border: `1px solid ${C.border}`, background: C.surface, padding: 16, display: 'grid', gap: 14 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: C.textSub, lineHeight: 1.7 }}>
+                <input type="checkbox" checked={termsAccepted} onChange={(event) => { setTermsAccepted(event.target.checked); clearFieldError('kvkk'); }} required style={{ marginTop: 2, accentColor: C.green }} />
+                <span>I agree to the <Link to="/legal/terms" style={{ color: C.green }}>Terms of Service</Link> and <Link to="/legal/privacy" style={{ color: C.green }}>Privacy Policy</Link>.</span>
+              </label>
+              {fieldErrors.kvkk ? <span style={{ color: '#fda4af', fontSize: 11 }}>{fieldErrors.kvkk}</span> : null}
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: C.textSub, lineHeight: 1.7 }}>
+                <input type="checkbox" checked={marketingAccepted} onChange={(event) => setMarketingAccepted(event.target.checked)} style={{ marginTop: 2, accentColor: C.green }} />
+                <span>Send me product updates and trading research.</span>
+              </label>
+            </div>
+
+            <button type="submit" disabled={loading} style={{ width: '100%', borderRadius: 14, border: 'none', background: C.green, color: C.text, padding: '15px 16px', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Creating account...' : selectedPlan === 'premium' ? 'Create premium account' : 'Create account'}
+            </button>
+
+            {GOOGLE_CLIENT_ID ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                  <div style={{ flex: 1, height: 1, background: C.border }} />
+                  <span style={{ color: C.textMuted, fontSize: 12 }}>or sign up with</span>
+                  <div style={{ flex: 1, height: 1, background: C.border }} />
+                </div>
+                <div ref={googleBtnRef} style={{ width: '100%' }} />
+              </div>
+            ) : null}
+
+            <div style={{ color: C.textSub, fontSize: 13 }}>Already have an account? <Link to="/login" style={{ color: C.green }}>Log in</Link></div>
+          </form>
         </section>
       </div>
     </div>

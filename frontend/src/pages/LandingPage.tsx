@@ -1,403 +1,118 @@
 import { CSSProperties, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import C from '@/styles/theme';
 
-const ACCENT = '#1D9E75';
-const ACCENT_DARK = '#0F6E56';
-const BG = '#0a0a0a';
-const MONO = 'DM Mono, monospace';
-const SANS = 'Inter, system-ui, sans-serif';
-
-type IconComponent = ({ color }: { color: string }) => JSX.Element;
-
-type FeatureItem = {
+type IconProps = { color: string };
+type Feature = {
   title: string;
-  description: string;
+  copy: string;
   metric: string;
-  metricLabel: string;
-  metricColor: string;
-  iconBg: string;
-  iconColor: string;
-  Icon: IconComponent;
+  label: string;
+  accent: string;
+  bg: string;
+  Icon: ({ color }: IconProps) => JSX.Element;
 };
 
-type PlanItem = {
-  name: string;
-  price: string;
-  period: string;
-  featured?: boolean;
-  items: string[];
-  action: () => void;
-  buttonLabel: string;
-};
+const iconStyle: CSSProperties = { width: 18, height: 18, display: 'block' };
 
-type StepItem = {
-  number: string;
-  color: string;
-  title: string;
-  description: string;
-};
-
-const iconBase: CSSProperties = {
-  width: 16,
-  height: 16,
-  display: 'block',
-};
-
-const TrendingUpIcon: IconComponent = ({ color }) => (
-  <svg viewBox="0 0 24 24" fill="none" style={iconBase} aria-hidden>
+const TrendIcon = ({ color }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" style={iconStyle} aria-hidden>
     <path d="M4 16L10 10L14 14L20 8" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M15 8H20V13" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-const ZapIcon: IconComponent = ({ color }) => (
-  <svg viewBox="0 0 24 24" fill="none" style={iconBase} aria-hidden>
-    <path d="M13 2L5 13H11L10 22L19 10H13L13 2Z" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+const BoltIcon = ({ color }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" style={iconStyle} aria-hidden>
+    <path d="M13 2L5 13H11L10 22L19 10H13V2Z" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-const ClockIcon: IconComponent = ({ color }) => (
-  <svg viewBox="0 0 24 24" fill="none" style={iconBase} aria-hidden>
-    <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.9" />
-    <path d="M12 7V12L15 14" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+const BrainIcon = ({ color }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" style={iconStyle} aria-hidden>
+    <path d="M9 7A3 3 0 1 1 15 7A3 3 0 1 1 15 13H9A3 3 0 1 1 9 7Z" stroke={color} strokeWidth="1.8" />
+    <path d="M9 13V17M15 13V17M12 5V3M12 21V17" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
 
-const MessageSquareIcon: IconComponent = ({ color }) => (
-  <svg viewBox="0 0 24 24" fill="none" style={iconBase} aria-hidden>
-    <path d="M5 6.5C5 5.12 6.12 4 7.5 4H16.5C17.88 4 19 5.12 19 6.5V13.5C19 14.88 17.88 16 16.5 16H10L6 19V16.2C5.42 15.86 5 15.24 5 14.5V6.5Z" stroke={color} strokeWidth="1.9" strokeLinejoin="round" />
+const ShieldIcon = ({ color }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" style={iconStyle} aria-hidden>
+    <path d="M12 3L19 6V11C19 15.2 16.1 18.8 12 20C7.9 18.8 5 15.2 5 11V6L12 3Z" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
+    <path d="M9.5 11.5L11.4 13.4L15 9.8" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-const BarChart2Icon: IconComponent = ({ color }) => (
-  <svg viewBox="0 0 24 24" fill="none" style={iconBase} aria-hidden>
+const BarsIcon = ({ color }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" style={iconStyle} aria-hidden>
     <path d="M5 19V11M12 19V5M19 19V14" stroke={color} strokeWidth="1.9" strokeLinecap="round" />
     <path d="M3 19.5H21" stroke={color} strokeWidth="1.9" strokeLinecap="round" />
   </svg>
 );
 
-const ActivityIcon: IconComponent = ({ color }) => (
-  <svg viewBox="0 0 24 24" fill="none" style={iconBase} aria-hidden>
+const PulseIcon = ({ color }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" style={iconStyle} aria-hidden>
     <path d="M3 12H7L10 6L14 18L17 12H21" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-const tickerBase = [
-  'Real-time signals',
-  'Auto-execution',
-  'Confidence score',
-  'Regime detection',
-  'ATR-based SL/TP',
-  '180+ pairs',
-  'EMA',
-  'RSI',
-  'MACD',
-  'Whale alerts',
-  'Fear & Greed',
-  '24/7 live',
-];
-
+const tickerItems = ['Real-time signals', 'AI confidence scoring', '180+ pairs', 'Regime detection', 'EMA + RSI + MACD', 'Binance automation', 'Risk-first workflows', 'Backtest-ready setups'];
 const stats = [
-  { value: '< 2s', label: 'SIGNAL SPEED' },
-  { value: '180+', label: 'PAIRS' },
-  { value: '6', label: 'INDICATOR GROUPS' },
-  { value: '24/7', label: 'LIVE 24/7' },
+  { value: '<2s', label: 'Signal latency' },
+  { value: '180+', label: 'Tracked pairs' },
+  { value: '24/7', label: 'Live monitoring' },
+  { value: '65%+', label: 'Directional threshold' },
 ];
 
-const features: FeatureItem[] = [
-  {
-    title: 'Signal Engine',
-    description: 'EMA 20/50/200, MACD, RSI, ADX, ATR and volume ratio — composite confidence score.',
-    metric: '65%+',
-    metricLabel: 'Threshold',
-    metricColor: '#BA7517',
-    iconBg: 'rgba(29,158,117,0.15)',
-    iconColor: '#1D9E75',
-    Icon: TrendingUpIcon,
-  },
-  {
-    title: 'Auto-Execute',
-    description: 'Market order fires the instant a signal is detected. SL/TP auto-set via ATR × 1.5 / 2.5.',
-    metric: 'Instant',
-    metricLabel: 'Execution',
-    metricColor: '#7F77DD',
-    iconBg: 'rgba(127,119,221,0.15)',
-    iconColor: '#7F77DD',
-    Icon: ZapIcon,
-  },
-  {
-    title: 'Regime Detection',
-    description: 'Trending, Range-Bound or Low Participation — right strategy for every market condition.',
-    metric: '3',
-    metricLabel: 'Regime types',
-    metricColor: '#BA7517',
-    iconBg: 'rgba(186,117,23,0.15)',
-    iconColor: '#BA7517',
-    Icon: ClockIcon,
-  },
-  {
-    title: 'AI Advisor',
-    description: 'Query any signal, build strategies. GPT-4o powered personal analysis for premium users.',
-    metric: 'GPT-4o',
-    metricLabel: 'AI engine',
-    metricColor: '#1D9E75',
-    iconBg: 'rgba(29,158,117,0.15)',
-    iconColor: '#1D9E75',
-    Icon: MessageSquareIcon,
-  },
-  {
-    title: 'Backtest Engine',
-    description: 'Test strategies against historical data before going live. Optimize with parameter scanning.',
-    metric: 'Historical',
-    metricLabel: 'Backtest',
-    metricColor: '#D85A30',
-    iconBg: 'rgba(216,90,48,0.15)',
-    iconColor: '#D85A30',
-    Icon: BarChart2Icon,
-  },
-  {
-    title: 'Market Intel',
-    description: 'Fear & Greed, whale alerts, ETF flows and on-chain metrics — follow the big money.',
-    metric: 'Live',
-    metricLabel: 'Intelligence',
-    metricColor: '#7F77DD',
-    iconBg: 'rgba(127,119,221,0.15)',
-    iconColor: '#7F77DD',
-    Icon: ActivityIcon,
-  },
+const features: Feature[] = [
+  { title: 'Composite Signal Engine', copy: 'EMA, RSI, MACD, ADX, ATR and volume combine into one confidence-led trade read.', metric: '6', label: 'Indicator groups', accent: C.green, bg: C.greenMuted, Icon: TrendIcon },
+  { title: 'Instant Execution', copy: 'Trigger market orders the moment a setup clears your threshold and risk rules.', metric: 'Now', label: 'Execution speed', accent: C.purple, bg: C.purpleMuted, Icon: BoltIcon },
+  { title: 'Regime Awareness', copy: 'Separate trending, ranging and low-participation conditions before you commit size.', metric: '3', label: 'Market states', accent: C.amber, bg: C.amberMuted, Icon: BrainIcon },
+  { title: 'Risk Controls', copy: 'ATR-based stop and target logic keeps every automation path disciplined by design.', metric: 'ATR', label: 'SL / TP model', accent: C.coral, bg: C.coralMuted, Icon: ShieldIcon },
+  { title: 'Backtest Layer', copy: 'Validate thresholds and setups against historical candles before going live.', metric: 'Hist', label: 'Validation mode', accent: C.green, bg: C.greenMuted, Icon: BarsIcon },
+  { title: 'Market Intel', copy: 'Read live flows, sentiment shifts and quality signals without leaving the workspace.', metric: 'Live', label: 'Context stream', accent: C.purple, bg: C.purpleMuted, Icon: PulseIcon },
 ];
 
-const steps: StepItem[] = [
-  {
-    number: '01',
-    color: '#1D9E75',
-    title: 'Create an Account',
-    description: 'Sign up with email, your 7-day free trial starts immediately. No credit card required.',
-  },
-  {
-    number: '02',
-    color: '#7F77DD',
-    title: 'Connect Binance API (Optional)',
-    description: 'No API needed for signals only. Connect your API key for auto-execution — trade permission only, never withdrawal.',
-  },
-  {
-    number: '03',
-    color: '#BA7517',
-    title: 'Track Signals or Enable Automation',
-    description: 'Monitor AI signals across 180+ pairs. Activate the bot — it fires orders automatically when signals trigger.',
-  },
+const steps = [
+  { number: '01', title: 'Create your workspace', copy: 'Open an account, choose a plan and unlock the live signal environment in minutes.', accent: C.green },
+  { number: '02', title: 'Connect your flow', copy: 'Track signals only or add Binance trade permissions for automated execution.', accent: C.purple },
+  { number: '03', title: 'Act with discipline', copy: 'Review setup quality, regime and score, then automate or route decisions with confidence.', accent: C.amber },
+];
+
+const plans = [
+  { name: 'Starter', price: 'Free', meta: '7-day trial', copy: 'Explore the workspace and review core signal output.', items: ['Limited signal access', '3 pairs', 'Daily timeframe'], actionLabel: 'Get started', onNavigate: '/register' },
+  { name: 'Premium', price: '$29', meta: 'per month', copy: 'Unlock full coverage, AI workflows and automated execution.', items: ['180+ pairs', 'AI advisor', 'Auto-execution', 'Backtest engine', 'Market intel'], actionLabel: 'Start premium', onNavigate: '/register?plan=premium', featured: true },
+  { name: 'Enterprise', price: 'Custom', meta: 'volume based', copy: 'For teams that need integrations, seat controls and custom support.', items: ['API access', 'Priority support', 'Custom integration'], actionLabel: 'Contact sales', mailto: 'hello@cortexaai.net' },
 ];
 
 const faqs = [
-  {
-    question: 'How is the confidence score calculated?',
-    answer: 'EMA alignment, RSI, MACD, volume ratio and swing point analysis — each weighted in a composite score. Above 65% is Directional Edge, below is Limited Edge or No Edge.',
-  },
-  {
-    question: 'Is my API key secure?',
-    answer: 'Your API key is encrypted with AES-256-GCM — never stored as plaintext. Only trade permission is requested, withdrawal access is never asked. Add IP restriction on Binance for extra security.',
-  },
-  {
-    question: 'Which pairs are supported?',
-    answer: '180+ USDT pairs — BTC, ETH, SOL, BNB, XRP and more. 1-hour, 4-hour and daily timeframes.',
-  },
-  {
-    question: 'Is there a signal guarantee?',
-    answer: 'No platform can guarantee 100% success — neither can Cortexa. Our goal is to tilt probability in your favor. Low-confidence signals are flagged as No Edge to protect you from unnecessary risk.',
-  },
-  {
-    question: 'How quickly can I cancel?',
-    answer: 'One click, instant. Access continues until the end of your billing period, no further charges.',
-  },
+  { q: 'How is the score calculated?', a: 'The score blends trend structure, momentum, volume, regime fit and risk context into one weighted view.' },
+  { q: 'Do I need an exchange API key?', a: 'No. You can use Cortexa as a signal terminal only. API keys are only needed for automation.' },
+  { q: 'Is withdrawal access ever required?', a: 'No. Trade-only permissions are the intended path, and withdrawal access should stay disabled.' },
+  { q: 'Can I cancel whenever I want?', a: 'Yes. Cancellation is immediate for future billing and access continues through the paid period.' },
+  { q: 'Which markets are covered?', a: 'The product is designed around a broad crypto universe with 180+ tracked USDT pairs.' },
 ];
 
-const sectionPadding: CSSProperties = {
-  padding: '80px 48px',
-};
-
-const eyebrowStyle: CSSProperties = {
-  fontSize: 11,
-  color: ACCENT,
-  fontFamily: MONO,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  marginBottom: 12,
-};
-
-const sectionTitleStyle: CSSProperties = {
-  fontSize: 44,
-  fontWeight: 800,
-  letterSpacing: '-1px',
-  marginBottom: 12,
-  color: '#ffffff',
-  fontFamily: SANS,
-};
-
-const sectionSubStyle: CSSProperties = {
-  fontSize: 16,
-  color: 'rgba(255,255,255,0.45)',
-  maxWidth: 480,
-  margin: '0 auto 48px',
-  lineHeight: 1.6,
-};
-
-function NavButton({ label, onClick, filled = false }: { label: string; onClick: () => void; filled?: boolean }) {
+function NavButton({ label, onClick, filled }: { label: string; onClick: () => void; filled?: boolean }) {
   const [hovered, setHovered] = useState(false);
-
   return (
     <button
       type="button"
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        border: filled ? 'none' : '1px solid rgba(255,255,255,0.15)',
-        borderRadius: 8,
-        padding: '7px 16px',
-        background: filled ? (hovered ? ACCENT_DARK : ACCENT) : 'transparent',
-        color: filled ? '#ffffff' : 'rgba(255,255,255,0.7)',
-        fontSize: 13,
-        fontWeight: filled ? 600 : 500,
-        cursor: 'pointer',
-        fontFamily: SANS,
-        transition: 'all 0.18s ease',
-      }}
+      style={{ borderRadius: 999, border: filled ? 'none' : `1px solid ${C.borderStrong}`, background: filled ? (hovered ? C.greenDark : C.green) : hovered ? C.surfaceHover : 'transparent', color: C.text, padding: '10px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600, transition: 'all 0.18s ease' }}
     >
       {label}
     </button>
   );
 }
 
-function FeatureCard({ item }: { item: FeatureItem }) {
-  const [hovered, setHovered] = useState(false);
-  const Icon = item.Icon;
-
+function SectionTitle({ eyebrow, title, copy }: { eyebrow: string; title: string; copy: string }) {
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: hovered ? 'rgba(29,158,117,0.04)' : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${hovered ? 'rgba(29,158,117,0.3)' : 'rgba(255,255,255,0.07)'}`,
-        borderRadius: 14,
-        padding: 24,
-        transition: 'all 0.18s ease',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 16 }}>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: item.iconBg,
-            color: item.iconColor,
-            flexShrink: 0,
-          }}
-        >
-          <Icon color={item.iconColor} />
-        </div>
-
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 18, fontWeight: 500, fontFamily: MONO, color: item.metricColor }}>{item.metric}</div>
-          <div
-            style={{
-              fontSize: 10,
-              color: 'rgba(255,255,255,0.3)',
-              fontFamily: MONO,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              marginTop: 4,
-            }}
-          >
-            {item.metricLabel}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8, color: '#ffffff', fontFamily: SANS }}>{item.title}</div>
-      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>{item.description}</div>
-    </div>
-  );
-}
-
-function PricingCard({ plan }: { plan: PlanItem }) {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <div
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: plan.featured ? `2px solid ${ACCENT}` : '1px solid rgba(255,255,255,0.07)',
-        borderRadius: 14,
-        padding: 24,
-      }}
-    >
-      {plan.featured ? (
-        <div
-          style={{
-            display: 'inline-block',
-            marginBottom: 8,
-            padding: '3px 10px',
-            borderRadius: 6,
-            background: 'rgba(29,158,117,0.1)',
-            color: ACCENT,
-            fontSize: 11,
-            fontFamily: MONO,
-          }}
-        >
-          Most popular
-        </div>
-      ) : null}
-
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#ffffff', fontFamily: SANS }}>{plan.name}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 2, color: '#ffffff', fontFamily: SANS }}>{plan.price}</div>
-      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 16, fontFamily: MONO }}>{plan.period}</div>
-
-      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px' }}>
-        {plan.items.map((entry) => (
-          <li
-            key={entry}
-            style={{
-              fontSize: 13,
-              color: 'rgba(255,255,255,0.5)',
-              padding: '5px 0',
-              borderBottom: '1px solid rgba(255,255,255,0.05)',
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ color: ACCENT, fontWeight: 600 }}>+</span>
-            <span>{entry}</span>
-          </li>
-        ))}
-      </ul>
-
-      <button
-        type="button"
-        onClick={plan.action}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          width: '100%',
-          padding: 10,
-          borderRadius: 8,
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontFamily: SANS,
-          border: plan.featured ? 'none' : '1px solid rgba(255,255,255,0.15)',
-          background: plan.featured ? (hovered ? ACCENT_DARK : ACCENT) : 'transparent',
-          color: '#ffffff',
-          transition: 'all 0.18s ease',
-        }}
-      >
-        {plan.buttonLabel}
-      </button>
+    <div style={{ textAlign: 'center', marginBottom: 40 }}>
+      <div style={{ color: C.green, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 10 }}>{eyebrow}</div>
+      <h2 style={{ margin: '0 0 12px', fontSize: 42, lineHeight: 1.05, letterSpacing: '-0.04em', fontWeight: 800 }}>{title}</h2>
+      <p style={{ margin: '0 auto', maxWidth: 640, color: C.textSub, fontSize: 16, lineHeight: 1.7 }}>{copy}</p>
     </div>
   );
 }
@@ -405,363 +120,236 @@ function PricingCard({ plan }: { plan: PlanItem }) {
 export default function LandingPage() {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [ctaHovered, setCtaHovered] = useState(false);
-  const [bottomHovered, setBottomHovered] = useState(false);
-
-  const tickerItems = useMemo(() => [...tickerBase, ...tickerBase], []);
-
-  const plans: PlanItem[] = [
-    {
-      name: 'Starter',
-      price: 'Free',
-      period: '7-day trial',
-      items: ['Limited signals', '3 pairs', 'Daily timeframe'],
-      buttonLabel: 'Get Started',
-      action: () => navigate('/register'),
-    },
-    {
-      name: 'Premium',
-      price: '$29',
-      period: '/ mo · 20% off yearly',
-      featured: true,
-      items: ['180+ pairs · all timeframes', 'AI advisor chat', 'Auto-execution', 'Backtest engine', 'Market intelligence'],
-      buttonLabel: 'Start 7-Day Free Trial',
-      action: () => navigate('/register?plan=premium'),
-    },
-    {
-      name: 'Enterprise',
-      price: 'Custom',
-      period: 'Volume-based',
-      items: ['Unlimited signals · API access', 'Custom integration', 'Priority support'],
-      buttonLabel: 'Contact Us →',
-      action: () => {
-        window.location.href = 'mailto:hello@cortexaai.net';
-      },
-    },
-  ];
+  const [heroHover, setHeroHover] = useState(false);
+  const [ctaHover, setCtaHover] = useState(false);
+  const doubledTicker = useMemo(() => [...tickerItems, ...tickerItems], []);
 
   return (
-    <div style={{ minHeight: '100vh', background: BG, color: '#ffffff', fontFamily: SANS }}>
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @keyframes marquee {
-              0% { transform: translateX(0); }
-              100% { transform: translateX(-50%); }
-            }
-          `,
-        }}
-      />
-
-      <nav
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          background: 'rgba(10,10,10,0.9)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(12px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 48px',
-        }}
-      >
-        <div>
-          <span
-            style={{
-              color: '#ffffff',
-              fontWeight: 900,
-              fontSize: 18,
-              letterSpacing: '0.28em',
-              fontFamily: SANS,
-            }}
-          >
-            CORTEXA
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <NavButton label="Stats" onClick={() => navigate('/stats')} />
-          <NavButton
-            label="How it works"
-            onClick={() => {
-              const element = document.getElementById('how');
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            }}
-          />
-          <NavButton label="Launch App →" onClick={() => navigate('/login')} filled />
+    <div style={{ minHeight: '100vh', background: `radial-gradient(circle at top left, ${C.greenFaint}, transparent 28%), radial-gradient(circle at top right, ${C.purpleMuted}, transparent 26%), ${C.bg}`, color: C.text, fontFamily: C.sans }}>
+      <nav style={{ position: 'sticky', top: 0, zIndex: 20, padding: '18px 24px', borderBottom: `1px solid ${C.border}`, background: 'rgba(10,10,10,0.84)', backdropFilter: 'blur(16px)' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: C.text, cursor: 'pointer', padding: 0 }}>
+            <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.28em' }}>CORTEXA</span>
+          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <NavButton label="Pricing" onClick={() => navigate('/pricing')} />
+            <NavButton label="How it works" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+            <NavButton label="Launch app" onClick={() => navigate('/login')} filled />
+          </div>
         </div>
       </nav>
 
-      <section
-        style={{
-          overflow: 'hidden',
-          whiteSpace: 'nowrap',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          padding: '10px 0',
-          background: 'rgba(255,255,255,0.02)',
-        }}
-      >
-        <div
-          style={{
-            display: 'inline-flex',
-            gap: 40,
-            animation: 'marquee 25s linear infinite',
-            minWidth: 'max-content',
-          }}
-        >
-          {tickerItems.map((item, index) => (
-            <div
-              key={`${item}-${index}`}
-              style={{
-                fontSize: 11,
-                color: 'rgba(255,255,255,0.35)',
-                fontFamily: MONO,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT, flexShrink: 0 }} />
+      <section style={{ overflow: 'hidden', borderBottom: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ display: 'flex', gap: 32, width: 'max-content', padding: '12px 0', animation: 'marquee 26s linear infinite' }}>
+          {doubledTicker.map((item, index) => (
+            <div key={`${item}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: 10, color: C.textSub, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, boxShadow: `0 0 16px ${C.green}` }} />
               <span>{item}</span>
             </div>
           ))}
         </div>
       </section>
 
-      <section style={{ textAlign: 'center', padding: '80px 48px 64px' }}>
-        <div
-          style={{
-            display: 'inline-flex',
-            background: 'rgba(29,158,117,0.1)',
-            border: '1px solid rgba(29,158,117,0.3)',
-            borderRadius: 20,
-            padding: '6px 16px',
-            fontSize: 11,
-            color: ACCENT,
-            fontFamily: MONO,
-            letterSpacing: '0.1em',
-            marginBottom: 32,
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT }} />
-          AI SIGNAL ENGINE — 180+ PAIRS
-        </div>
-
-        <h1 style={{ fontSize: 72, fontWeight: 900, lineHeight: 1.05, letterSpacing: -2, marginBottom: 20, fontFamily: SANS }}>
-          <span style={{ color: '#ffffff' }}>Find Your Edge</span>
-          <span style={{ color: ACCENT, display: 'block' }}>In Crypto.</span>
-          <span style={{ color: '#ffffff', display: 'block' }}>Trade Instantly.</span>
-        </h1>
-
-        <p
-          style={{
-            fontSize: 18,
-            color: 'rgba(255,255,255,0.5)',
-            maxWidth: 500,
-            margin: '0 auto 40px',
-            lineHeight: 1.6,
-          }}
-        >
-          AI-powered signals, market regime classification and auto-execution — all in one dark-mode crypto terminal.
-        </p>
-
-        <button
-          type="button"
-          onClick={() => navigate('/register')}
-          onMouseEnter={() => setCtaHovered(true)}
-          onMouseLeave={() => setCtaHovered(false)}
-          style={{
-            background: ctaHovered ? ACCENT_DARK : ACCENT,
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: 12,
-            padding: '16px 36px',
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'background 0.18s ease',
-            fontFamily: SANS,
-          }}
-        >
-          Start Free →
-        </button>
-
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', fontFamily: MONO, marginTop: 12, letterSpacing: '0.04em' }}>
-          No credit card required — 7 days full access
-        </div>
-      </section>
-
-      <section
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 0,
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          background: 'rgba(255,255,255,0.02)',
-        }}
-      >
-        {stats.map((item, index) => (
-          <div
-            key={item.label}
-            style={{
-              flex: 1,
-              textAlign: 'center',
-              padding: '40px 0',
-              borderRight: index < stats.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-            }}
-          >
-            <div style={{ fontSize: 40, fontWeight: 800, color: ACCENT, fontFamily: MONO, marginBottom: 6 }}>{item.value}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {item.label}
+      <section style={{ padding: '72px 24px 44px' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: 28, gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', alignItems: 'stretch' }}>
+          <div style={{ paddingTop: 20 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, border: `1px solid ${C.borderStrong}`, background: C.greenMuted, color: C.green, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 22 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.green }} />
+              AI Signal Intelligence
+            </div>
+            <h1 style={{ margin: '0 0 18px', fontSize: 72, lineHeight: 0.95, letterSpacing: '-0.06em', fontWeight: 900 }}>
+              Find your edge.
+              <span style={{ color: C.green, display: 'block' }}>Trade with structure.</span>
+            </h1>
+            <p style={{ margin: '0 0 30px', maxWidth: 580, color: C.textSub, fontSize: 18, lineHeight: 1.7 }}>Cortexa turns raw crypto noise into a focused trading terminal with signal scoring, regime detection, market context and automation-ready execution paths.</p>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button type="button" onClick={() => navigate('/register')} onMouseEnter={() => setHeroHover(true)} onMouseLeave={() => setHeroHover(false)} style={{ border: 'none', borderRadius: 14, background: heroHover ? C.greenDark : C.green, color: C.text, padding: '16px 24px', fontSize: 15, fontWeight: 700, cursor: 'pointer', transition: 'background 0.18s ease' }}>
+                Start free trial
+              </button>
+              <button type="button" onClick={() => navigate('/pricing')} style={{ border: `1px solid ${C.borderStrong}`, borderRadius: 14, background: 'transparent', color: C.text, padding: '16px 24px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                View pricing
+              </button>
+              <span style={{ color: C.textMuted, fontSize: 12, fontFamily: C.mono, letterSpacing: '0.08em', textTransform: 'uppercase' }}>No card required</span>
             </div>
           </div>
-        ))}
-      </section>
 
-      <section style={{ ...sectionPadding, textAlign: 'center' }}>
-        <div style={eyebrowStyle}>Features</div>
-        <h2 style={sectionTitleStyle}>Built for Speed & Accuracy</h2>
-        <p style={sectionSubStyle}>Six indicator groups, regime classification and confidence scoring — behind every signal.</p>
+          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 28, border: `1px solid ${C.borderStrong}`, background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))', padding: 28, minHeight: 420 }}>
+            <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at top right, ${C.greenMuted}, transparent 28%), radial-gradient(circle at bottom left, ${C.purpleMuted}, transparent 30%)` }} />
+            <div style={{ position: 'relative', display: 'grid', gap: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 6 }}>Live cockpit</div>
+                  <div style={{ fontSize: 28, fontWeight: 800 }}>BTC / USDT</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: 999, background: C.greenMuted, color: C.green, fontFamily: C.mono, fontSize: 12 }}>Score 78%</div>
+              </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          {features.map((feature) => (
-            <FeatureCard key={feature.title} item={feature} />
-          ))}
-        </div>
-      </section>
+              <div style={{ borderRadius: 22, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.03)', padding: 18 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+                  {[{ label: 'Edge', value: 'Long' }, { label: 'Regime', value: 'Trending' }, { label: 'Latency', value: '<2s' }].map((item) => (
+                    <div key={item.label} style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}` }}>
+                      <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>{item.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700 }}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, height: 220, borderRadius: 20, background: 'linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.05))', border: `1px solid ${C.border}`, position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+                  <svg viewBox="0 0 600 240" fill="none" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+                    <path d="M0 170C40 168 80 130 120 132C160 134 200 92 240 98C280 104 320 56 360 72C400 88 440 36 480 58C520 80 560 56 600 24" stroke={C.green} strokeWidth="4" strokeLinecap="round" />
+                    <path d="M0 190C40 186 80 154 120 158C160 162 200 110 240 124C280 138 320 98 360 104C400 110 440 70 480 82C520 94 560 72 600 60V240H0V190Z" fill="rgba(29,158,117,0.12)" />
+                  </svg>
+                </div>
+              </div>
 
-      <section id="how" style={{ ...sectionPadding, borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
-        <div style={eyebrowStyle}>How It Works</div>
-        <h2 style={sectionTitleStyle}>Three Steps to Start</h2>
-
-        <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
-          {steps.map((step) => (
-            <div
-              key={step.number}
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: 14,
-                padding: '28px 32px',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 24,
-              }}
-            >
-              <div style={{ fontSize: 28, fontWeight: 500, fontFamily: MONO, minWidth: 48, color: step.color }}>{step.number}</div>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#ffffff', fontFamily: SANS }}>{step.title}</div>
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>{step.description}</div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {['AI advisor ready', 'Risk controls armed', 'Automation optional'].map((chip) => (
+                  <div key={chip} style={{ padding: '10px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, color: C.textSub, fontSize: 13 }}>{chip}</div>
+                ))}
               </div>
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
-      <section style={{ ...sectionPadding, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          {plans.map((plan) => (
-            <PricingCard key={plan.name} plan={plan} />
-          ))}
-        </div>
-      </section>
-
-      <section style={{ ...sectionPadding, borderTop: '1px solid rgba(255,255,255,0.06)', maxWidth: 960, margin: '0 auto' }}>
-        <div style={eyebrowStyle}>FAQ</div>
-        <h2 style={sectionTitleStyle}>Frequently Asked Questions</h2>
-
-        <div>
-          {faqs.map((faq, index) => (
-            <div key={faq.question} style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-              <button
-                type="button"
-                onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  background: 'none',
-                  border: 'none',
-                  color: '#ffffff',
-                  fontSize: 15,
-                  fontWeight: 600,
-                  padding: '20px 0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  fontFamily: SANS,
-                }}
-              >
-                <span>{faq.question}</span>
-                <span style={{ color: 'rgba(255,255,255,0.45)' }}>{openFaq === index ? '−' : '+'}</span>
-              </button>
-
-              {openFaq === index ? (
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, paddingBottom: 20 }}>{faq.answer}</div>
-              ) : null}
+      <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+          {stats.map((stat) => (
+            <div key={stat.label} style={{ padding: '30px 24px', borderRight: `1px solid ${C.border}` }}>
+              <div style={{ color: C.green, fontSize: 34, fontWeight: 800, fontFamily: C.mono, marginBottom: 6 }}>{stat.value}</div>
+              <div style={{ color: C.textMuted, fontSize: 11, fontFamily: C.mono, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{stat.label}</div>
             </div>
           ))}
         </div>
       </section>
 
-      <section style={{ padding: '80px 48px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <h2 style={{ fontSize: 44, fontWeight: 800, marginBottom: 16, color: '#ffffff', fontFamily: SANS }}>Still on the fence?</h2>
-        <p style={{ color: 'rgba(255,255,255,0.45)', marginBottom: 32, fontSize: 16 }}>Try all features free for 7 days. No card required.</p>
-        <button
-          type="button"
-          onClick={() => navigate('/register')}
-          onMouseEnter={() => setBottomHovered(true)}
-          onMouseLeave={() => setBottomHovered(false)}
-          style={{
-            background: bottomHovered ? ACCENT_DARK : ACCENT,
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: 12,
-            padding: '16px 36px',
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'background 0.18s ease',
-            fontFamily: SANS,
-          }}
-        >
-          Start Free →
-        </button>
+      <section style={{ padding: '84px 24px' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <SectionTitle eyebrow="Features" title="Everything needed for a sharper trading loop" copy="Built to move from signal discovery to execution without losing context, speed or discipline." />
+          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+            {features.map((feature) => (
+              <div key={feature.title} style={{ borderRadius: 22, border: `1px solid ${C.border}`, background: C.surface, padding: 22 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 18 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 12, background: feature.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <feature.Icon color={feature.accent} />
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: feature.accent, fontSize: 20, fontWeight: 700, fontFamily: C.mono }}>{feature.metric}</div>
+                    <div style={{ color: C.textMuted, fontSize: 10, fontFamily: C.mono, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 4 }}>{feature.label}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{feature.title}</div>
+                <div style={{ color: C.textSub, fontSize: 14, lineHeight: 1.7 }}>{feature.copy}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
-      <footer
-        style={{
-          padding: '24px 48px',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.25)', fontFamily: MONO }}>© 2025 Cortexa · cortexaai.net</div>
+      <section id="how-it-works" style={{ padding: '0 24px 84px' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <SectionTitle eyebrow="How it works" title="Three steps from setup to signal action" copy="Keep the workflow simple: onboard, connect what you need, then execute with a much clearer view of risk and quality." />
+          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+            {steps.map((step) => (
+              <div key={step.number} style={{ borderRadius: 24, border: `1px solid ${C.border}`, background: C.surface, padding: 24 }}>
+                <div style={{ color: step.accent, fontSize: 28, fontWeight: 800, fontFamily: C.mono, marginBottom: 18 }}>{step.number}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 10 }}>{step.title}</div>
+                <div style={{ color: C.textSub, lineHeight: 1.7, fontSize: 15 }}>{step.copy}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <button type="button" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 13 }}>
-            Privacy
-          </button>
-          <button type="button" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 13 }}>
-            Terms
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              window.location.href = 'mailto:hello@cortexaai.net';
-            }}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 13 }}
-          >
-            Support
-          </button>
+      <section style={{ padding: '0 24px 84px' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <SectionTitle eyebrow="Pricing" title="Start light, scale when your process is ready" copy="Choose the setup that matches your desk, automation needs and market coverage." />
+          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+            {plans.map((plan) => (
+              <div key={plan.name} style={{ borderRadius: 24, border: plan.featured ? `2px solid ${C.green}` : `1px solid ${C.border}`, background: plan.featured ? 'rgba(29,158,117,0.06)' : C.surface, padding: 24, position: 'relative' }}>
+                {plan.featured ? <div style={{ position: 'absolute', top: -12, left: 24, borderRadius: 999, background: C.green, color: C.bg, padding: '5px 12px', fontSize: 11, fontFamily: C.mono, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Most popular</div> : null}
+                <div style={{ color: plan.featured ? C.green : C.textMuted, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>{plan.name}</div>
+                <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 4 }}>{plan.price}</div>
+                <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 12, marginBottom: 12 }}>{plan.meta}</div>
+                <div style={{ color: C.textSub, lineHeight: 1.7, fontSize: 14, marginBottom: 18 }}>{plan.copy}</div>
+                <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+                  {plan.items.map((item) => (
+                    <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: C.textSub, fontSize: 14 }}>
+                      <span style={{ color: C.green, fontWeight: 700 }}>+</span>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (plan.mailto) {
+                      window.location.href = `mailto:${plan.mailto}`;
+                      return;
+                    }
+                    navigate(plan.onNavigate!);
+                  }}
+                  style={{ width: '100%', borderRadius: 14, border: plan.featured ? 'none' : `1px solid ${C.borderStrong}`, background: plan.featured ? C.green : 'transparent', color: C.text, padding: '14px 16px', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}
+                >
+                  {plan.actionLabel}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{ padding: '0 24px 84px' }}>
+        <div style={{ maxWidth: 920, margin: '0 auto' }}>
+          <SectionTitle eyebrow="FAQ" title="Questions traders ask before they commit" copy="The short version on scoring, security, APIs and plan flexibility." />
+          <div style={{ borderTop: `1px solid ${C.border}` }}>
+            {faqs.map((faq, index) => (
+              <div key={faq.q} style={{ borderBottom: `1px solid ${C.border}` }}>
+                <button type="button" onClick={() => setOpenFaq(openFaq === index ? null : index)} style={{ width: '100%', background: 'none', border: 'none', color: C.text, cursor: 'pointer', padding: '20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, textAlign: 'left', fontSize: 16, fontWeight: 700 }}>
+                  <span>{faq.q}</span>
+                  <span style={{ color: C.textSub, fontSize: 24, lineHeight: 1 }}>{openFaq === index ? '-' : '+'}</span>
+                </button>
+                {openFaq === index ? <div style={{ padding: '0 0 20px', color: C.textSub, lineHeight: 1.8, fontSize: 14 }}>{faq.a}</div> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{ padding: '0 24px 72px' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', borderRadius: 28, border: `1px solid ${C.borderStrong}`, background: 'linear-gradient(135deg, rgba(29,158,117,0.12), rgba(255,255,255,0.03))', padding: 32 }}>
+          <div style={{ display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', alignItems: 'center' }}>
+            <div>
+              <div style={{ color: C.green, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>Ready when you are</div>
+              <div style={{ fontSize: 40, lineHeight: 1.02, fontWeight: 800, marginBottom: 12 }}>Trade with a clearer system, not more noise.</div>
+              <div style={{ color: C.textSub, fontSize: 15, lineHeight: 1.7 }}>Start with the free trial, review live signals, then decide if automation and deeper tooling fit your workflow.</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => navigate('/register')} onMouseEnter={() => setCtaHover(true)} onMouseLeave={() => setCtaHover(false)} style={{ border: 'none', borderRadius: 14, background: ctaHover ? C.greenDark : C.green, color: C.text, padding: '16px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                Start free
+              </button>
+              <button type="button" onClick={() => navigate('/login')} style={{ borderRadius: 14, border: `1px solid ${C.borderStrong}`, background: 'transparent', color: C.text, padding: '16px 22px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                Sign in
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer style={{ padding: '24px', borderTop: `1px solid ${C.border}` }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 12 }}>© {new Date().getFullYear()} Cortexa</div>
+          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Pricing', onClick: () => navigate('/pricing') },
+              { label: 'Login', onClick: () => navigate('/login') },
+              { label: 'Support', onClick: () => { window.location.href = 'mailto:hello@cortexaai.net'; } },
+            ].map((item) => (
+              <button key={item.label} type="button" onClick={item.onClick} style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', padding: 0, fontSize: 13 }}>
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       </footer>
     </div>

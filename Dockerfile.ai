@@ -12,7 +12,7 @@ COPY ai-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Uygulama kodu
-COPY ai-service/signal_api.py .
+COPY ai-service/ .
 
 EXPOSE 8001
 

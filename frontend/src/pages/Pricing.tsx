@@ -4,35 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import usePremiumStatus from '@/hooks/usePremiumStatus';
 import { useAuthStore } from '@/store/auth';
 import { createCheckoutSession } from '@/services/api';
+import C from '@/styles/theme';
 
-const ACCENT = '#1D9E75';
-const ACCENT_DARK = '#0F6E56';
-const BG = '#0a0a0a';
-const MONO = 'DM Mono, monospace';
-const SANS = 'Inter, system-ui, sans-serif';
-
-const CheckMark = ({ color = ACCENT }: { color?: string }) => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden>
-    <path d="M20 6L9 17L4 12" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const CrossMark = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden>
-    <path d="M18 6L6 18M6 6l12 12" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-
-const TrustCheck = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }} aria-hidden>
-    <circle cx="12" cy="12" r="10" stroke={ACCENT} strokeWidth="1.5" />
-    <path d="M8 12L11 15L16 9" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const STARTER_FEATURES: { text: string; enabled: boolean }[] = [
-  { text: 'Up to 10 signals/day', enabled: true },
-  { text: '3 pairs (BTC, ETH, SOL)', enabled: true },
+const starterFeatures: Array<{ text: string; enabled: boolean }> = [
+  { text: 'Up to 10 signals per day', enabled: true },
+  { text: '3 pairs included', enabled: true },
   { text: 'Daily timeframe only', enabled: true },
   { text: 'Basic NLP summary', enabled: true },
   { text: 'Auto-execution', enabled: false },
@@ -40,70 +16,63 @@ const STARTER_FEATURES: { text: string; enabled: boolean }[] = [
   { text: 'Backtest engine', enabled: false },
 ];
 
-const PREMIUM_FEATURES = [
+const premiumFeatures = [
   'Unlimited signals',
-  '180+ pairs · all timeframes',
+  '180+ pairs across timeframes',
   'Auto-execution (Binance)',
-  'AI advisor (GPT-4o)',
+  'AI advisor',
   'Backtest engine',
-  'Market intel (Fear & Greed, whale alerts)',
-  'ATR-based SL/TP auto-set',
+  'Market intel',
+  'ATR-based SL / TP',
   'Confidence score breakdown',
 ];
 
-const ENTERPRISE_FEATURES = [
-  'Unlimited signals · API access',
+const enterpriseFeatures = [
+  'Unlimited signals and API access',
   'Custom pair configuration',
   'Dedicated infrastructure',
-  'White-label option',
-  'SLA & priority support',
+  'White-label options',
+  'Priority support',
   'Custom integrations',
 ];
 
-const TABLE_ROWS = [
-  { feature: 'Daily signals',        starter: '10/day',   premium: 'Unlimited' },
-  { feature: 'Pairs',                starter: '3',        premium: '180+' },
-  { feature: 'Timeframes',           starter: '1D only',  premium: '1H · 4H · 1D' },
-  { feature: 'Auto-execution',       starter: '✗',        premium: '✓' },
-  { feature: 'AI advisor',           starter: '✗',        premium: '✓' },
-  { feature: 'Backtest engine',      starter: '✗',        premium: '✓' },
-  { feature: 'Confidence breakdown', starter: 'Basic',    premium: 'Full' },
-  { feature: 'Market intelligence',  starter: '✗',        premium: '✓' },
-  { feature: 'SL/TP auto-set',       starter: '✗',        premium: '✓' },
+const tableRows = [
+  { feature: 'Daily signals', starter: '10/day', premium: 'Unlimited', enterprise: 'Unlimited' },
+  { feature: 'Pairs', starter: '3', premium: '180+', enterprise: 'Custom' },
+  { feature: 'Timeframes', starter: '1D only', premium: '15m · 1h · 4h · 1D', enterprise: 'Custom' },
+  { feature: 'Auto-execution', starter: 'No', premium: 'Yes', enterprise: 'Yes' },
+  { feature: 'AI advisor', starter: 'No', premium: 'Yes', enterprise: 'Yes' },
+  { feature: 'Backtest engine', starter: 'No', premium: 'Yes', enterprise: 'Yes' },
+  { feature: 'Support', starter: 'Community', premium: 'Priority email', enterprise: 'Dedicated' },
 ];
 
-const TRUST_ITEMS = [
-  'AES-256 Encryption',
-  'Trade-only API access',
-  'Cancel anytime',
-  '7-day free trial',
+const trustItems = ['AES-256 encryption', 'Trade-only API access', 'Cancel anytime', '7-day free trial'];
+
+const faqs = [
+  { q: 'Can I cancel anytime?', a: 'Yes. Cancellation stops future billing immediately and access continues until the current paid period ends.' },
+  { q: 'Is my Binance API key safe?', a: 'Your key is encrypted and intended for trade-only permissions. Withdrawal access should remain disabled.' },
+  { q: 'What happens after the free trial?', a: 'You can upgrade into Premium or stay on the lighter starter experience without surprise charges.' },
 ];
 
-const FAQS = [
-  {
-    q: 'Can I cancel anytime?',
-    a: 'Yes — one click, instant. Access continues until end of billing period.',
-  },
-  {
-    q: 'Is my Binance API key safe?',
-    a: 'Your key is encrypted with AES-256-GCM. We only request trade permission — withdrawal access is never asked.',
-  },
-  {
-    q: 'What happens after the free trial?',
-    a: "You'll be prompted to choose a plan. If you don't upgrade, your account moves to read-only mode — no charges, ever.",
-  },
-];
+function CheckIcon({ enabled = true }: { enabled?: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      {enabled ? (
+        <path d="M20 6L9 17L4 12" stroke={C.green} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M18 6L6 18M6 6l12 12" stroke={C.textMuted} strokeWidth="2.1" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
 
-const PricingPage = () => {
+export default function PricingPage() {
   const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
   const { isPremium } = usePremiumStatus();
   const [ctaState, setCtaState] = useState<'idle' | 'loading' | 'redirecting'>('idle');
   const [ctaError, setCtaError] = useState<string | null>(null);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [premHovered, setPremHovered] = useState(false);
-  const [starterHovered, setStarterHovered] = useState(false);
-  const [entHovered, setEntHovered] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const handleUpgrade = async () => {
     if (!token) {
@@ -124,9 +93,8 @@ const PricingPage = () => {
       let message = 'Checkout failed';
       if (isAxiosError(err)) {
         const detail = err.response?.data;
-        if (typeof detail === 'string' && detail.trim()) {
-          message = detail.trim();
-        } else if (detail && typeof detail === 'object') {
+        if (typeof detail === 'string' && detail.trim()) message = detail.trim();
+        else if (detail && typeof detail === 'object') {
           const knownMessage =
             ('message' in detail && typeof detail.message === 'string' && detail.message) ||
             ('error' in detail && typeof detail.error === 'string' && detail.error) ||
@@ -141,298 +109,119 @@ const PricingPage = () => {
     }
   };
 
-  const premiumButtonLabel = () => {
-    if (ctaState === 'loading') return 'Preparing checkout…';
-    if (ctaState === 'redirecting') return 'Redirecting…';
-    return 'Start 7-Day Free Trial →';
-  };
-
-  const cardBase = {
-    borderRadius: 16,
-    padding: 28,
-  };
+  const premiumLabel = ctaState === 'loading' ? 'Preparing checkout...' : ctaState === 'redirecting' ? 'Redirecting...' : isPremium ? 'Manage premium' : 'Start 7-day free trial';
 
   return (
-    <div style={{ background: BG, minHeight: '100vh', padding: '80px 48px', fontFamily: SANS, color: '#ffffff' }}>
+    <div style={{ minHeight: '100vh', background: `radial-gradient(circle at top left, ${C.greenFaint}, transparent 24%), radial-gradient(circle at top right, ${C.purpleMuted}, transparent 26%), ${C.bg}`, color: C.text, fontFamily: C.sans, padding: '32px 20px 64px' }}>
+      <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: 32 }}>
+        <section style={{ textAlign: 'center', paddingTop: 20 }}>
+          <div style={{ color: C.green, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 10 }}>Pricing</div>
+          <h1 style={{ margin: '0 0 12px', fontSize: 56, lineHeight: 1.02, letterSpacing: '-0.05em' }}>Choose the plan that fits your trading flow.</h1>
+          <p style={{ margin: '0 auto', maxWidth: 720, color: C.textSub, fontSize: 16, lineHeight: 1.7 }}>Start light, move into full signal coverage when you need it, and scale into enterprise workflows only when the desk actually asks for them.</p>
+        </section>
 
-      {/* ── 1. HEADER ─────────────────────────────────────────────────────── */}
-      <div style={{ textAlign: 'center', marginBottom: 64 }}>
-        <div style={{
-          fontSize: 11, color: ACCENT, fontFamily: MONO, letterSpacing: '0.12em',
-          textTransform: 'uppercase', marginBottom: 12,
-        }}>
-          PRICING
-        </div>
-        <h1 style={{
-          fontSize: 52, fontWeight: 900, letterSpacing: -2, color: '#ffffff',
-          margin: '0 0 12px', lineHeight: 1.05,
-        }}>
-          Choose Your Edge
-        </h1>
-        <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.45)', margin: 0 }}>
-          Start free. Upgrade when you're ready.
-        </p>
-      </div>
-
-      {/* ── 2. PLAN GRID ──────────────────────────────────────────────────── */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(3,1fr)',
-        gap: 16, maxWidth: 960, margin: '0 auto 64px',
-      }}>
-
-        {/* STARTER */}
-        <div style={{ ...cardBase, border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
-          <div style={{
-            fontSize: 11, fontFamily: MONO, color: 'rgba(255,255,255,0.4)',
-            letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20,
-          }}>
-            STARTER
-          </div>
-          <div style={{ fontSize: 42, fontWeight: 900, color: '#ffffff', marginBottom: 2 }}>Free</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontFamily: MONO, marginBottom: 24 }}>
-            7-day trial · no card required
-          </div>
-          <div>
-            {STARTER_FEATURES.map((item) => (
-              <div key={item.text} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)',
-              }}>
-                {item.enabled ? <CheckMark /> : <CrossMark />}
-                <span style={{
-                  fontSize: 14,
-                  color: item.enabled ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
-                }}>
-                  {item.text}
-                </span>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/register')}
-            onMouseEnter={() => setStarterHovered(true)}
-            onMouseLeave={() => setStarterHovered(false)}
-            style={{
-              border: '1px solid rgba(255,255,255,0.15)',
-              background: starterHovered ? 'rgba(255,255,255,0.05)' : 'transparent',
-              color: '#ffffff', width: '100%', padding: 12, borderRadius: 10,
-              fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 24,
-              fontFamily: SANS, transition: 'background 0.18s ease',
-            }}
-          >
-            Get Started Free
-          </button>
-        </div>
-
-        {/* PREMIUM — FEATURED */}
-        <div style={{
-          ...cardBase, border: '2px solid #1D9E75',
-          background: 'rgba(29,158,117,0.04)', position: 'relative',
-        }}>
-          <div style={{
-            position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
-            background: ACCENT, color: '#0a0a0a', fontSize: 11, fontWeight: 700,
-            fontFamily: MONO, letterSpacing: '0.1em', padding: '4px 14px',
-            borderRadius: 20, whiteSpace: 'nowrap',
-          }}>
-            MOST POPULAR
-          </div>
-          <div style={{
-            fontSize: 11, fontFamily: MONO, color: ACCENT,
-            letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20,
-          }}>
-            PREMIUM
-          </div>
-          <div style={{ fontSize: 42, fontWeight: 900, color: '#ffffff', marginBottom: 2 }}>$29</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontFamily: MONO, marginBottom: 24 }}>
-            / month · $290/year (save 17%)
-          </div>
-          <div>
-            {PREMIUM_FEATURES.map((text) => (
-              <div key={text} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)',
-              }}>
-                <CheckMark color={ACCENT} />
-                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>{text}</span>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={handleUpgrade}
-            disabled={ctaState !== 'idle'}
-            onMouseEnter={() => setPremHovered(true)}
-            onMouseLeave={() => setPremHovered(false)}
-            style={{
-              background: premHovered ? ACCENT_DARK : ACCENT, border: 'none',
-              color: '#ffffff', width: '100%', padding: 12, borderRadius: 10,
-              fontSize: 14, fontWeight: 700,
-              cursor: ctaState !== 'idle' ? 'not-allowed' : 'pointer',
-              marginTop: 24, fontFamily: SANS,
-              opacity: ctaState !== 'idle' ? 0.7 : 1,
-              transition: 'background 0.18s ease',
-            }}
-          >
-            {premiumButtonLabel()}
-          </button>
-          {ctaError && (
-            <p style={{ fontSize: 12, color: '#f87171', marginTop: 8, textAlign: 'center' }}>
-              {ctaError}
-            </p>
-          )}
-        </div>
-
-        {/* ENTERPRISE */}
-        <div style={{ ...cardBase, border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
-          <div style={{
-            fontSize: 11, fontFamily: MONO, color: 'rgba(255,255,255,0.4)',
-            letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20,
-          }}>
-            ENTERPRISE
-          </div>
-          <div style={{ fontSize: 42, fontWeight: 900, color: '#ffffff', marginBottom: 2 }}>Custom</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontFamily: MONO, marginBottom: 24 }}>
-            Volume-based pricing
-          </div>
-          <div>
-            {ENTERPRISE_FEATURES.map((text) => (
-              <div key={text} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)',
-              }}>
-                <CheckMark />
-                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>{text}</span>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => { window.location.href = 'mailto:hello@cortexaai.net'; }}
-            onMouseEnter={() => setEntHovered(true)}
-            onMouseLeave={() => setEntHovered(false)}
-            style={{
-              border: '1px solid rgba(255,255,255,0.15)',
-              background: entHovered ? 'rgba(255,255,255,0.05)' : 'transparent',
-              color: '#ffffff', width: '100%', padding: 12, borderRadius: 10,
-              fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 24,
-              fontFamily: SANS, transition: 'background 0.18s ease',
-            }}
-          >
-            Contact Us →
-          </button>
-        </div>
-      </div>
-
-      {/* ── 3. COMPARISON TABLE ───────────────────────────────────────────── */}
-      <div style={{ maxWidth: 960, margin: '0 auto 64px' }}>
-        <h2 style={{
-          fontSize: 28, fontWeight: 800, textAlign: 'center',
-          marginBottom: 32, color: '#ffffff',
-        }}>
-          Free vs Premium
-        </h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-              <th style={{
-                fontSize: 12, fontFamily: MONO, color: 'rgba(255,255,255,0.4)',
-                letterSpacing: '0.08em', padding: '12px 20px', textAlign: 'left',
-                fontWeight: 500,
-              }}>
-                Feature
-              </th>
-              <th style={{
-                fontSize: 12, fontFamily: MONO, color: 'rgba(255,255,255,0.4)',
-                letterSpacing: '0.08em', padding: '12px 20px', textAlign: 'center',
-                fontWeight: 500,
-              }}>
-                Starter
-              </th>
-              <th style={{
-                fontSize: 12, fontFamily: MONO, color: 'rgba(255,255,255,0.4)',
-                letterSpacing: '0.08em', padding: '12px 20px', textAlign: 'center',
-                fontWeight: 500,
-              }}>
-                Premium
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {TABLE_ROWS.map((row) => (
-              <tr key={row.feature} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ padding: '14px 20px', fontSize: 14, color: 'rgba(255,255,255,0.7)', textAlign: 'left' }}>
-                  {row.feature}
-                </td>
-                <td style={{
-                  padding: '14px 20px', fontSize: 14, textAlign: 'center',
-                  color: row.starter === '✗' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)',
-                }}>
-                  {row.starter}
-                </td>
-                <td style={{
-                  padding: '14px 20px', fontSize: 14, textAlign: 'center',
-                  color: ACCENT,
-                  fontWeight: row.premium === '✓' ? 700 : 500,
-                }}>
-                  {row.premium}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ── 4. TRUST ROW ──────────────────────────────────────────────────── */}
-      <div style={{
-        maxWidth: 600, margin: '0 auto 64px',
-        display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap',
-      }}>
-        {TRUST_ITEMS.map((item) => (
-          <div key={item} style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            fontSize: 13, color: 'rgba(255,255,255,0.4)',
-          }}>
-            <TrustCheck />
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* ── 5. FAQ ────────────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 640, margin: '0 auto' }}>
-        {FAQS.map((faq, i) => (
-          <div key={faq.q} style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            <button
-              type="button"
-              onClick={() => setOpenFaq(openFaq === i ? null : i)}
-              style={{
-                width: '100%', textAlign: 'left', background: 'none', border: 'none',
-                color: '#ffffff', fontSize: 15, fontWeight: 600, padding: '20px 0',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                cursor: 'pointer', fontFamily: SANS, gap: 16,
-              }}
-            >
-              <span>{faq.q}</span>
-              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 20, flexShrink: 0, lineHeight: 1 }}>
-                {openFaq === i ? '−' : '+'}
-              </span>
+        <section style={{ display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+          <div style={{ borderRadius: 26, border: `1px solid ${C.border}`, background: C.surface, padding: 24 }}>
+            <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 12 }}>Starter</div>
+            <div style={{ fontSize: 40, fontWeight: 800, marginBottom: 4 }}>Free</div>
+            <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 12, marginBottom: 14 }}>7-day trial • no card</div>
+            <div style={{ color: C.textSub, fontSize: 14, lineHeight: 1.7, marginBottom: 18 }}>A lighter way to explore the workspace before you commit to full signal flow.</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {starterFeatures.map((item) => (
+                <div key={item.text} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: item.enabled ? C.textSub : C.textMuted, fontSize: 14 }}>
+                  <CheckIcon enabled={item.enabled} />
+                  <span>{item.text}</span>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => navigate('/register')} style={{ width: '100%', marginTop: 22, borderRadius: 14, border: `1px solid ${C.borderStrong}`, background: 'transparent', color: C.text, padding: '14px 16px', cursor: 'pointer', fontWeight: 700 }}>
+              Get started
             </button>
-            {openFaq === i && (
-              <div style={{
-                fontSize: 14, color: 'rgba(255,255,255,0.45)',
-                lineHeight: 1.7, paddingBottom: 20,
-              }}>
-                {faq.a}
-              </div>
-            )}
           </div>
-        ))}
-      </div>
 
+          <div style={{ borderRadius: 26, border: `2px solid ${C.green}`, background: 'rgba(29,158,117,0.06)', padding: 24, position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -12, left: 24, borderRadius: 999, background: C.green, color: C.bg, padding: '5px 12px', fontSize: 11, fontFamily: C.mono, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Most popular</div>
+            <div style={{ color: C.green, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 12 }}>Premium</div>
+            <div style={{ fontSize: 40, fontWeight: 800, marginBottom: 4 }}>$29</div>
+            <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 12, marginBottom: 14 }}>per month</div>
+            <div style={{ color: C.textSub, fontSize: 14, lineHeight: 1.7, marginBottom: 18 }}>Full signal coverage, deeper context, AI help and automation-ready execution.</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {premiumFeatures.map((item) => (
+                <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: C.textSub, fontSize: 14 }}>
+                  <CheckIcon />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={isPremium ? () => navigate('/billing') : handleUpgrade} disabled={ctaState !== 'idle' && !isPremium} style={{ width: '100%', marginTop: 22, borderRadius: 14, border: 'none', background: C.green, color: C.text, padding: '14px 16px', cursor: ctaState !== 'idle' && !isPremium ? 'not-allowed' : 'pointer', fontWeight: 700, opacity: ctaState !== 'idle' && !isPremium ? 0.75 : 1 }}>
+              {premiumLabel}
+            </button>
+            {ctaError ? <div style={{ marginTop: 10, color: '#fda4af', fontSize: 12 }}>{ctaError}</div> : null}
+          </div>
+
+          <div style={{ borderRadius: 26, border: `1px solid ${C.border}`, background: C.surface, padding: 24 }}>
+            <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 12 }}>Enterprise</div>
+            <div style={{ fontSize: 40, fontWeight: 800, marginBottom: 4 }}>Custom</div>
+            <div style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 12, marginBottom: 14 }}>volume based</div>
+            <div style={{ color: C.textSub, fontSize: 14, lineHeight: 1.7, marginBottom: 18 }}>For teams that need bespoke coverage, integrations, seats and support models.</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {enterpriseFeatures.map((item) => (
+                <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: C.textSub, fontSize: 14 }}>
+                  <CheckIcon />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => { window.location.href = 'mailto:hello@cortexaai.net'; }} style={{ width: '100%', marginTop: 22, borderRadius: 14, border: `1px solid ${C.borderStrong}`, background: 'transparent', color: C.text, padding: '14px 16px', cursor: 'pointer', fontWeight: 700 }}>
+              Contact sales
+            </button>
+          </div>
+        </section>
+
+        <section style={{ borderRadius: 28, border: `1px solid ${C.border}`, background: C.surface, padding: 24 }}>
+          <div style={{ fontSize: 30, fontWeight: 800, marginBottom: 16, textAlign: 'center' }}>Plan comparison</div>
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ minWidth: 720 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 12, padding: '0 0 14px', borderBottom: `1px solid ${C.border}` }}>
+                {['Feature', 'Starter', 'Premium', 'Enterprise'].map((item) => (
+                  <div key={item} style={{ color: C.textMuted, fontFamily: C.mono, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{item}</div>
+                ))}
+              </div>
+              {tableRows.map((row) => (
+                <div key={row.feature} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 12, padding: '14px 0', borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ color: C.text, fontWeight: 600 }}>{row.feature}</div>
+                  <div style={{ color: C.textSub }}>{row.starter}</div>
+                  <div style={{ color: C.green, fontWeight: 700 }}>{row.premium}</div>
+                  <div style={{ color: C.textSub }}>{row.enterprise}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+          {trustItems.map((item) => (
+            <div key={item} style={{ borderRadius: 999, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.02)', padding: '12px 16px', color: C.textSub, fontSize: 13 }}>
+              {item}
+            </div>
+          ))}
+        </section>
+
+        <section style={{ maxWidth: 860, width: '100%', margin: '0 auto' }}>
+          <div style={{ fontSize: 30, fontWeight: 800, marginBottom: 12, textAlign: 'center' }}>Common questions</div>
+          <div style={{ borderTop: `1px solid ${C.border}` }}>
+            {faqs.map((faq, index) => (
+              <div key={faq.q} style={{ borderBottom: `1px solid ${C.border}` }}>
+                <button type="button" onClick={() => setOpenFaq(openFaq === index ? null : index)} style={{ width: '100%', background: 'none', border: 'none', color: C.text, cursor: 'pointer', padding: '20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left', gap: 16, fontSize: 16, fontWeight: 700 }}>
+                  <span>{faq.q}</span>
+                  <span style={{ color: C.textSub, fontSize: 24, lineHeight: 1 }}>{openFaq === index ? '-' : '+'}</span>
+                </button>
+                {openFaq === index ? <div style={{ padding: '0 0 20px', color: C.textSub, fontSize: 14, lineHeight: 1.8 }}>{faq.a}</div> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
-};
-
-export default PricingPage;
+}

@@ -36,6 +36,9 @@ from analysis_engine import (
 )
 from explanation_engine import generate_endpoint_insight, generate_explanation, generate_insight, validate_signal_setup
 from validation import validate_analysis_history
+from api.optimization_routes import router as optimization_router
+from services.signal_engine import get_params
+from tasks.weekly_optimizer import start_weekly_optimizer_scheduler, stop_weekly_optimizer_scheduler
 
 
 def json_sanitize(value: Any):
@@ -127,6 +130,17 @@ if not logger.handlers:
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
+app.include_router(optimization_router)
+
+
+@app.on_event("startup")
+def _startup_weekly_optimizer():
+    start_weekly_optimizer_scheduler()
+
+
+@app.on_event("shutdown")
+def _shutdown_weekly_optimizer():
+    stop_weekly_optimizer_scheduler()
 
 
 @app.exception_handler(Exception)
@@ -439,8 +453,9 @@ def apply_market_quality_filters(
 def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int = 300) -> dict[str, Any]:
     symbol = validate_symbol(symbol)
     timeframe = validate_timeframe(timeframe)
+    params, param_source = get_params(symbol, timeframe)
     raw_frame, served_from_stale_cache = fetch_ohlcv_with_meta(symbol, timeframe, max(limit, MIN_CANDLES_REQUIRED))
-    indicator_frame = build_indicator_frame(raw_frame)
+    indicator_frame = build_indicator_frame(raw_frame, params=params)
     if len(indicator_frame) < 200:
         raise HTTPException(503, "not enough data for indicators")
 
@@ -463,7 +478,8 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
     for companion in companion_timeframes:
         try:
             companion_raw, companion_served_from_stale_cache = fetch_ohlcv_with_meta(symbol, companion, max(limit, MIN_CANDLES_REQUIRED))
-            companion_frame = build_indicator_frame(companion_raw)
+            companion_params, _ = get_params(symbol, companion)
+            companion_frame = build_indicator_frame(companion_raw, params=companion_params)
             if len(companion_frame) < 200:
                 continue
             companion_analysis = build_analysis(companion_frame, symbol=symbol, timeframe=companion)
@@ -540,6 +556,8 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
         indicator_frame.iloc[-1]["atr_pct"],
         4,
     )
+    analysis["params"] = params
+    analysis["param_source"] = param_source
 
     _analysis_cache_put(symbol, timeframe, json_sanitize(analysis))
     return analysis
@@ -548,6 +566,7 @@ def compute_analysis(symbol: str = "BTCUSDT", timeframe: str = "1h", limit: int 
 def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
     normalized_symbol = validate_symbol(symbol)
     normalized_timeframe = validate_timeframe(timeframe)
+    params, param_source = get_params(normalized_symbol, normalized_timeframe)
     return {
         "symbol": normalized_symbol,
         "timeframe": normalized_timeframe,
@@ -594,6 +613,8 @@ def _fallback_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
         "ai_validation_reason": "AI validation unavailable; deterministic fallback used.",
         "ai_confidence_adjustment": 0,
         "coin_profile": coin_profile(normalized_symbol),
+        "params": params,
+        "param_source": param_source,
     }
 
 
@@ -621,12 +642,15 @@ def analysis_payload(symbol: str, timeframe: str = "1h") -> dict[str, Any]:
 def last_indicators_snapshot(symbol: str, timeframe: str = "1h") -> dict[str, Any]:
     symbol = validate_symbol(symbol)
     timeframe = validate_timeframe(timeframe)
-    frame = build_indicator_frame(fetch_ohlcv(symbol, timeframe, MIN_CANDLES_REQUIRED))
+    params, param_source = get_params(symbol, timeframe)
+    frame = build_indicator_frame(fetch_ohlcv(symbol, timeframe, MIN_CANDLES_REQUIRED), params=params)
     latest = frame.iloc[-1]
     snapshot = build_indicator_snapshot(latest)
     snapshot["price"] = safe_float(latest.get("close"), 2)
     snapshot["atr_pct"] = safe_float(latest.get("atr_pct"), 4)
     snapshot["trend"] = build_analysis(frame, symbol=symbol, timeframe=timeframe)["trend"]
+    snapshot["params"] = params
+    snapshot["param_source"] = param_source
     return json_sanitize(snapshot)
 
 

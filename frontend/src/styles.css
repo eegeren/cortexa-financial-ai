@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+*,*::before,*::after { box-sizing: border-box; }
+
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
 :root {
   /* === Polycop-compatible palette === */
   --bg: #0a0a0a;

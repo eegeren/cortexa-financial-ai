@@ -137,7 +137,22 @@ def should_emit_signal(confidence: int, quality_flags: list[str]) -> bool:
     return True
 
 
-def build_indicator_frame(df: pd.DataFrame) -> pd.DataFrame:
+def build_indicator_frame(df: pd.DataFrame, params: dict[str, int] | None = None) -> pd.DataFrame:
+    resolved = {
+        "ema_fast": 20,
+        "ema_slow": 50,
+        "ema_trend": 200,
+        "rsi_period": 14,
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9,
+        "adx_period": 14,
+        "atr_period": 14,
+        "volume_ma": 20,
+    }
+    if params:
+        resolved.update({key: int(value) for key, value in params.items() if value is not None})
+
     frame = df.copy()
     if "open_time" in frame.columns:
         frame["open_time"] = pd.to_datetime(frame["open_time"])
@@ -153,24 +168,29 @@ def build_indicator_frame(df: pd.DataFrame) -> pd.DataFrame:
     frame = frame.dropna(subset=["high", "low", "close"]).copy()
     frame["volume"] = frame["volume"].fillna(0.0)
 
-    frame["ema20"] = ta.trend.EMAIndicator(close=frame["close"], window=20).ema_indicator()
-    frame["ema50"] = ta.trend.EMAIndicator(close=frame["close"], window=50).ema_indicator()
-    frame["ema200"] = ta.trend.EMAIndicator(close=frame["close"], window=200).ema_indicator()
+    frame["ema20"] = ta.trend.EMAIndicator(close=frame["close"], window=resolved["ema_fast"]).ema_indicator()
+    frame["ema50"] = ta.trend.EMAIndicator(close=frame["close"], window=resolved["ema_slow"]).ema_indicator()
+    frame["ema200"] = ta.trend.EMAIndicator(close=frame["close"], window=resolved["ema_trend"]).ema_indicator()
 
-    macd = ta.trend.MACD(close=frame["close"], window_fast=12, window_slow=26, window_sign=9)
+    macd = ta.trend.MACD(
+        close=frame["close"],
+        window_fast=resolved["macd_fast"],
+        window_slow=resolved["macd_slow"],
+        window_sign=resolved["macd_signal"],
+    )
     frame["macd"] = macd.macd()
     frame["macd_signal"] = macd.macd_signal()
     frame["macd_histogram"] = macd.macd_diff()
 
-    frame["rsi"] = ta.momentum.RSIIndicator(close=frame["close"], window=14).rsi()
-    adx = ta.trend.ADXIndicator(high=frame["high"], low=frame["low"], close=frame["close"], window=14)
+    frame["rsi"] = ta.momentum.RSIIndicator(close=frame["close"], window=resolved["rsi_period"]).rsi()
+    adx = ta.trend.ADXIndicator(high=frame["high"], low=frame["low"], close=frame["close"], window=resolved["adx_period"])
     frame["adx"] = adx.adx()
 
-    atr = ta.volatility.AverageTrueRange(high=frame["high"], low=frame["low"], close=frame["close"], window=14)
+    atr = ta.volatility.AverageTrueRange(high=frame["high"], low=frame["low"], close=frame["close"], window=resolved["atr_period"])
     frame["atr"] = atr.average_true_range()
     frame["atr_pct"] = (frame["atr"] / frame["close"]).replace([np.inf, -np.inf], np.nan)
 
-    frame["volume_avg"] = frame["volume"].rolling(window=20, min_periods=20).mean()
+    frame["volume_avg"] = frame["volume"].rolling(window=resolved["volume_ma"], min_periods=resolved["volume_ma"]).mean()
     frame["volume_ratio"] = (frame["volume"] / frame["volume_avg"]).replace([np.inf, -np.inf], np.nan)
     return frame
 
