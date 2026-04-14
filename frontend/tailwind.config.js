@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   content: ['./src/**/*.{tsx,ts,jsx,js}'],
   theme: {
     extend: {
@@ -20,4 +20,4 @@ module.exports = {
     },
   },
   plugins: [],
-}
+};
