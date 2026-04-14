@@ -30,12 +30,12 @@ const Layout = () => {
                 content="Cortexa Trade AI platform with assistant, signals, portfolio tools, and trading workflows."
               />
             </Helmet>
-            <div className="relative min-h-[100dvh] overflow-x-clip text-ink lg:h-[100dvh] lg:overflow-hidden">
+            <div className="relative min-h-[100dvh] overflow-x-clip bg-[#0a0a0a] text-white lg:h-[100dvh] lg:overflow-hidden">
               {!shouldReduceAmbientEffects && <div className="pointer-events-none absolute inset-0 bg-grid-glow opacity-60" />}
               {!shouldReduceAmbientEffects && <div className="pointer-events-none absolute inset-0 bg-glow-band opacity-40" />}
               <div className="relative z-10 flex min-h-[100dvh] flex-col lg:h-[100dvh] lg:min-h-0 lg:flex-row">
                 {!isLandingRoute && <NavBar />}
-                <main className={`flex-1 min-h-0 min-w-0 overflow-x-clip ${isLandingRoute ? 'px-0 py-0' : 'px-3 py-3 sm:px-5 sm:py-4 lg:px-8 lg:py-6'} ${
+                <main className={`flex-1 min-h-0 min-w-0 overflow-x-clip bg-[#0a0a0a] ${isLandingRoute ? 'px-0 py-0' : 'px-3 py-3 sm:px-5 sm:py-4 lg:px-8 lg:py-6'} ${
                   isAssistantViewportRoute ? 'overflow-y-auto lg:overflow-y-hidden' : 'overflow-y-auto'
                 }`}>
                   <div className={`flex min-h-full w-full flex-col overflow-visible ${isLandingRoute ? 'max-w-none' : 'mx-auto max-w-[1400px]'}`}>

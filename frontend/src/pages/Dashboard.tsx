@@ -118,15 +118,15 @@ const TOP_MARKET_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT
 const toneClass = (value?: string) => {
   const normalized = value?.toLowerCase() ?? '';
   if (normalized.includes('bull') || normalized === 'low' || normalized === 'buy' || normalized === 'long') {
-    return 'text-emerald-200';
+    return 'text-[#1D9E75]';
   }
   if (normalized.includes('bear') || normalized === 'high' || normalized === 'sell' || normalized === 'short') {
-    return 'text-rose-200';
+    return 'text-[#E24B4A]';
   }
   if (normalized.includes('trend')) {
-    return 'text-cyan-200';
+    return 'text-white';
   }
-  return 'text-slate-100';
+  return 'text-white';
 };
 
 const DashboardPage = () => {
@@ -343,7 +343,7 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-7">
+    <div className="space-y-6 bg-[#0a0a0a] sm:space-y-7">
       <MarketStrip
         items={stripItems}
         loading={marketLoading}
@@ -366,15 +366,15 @@ const DashboardPage = () => {
           </div>
         }
       >
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-          <span className="rounded-full border border-outline/35 bg-muted/50 px-3 py-1 uppercase tracking-[0.22em]">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[rgba(255,255,255,0.45)]">
+          <span className="rounded-full border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-3 py-1 uppercase tracking-[0.22em] text-white">
             {selectedSymbol}
           </span>
           <span>
             {selectedMarket?.last_price != null ? `$${formatNumber(selectedMarket.last_price)}` : 'Price unavailable'}
           </span>
           {selectedMarket?.price_change_percent != null && (
-            <span className={selectedMarket.price_change_percent >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+            <span className={selectedMarket.price_change_percent >= 0 ? 'text-[#1D9E75]' : 'text-[#E24B4A]'}>
               {selectedMarket.price_change_percent >= 0 ? '+' : ''}
               {selectedMarket.price_change_percent.toFixed(2)}%
             </span>
@@ -383,23 +383,23 @@ const DashboardPage = () => {
       </PageHeader>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_420px]">
-        <Card className="rounded-3xl p-6 sm:p-7">
+        <Card className="rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6 sm:p-7">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
-              <p className="text-[11px] uppercase tracking-[0.36em] text-slate-500">Overview</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-[rgba(255,255,255,0.3)]">OVERVIEW</p>
               <div className="mt-4 flex flex-wrap items-end gap-3">
-                <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">{signal?.side ?? 'HOLD'}</h1>
-                <span className="mb-1 rounded-full border border-outline/35 bg-muted/50 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-slate-300">
+                <h1 className={`text-[52px] font-black tracking-tight ${signal?.side === 'BUY' ? 'text-[#1D9E75]' : signal?.side === 'SELL' ? 'text-[#E24B4A]' : 'text-[rgba(255,255,255,0.6)]'}`}>{signal?.side ?? 'HOLD'}</h1>
+                <span className="mb-1 rounded-full border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">
                   {signal?.symbol ?? selectedSymbol} {signal?.timeframe ? `• ${signal.timeframe}` : ''}
                 </span>
               </div>
-              <p className="mt-5 text-base leading-8 text-slate-300">{heroSummary}</p>
+              <p className="mt-5 text-base leading-8 text-[rgba(255,255,255,0.55)]">{heroSummary}</p>
             </div>
 
             <div className="grid min-w-[260px] gap-3 sm:grid-cols-2">
               {overviewCards.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-outline/25 bg-slate-950/35 px-4 py-4">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
+                <div key={item.label} className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] px-4 py-4">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">{item.label}</p>
                   <p className={`mt-3 text-xl font-semibold ${item.tone}`}>{item.value}</p>
                 </div>
               ))}
@@ -407,38 +407,38 @@ const DashboardPage = () => {
           </div>
         </Card>
 
-        <Card className="rounded-3xl p-6">
+        <Card className="rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.02)] p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Selected Market</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">SELECTED MARKET</p>
               <h2 className="mt-3 text-xl font-semibold text-white">{selectedSymbol}</h2>
             </div>
-            <Link to={`/signals?symbol=${selectedSymbol}`} className="text-xs text-accent transition hover:text-white">
+            <Link to={`/signals?symbol=${selectedSymbol}`} className="text-xs text-[#1D9E75] transition hover:text-white">
               Signal yükle →
             </Link>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <div className="rounded-2xl border border-outline/25 bg-slate-950/35 p-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Last price</p>
-              <p className="mt-3 text-2xl font-semibold text-white">
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.02)] p-4">
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Last price</p>
+              <p className="mt-3 text-[28px] font-bold text-white">
                 {selectedMarket?.last_price != null ? `$${formatNumber(selectedMarket.last_price)}` : '-'}
               </p>
             </div>
-            <div className="rounded-2xl border border-outline/25 bg-slate-950/35 p-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">24h change</p>
-              <p className={`mt-3 text-2xl font-semibold ${selectedMarket?.price_change_percent != null && selectedMarket.price_change_percent >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.02)] p-4">
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">24h change</p>
+              <p className={`mt-3 text-[28px] font-bold ${selectedMarket?.price_change_percent != null && selectedMarket.price_change_percent >= 0 ? 'text-[#1D9E75]' : 'text-[#E24B4A]'}`}>
                 {selectedMarket?.price_change_percent != null
                   ? `${selectedMarket.price_change_percent >= 0 ? '+' : ''}${selectedMarket.price_change_percent.toFixed(2)}%`
                   : '-'}
               </p>
             </div>
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/6 p-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200/70">Support</p>
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.02)] p-4">
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Support</p>
               <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(signal?.levels?.support)}</p>
             </div>
-            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/6 p-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-rose-200/70">Resistance</p>
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.02)] p-4">
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Resistance</p>
               <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(signal?.levels?.resistance)}</p>
             </div>
           </div>
@@ -446,27 +446,27 @@ const DashboardPage = () => {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,420px)]">
-        <Card className="relative rounded-3xl p-6 sm:p-7">
+        <Card className="relative rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6 sm:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Market Thesis</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Market Thesis</p>
               <h2 className="mt-3 text-xl font-semibold text-white">Context and explanation</h2>
             </div>
-            <Link to={`/signals?symbol=${selectedSymbol}`} className="text-xs text-accent transition hover:text-white">
+            <Link to={`/signals?symbol=${selectedSymbol}`} className="text-xs text-[#1D9E75] transition hover:text-white">
               Full analysis →
             </Link>
           </div>
 
           <div className={`mt-5 space-y-4 ${!isPremium ? 'blur-[2px]' : ''}`}>
-            <div className="rounded-2xl border border-outline/30 bg-slate-950/35 p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Scenario</p>
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4 sm:p-5">
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Scenario</p>
               <p className="mt-3 text-lg leading-8 text-white">
                 {signal?.scenario ?? 'Henüz bu market için senaryo yüklenmedi. Signals sayfasından analiz çektiğinde burada okunabilir özet belirecek.'}
               </p>
             </div>
-            <div className="rounded-2xl border border-outline/30 bg-muted/35 p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Insight</p>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4 sm:p-5">
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Insight</p>
+              <p className="mt-3 text-sm leading-7 text-[rgba(255,255,255,0.55)]">
                 {signal?.insight ?? signal?.explanation ?? 'Bu blok artık boş bir köşe değil. Sinyal geldiğinde daha uzun içgörü metni burada akacak.'}
               </p>
             </div>
@@ -474,53 +474,53 @@ const DashboardPage = () => {
           {!isPremium && <PremiumLock message="Upgrade to access full features" />}
         </Card>
 
-        <Card className="rounded-3xl p-6">
-          <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Quick Context</p>
+        <Card className="rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6">
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Quick Context</p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             {contextCards.map((item) => (
-              <div key={item.label} className="rounded-2xl border border-outline/25 bg-slate-950/35 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
+              <div key={item.label} className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] px-4 py-4">
+                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">{item.label}</p>
                 <p className={`mt-3 text-lg font-semibold ${toneClass(item.value)}`}>{item.value}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-5 rounded-2xl border border-outline/25 bg-slate-950/35 p-4">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Last update</p>
-            <p className="mt-3 text-sm text-slate-300">{formatRelativeTime(signal?.usage?.reset_at ?? portfolio?.trades?.[0]?.created_at)}</p>
+          <div className="mt-5 rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4">
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Last update</p>
+            <p className="mt-3 text-sm text-[rgba(255,255,255,0.55)]">{formatRelativeTime(signal?.usage?.reset_at ?? portfolio?.trades?.[0]?.created_at)}</p>
           </div>
         </Card>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Card className="rounded-3xl p-6">
+        <Card className="rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Indicators</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Indicators</p>
               <h2 className="mt-3 text-xl font-semibold text-white">Technical snapshot</h2>
             </div>
-            <span className="rounded-full border border-outline/35 bg-muted/50 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            <span className="rounded-full border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">
               {signal?.timeframe ?? '1h'}
             </span>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {indicatorRows.map((item) => (
-              <div key={item.label} className="rounded-2xl border border-outline/25 bg-muted/35 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
-                <p className="mt-3 text-sm leading-6 text-slate-200">{item.value}</p>
+              <div key={item.label} className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] px-4 py-4">
+                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">{item.label}</p>
+                <p className="mt-3 text-sm leading-6 text-white">{item.value}</p>
               </div>
             ))}
           </div>
         </Card>
 
-        <Card className="relative rounded-3xl p-6">
+        <Card className="relative rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Community</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Community</p>
               <h2 className="mt-3 text-xl font-semibold text-white">What do you think?</h2>
             </div>
-            <span className="rounded-full border border-outline/35 bg-muted/50 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            <span className="rounded-full border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">
               {signal?.symbol ?? selectedSymbol}
             </span>
           </div>
@@ -532,13 +532,13 @@ const DashboardPage = () => {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <Card className="rounded-3xl p-6">
+        <Card className="rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Latest News</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Latest News</p>
               <h2 className="mt-3 text-xl font-semibold text-white">Market sentiment check</h2>
             </div>
-            <Link to="/news" className="text-xs text-accent transition hover:text-white">
+            <Link to="/news" className="text-xs text-[#1D9E75] transition hover:text-white">
               View all →
             </Link>
           </div>
@@ -546,7 +546,7 @@ const DashboardPage = () => {
           <div className="mt-5 grid gap-3 lg:grid-cols-3 xl:grid-cols-1">
             {newsLoading ? (
               Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-24 animate-pulse rounded-3xl border border-outline/25 bg-slate-900/45" />
+                <div key={index} className="h-24 animate-pulse rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)]" />
               ))
             ) : newsItems.length > 0 ? (
               newsItems.map((item) => (
@@ -560,21 +560,21 @@ const DashboardPage = () => {
                 />
               ))
             ) : (
-              <div className="rounded-2xl border border-outline/30 bg-slate-950/35 px-4 py-5 text-sm text-slate-400">
+              <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-4 py-5 text-sm text-[rgba(255,255,255,0.45)]">
                 {newsError ?? 'No news available right now.'}
               </div>
             )}
           </div>
         </Card>
 
-        <Card className="rounded-3xl p-6">
+        <Card className="rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.32em] text-slate-500">Portfolio Snapshot</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Portfolio Snapshot</p>
               <h2 className="mt-3 text-xl font-semibold text-white">Execution context</h2>
             </div>
             {portfolioError ? (
-              <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-[11px] text-rose-100">
+              <span className="rounded-full border border-[rgba(226,75,74,0.3)] bg-[rgba(226,75,74,0.12)] px-3 py-1 text-[11px] text-[#E24B4A]">
                 {portfolioError}
               </span>
             ) : null}
@@ -583,25 +583,25 @@ const DashboardPage = () => {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {portfolioLoading || !metrics ? (
               Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-28 animate-pulse rounded-2xl border border-outline/25 bg-slate-900/45" />
+                <div key={index} className="h-28 animate-pulse rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)]" />
               ))
             ) : (
               <>
-                <div className="rounded-2xl border border-outline/25 bg-slate-950/35 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Total trades</p>
+                <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Total trades</p>
                   <p className="mt-3 text-2xl font-semibold text-white">{metrics.tradeCount}</p>
                 </div>
-                <div className="rounded-2xl border border-outline/25 bg-slate-950/35 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Net exposure</p>
+                <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Net exposure</p>
                   <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(metrics.netExposure)} USDT</p>
                 </div>
-                <div className="rounded-2xl border border-outline/25 bg-slate-950/35 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Realized volume</p>
+                <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Realized volume</p>
                   <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(metrics.realized)} USDT</p>
                 </div>
-                <div className="rounded-2xl border border-outline/25 bg-slate-950/35 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Last trade</p>
-                  <p className="mt-3 text-sm leading-6 text-slate-300">
+                <div className="rounded-[10px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] p-4">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(255,255,255,0.3)]">Last trade</p>
+                  <p className="mt-3 text-sm leading-6 text-[rgba(255,255,255,0.55)]">
                     {metrics.lastTrade
                       ? `${metrics.lastTrade.symbol} | ${metrics.lastTrade.side} | ${new Date(metrics.lastTrade.created_at ?? '').toLocaleString()}`
                       : 'No trades yet'}
@@ -614,10 +614,10 @@ const DashboardPage = () => {
       </section>
 
       <section>
-        <Suspense fallback={<Card className="rounded-3xl p-6 text-sm text-slate-300">Loading regime matrix...</Card>}>
-          <Card className="rounded-3xl p-6">
-            <h3 className="text-lg font-semibold text-slate-100">Regime matrix</h3>
-            <p className="mt-1 text-sm text-slate-300">Performance overview across volatility and trend regimes.</p>
+        <Suspense fallback={<Card className="rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6 text-sm text-[rgba(255,255,255,0.55)]">Loading regime matrix...</Card>}>
+          <Card className="rounded-[14px] border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-6">
+            <h3 className="text-lg font-semibold text-white">Regime matrix</h3>
+            <p className="mt-1 text-sm text-[rgba(255,255,255,0.55)]">Performance overview across volatility and trend regimes.</p>
             <div className="mt-4">
               <HeatmapMatrix rows={heatmapRows} cols={heatmapCols} data={heatmapData} />
             </div>

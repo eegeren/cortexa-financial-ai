@@ -145,30 +145,28 @@ const NavBar = () => {
   const displayName = [firstName, lastName].filter(Boolean).join(' ').trim() || email || 'Account';
 
   const desktopLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-colors ${
+    `flex items-center gap-2.5 rounded-lg border border-transparent px-3 py-2 text-[14px] transition-colors ${
       isActive
-        ? 'border-primary/50 bg-primary/15 font-medium text-white'
-        : 'text-white/60 hover:border-white/[0.07] hover:bg-white/[0.04] hover:text-white'
+        ? 'bg-[rgba(29,158,117,0.1)] font-medium text-[#1D9E75]'
+        : 'text-[rgba(255,255,255,0.45)] hover:bg-[rgba(29,158,117,0.1)] hover:text-[#1D9E75]'
     }`;
 
   const mobileLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 rounded-2xl border px-3.5 py-3 text-sm transition ${
       isActive
-        ? 'border-primary/60 bg-primary/15 text-white'
-        : 'border-white/[0.07] bg-white/[0.03] text-white/60 hover:text-white'
+        ? 'border-[rgba(29,158,117,0.3)] bg-[rgba(29,158,117,0.1)] text-[#1D9E75]'
+        : 'border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] text-[rgba(255,255,255,0.45)] hover:bg-[rgba(29,158,117,0.1)] hover:text-[#1D9E75]'
     }`;
 
   return (
     <>
-      <aside className={`sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col overflow-y-auto border-r border-white/[0.07] px-3 pb-6 pt-7 lg:flex ${
-        isPublicNav ? 'bg-canvas/90' : 'bg-canvas/35 backdrop-blur'
-      }`}>
+      <aside className="sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col overflow-y-auto border-r border-[rgba(255,255,255,0.07)] bg-[#0d0d0d] px-3 pb-6 pt-7 lg:flex">
         <button
           type="button"
           onClick={() => navigate(token ? '/overview' : '/')}
           className="self-start rounded-xl px-2 py-1.5 text-left transition hover:bg-white/[0.04]"
         >
-          <BrandWordmark className="text-sm" />
+          <BrandWordmark className="text-sm font-black tracking-[0.2em] text-white" />
         </button>
 
         <nav className="mt-8 flex flex-1 flex-col gap-1">
@@ -182,44 +180,44 @@ const NavBar = () => {
               {Icon[link.icon]}
               <span className="flex items-center gap-2">
                 <span>{link.label}</span>
-                {link.badge && <span className="rounded-full border border-amber-300/15 bg-amber-400/10 px-2 py-0.5 text-[9px] font-semibold tracking-[0.16em] text-amber-100/80">{link.badge}</span>}
+                {link.badge && <span className="rounded-[4px] bg-[rgba(29,158,117,0.15)] px-1.5 py-0.5 font-mono text-[10px] text-[#1D9E75]">{link.badge}</span>}
               </span>
             </NavLink>
           ))}
         </nav>
 
-        <div ref={accountRef} className="relative mt-auto pt-4">
+        <div ref={accountRef} className="relative mt-auto border-t border-[rgba(255,255,255,0.07)] bg-transparent pt-4">
           {token ? (
             <>
               <button
                 type="button"
                 onClick={() => setAccountOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-sm text-white/60 transition hover:border-white/[0.12] hover:bg-white/[0.05] hover:text-white"
+                className="flex w-full items-center justify-between rounded-xl border border-[rgba(255,255,255,0.07)] bg-transparent px-3 py-2 text-sm text-[rgba(255,255,255,0.45)] transition hover:bg-[rgba(255,255,255,0.03)] hover:text-white"
                 aria-haspopup="menu"
                 aria-expanded={accountOpen}
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] text-[10px] font-semibold text-white uppercase shadow-inner shadow-black/30">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] text-[10px] font-semibold text-white uppercase shadow-inner shadow-black/30">
                     {displayName[0] ?? 'A'}
                   </div>
                   <div className="min-w-0 text-left">
                     <span className="block truncate text-[13px] font-medium leading-5 text-white">{displayName}</span>
                     {email && <span className="block truncate text-[11px] leading-4 text-white/30">{email}</span>}
                     {isPremium && (
-                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-200/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-amber-100/70">
+                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-[4px] bg-[rgba(29,158,117,0.15)] px-1.5 py-0.5 font-mono text-[10px] text-[#1D9E75]">
                         <span aria-hidden className="text-[8px]">★</span>
                         PREMIUM
                       </span>
                     )}
                   </div>
                 </div>
-                <svg aria-hidden viewBox="0 0 12 8" className={`h-3 w-3 shrink-0 text-white/30 transition-transform ${accountOpen ? 'rotate-180' : ''}`} fill="none">
+                <svg aria-hidden viewBox="0 0 12 8" className={`h-3 w-3 shrink-0 text-[rgba(255,255,255,0.35)] transition-transform ${accountOpen ? 'rotate-180' : ''}`} fill="none">
                   <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
 
               {accountOpen && (
-                <div role="menu" className="absolute bottom-14 left-0 right-0 rounded-xl border border-white/[0.07] bg-canvas/95 p-1.5 text-sm text-white/80 shadow-elevation-soft">
+                <div role="menu" className="absolute bottom-14 left-0 right-0 rounded-xl border border-[rgba(255,255,255,0.07)] bg-[#0a0a0a] p-1.5 text-sm text-white/80 shadow-elevation-soft">
                   <button
                     type="button"
                     onClick={() => {
@@ -254,19 +252,19 @@ const NavBar = () => {
               )}
             </>
           ) : (
-            <div className="space-y-1.5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 text-sm text-white/60">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-white/30">Get started</p>
+            <div className="space-y-1.5 rounded-xl border border-[rgba(255,255,255,0.07)] bg-transparent p-3 text-sm text-[rgba(255,255,255,0.45)]">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-[rgba(255,255,255,0.3)]">Get started</p>
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="w-full rounded-lg border border-white/[0.07] px-3 py-2 text-left text-sm transition hover:border-white/[0.15] hover:text-white"
+                className="w-full rounded-lg border border-[rgba(255,255,255,0.07)] px-3 py-2 text-left text-sm transition hover:bg-[rgba(29,158,117,0.1)] hover:text-[#1D9E75]"
               >
                 Log in
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/register')}
-                className="w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-left text-sm text-primary transition hover:bg-primary/15 hover:text-white"
+                className="w-full rounded-lg border border-[rgba(29,158,117,0.3)] bg-[rgba(29,158,117,0.1)] px-3 py-2 text-left text-sm text-[#1D9E75] transition hover:bg-[rgba(29,158,117,0.15)]"
               >
                 Sign up
               </button>
@@ -275,28 +273,26 @@ const NavBar = () => {
         </div>
       </aside>
 
-      <nav className={`sticky top-0 z-30 border-b border-white/[0.07] px-3 py-3 sm:px-4 lg:hidden ${
-        isPublicNav ? 'bg-canvas/95' : 'bg-canvas/85 backdrop-blur'
-      }`}>
+      <nav className="sticky top-0 z-30 border-b border-[rgba(255,255,255,0.07)] bg-[rgba(10,10,10,0.92)] px-3 py-3 backdrop-blur-[12px] sm:px-4 lg:hidden">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => navigate(token ? '/overview' : '/')}
             className="text-left transition hover:text-white"
           >
-            <BrandWordmark className="text-sm tracking-[0.28em] [text-shadow:0_0_14px_rgba(148,163,184,0.08)]" />
+            <BrandWordmark className="text-sm font-black tracking-[0.2em] text-white" />
           </button>
 
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.04] px-3 py-1.5 text-sm text-white/80 transition hover:border-white/[0.15]"
+            className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 text-sm text-white/80 transition hover:border-[rgba(255,255,255,0.15)]"
             aria-haspopup="dialog"
             aria-expanded={mobileMenuOpen}
             aria-label="Toggle navigation menu"
           >
             {token && (
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[9px] font-bold text-primary uppercase">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[rgba(29,158,117,0.15)] text-[9px] font-bold text-[#1D9E75] uppercase">
                 {displayName[0] ?? 'A'}
               </div>
             )}
@@ -309,14 +305,14 @@ const NavBar = () => {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-canvas/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-[rgba(10,10,10,0.92)] backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
             aria-label="Close navigation menu"
           />
-          <div className="absolute inset-x-3 top-16 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-[1.75rem] border border-white/[0.07] bg-canvas/96 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
-            <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] pb-4">
+          <div className="absolute inset-x-3 top-16 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-[1.75rem] border border-[rgba(255,255,255,0.07)] bg-[#0a0a0a] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[rgba(255,255,255,0.07)] pb-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-white/30">Navigation</p>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-[rgba(255,255,255,0.3)]">Navigation</p>
                 {token && (
                   <>
                     <p className="mt-1 text-sm font-medium text-white/80">{displayName}</p>
@@ -327,7 +323,7 @@ const NavBar = () => {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="rounded-full border border-white/[0.07] px-3 py-1 text-xs text-white/60"
+                className="rounded-full border border-[rgba(255,255,255,0.07)] px-3 py-1 text-xs text-[rgba(255,255,255,0.5)]"
               >
                 Close
               </button>
@@ -343,21 +339,21 @@ const NavBar = () => {
                   {Icon[link.icon]}
                   <span className="flex items-center gap-2">
                     <span>{link.label}</span>
-                    {link.badge && <span className="rounded-full border border-amber-300/15 bg-amber-400/10 px-2 py-0.5 text-[9px] font-semibold tracking-[0.16em] text-amber-100/80">{link.badge}</span>}
+                    {link.badge && <span className="rounded-[4px] bg-[rgba(29,158,117,0.15)] px-1.5 py-0.5 font-mono text-[10px] text-[#1D9E75]">{link.badge}</span>}
                   </span>
                 </NavLink>
               ))}
             </div>
 
             {token ? (
-              <div className="mt-4 grid gap-2 border-t border-white/[0.07] pt-4">
+              <div className="mt-4 grid gap-2 border-t border-[rgba(255,255,255,0.07)] pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     navigate('/settings');
                     setMobileMenuOpen(false);
                   }}
-                  className="rounded-2xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-3 text-left text-sm text-white/80"
+                  className="rounded-2xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-3.5 py-3 text-left text-sm text-white/80"
                 >
                   Settings
                 </button>
@@ -367,7 +363,7 @@ const NavBar = () => {
                     navigate('/billing');
                     setMobileMenuOpen(false);
                   }}
-                  className="rounded-2xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-3 text-left text-sm text-white/80"
+                  className="rounded-2xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-3.5 py-3 text-left text-sm text-white/80"
                 >
                   Billing
                 </button>
@@ -383,14 +379,14 @@ const NavBar = () => {
                 </button>
               </div>
             ) : (
-              <div className="mt-4 grid gap-2 border-t border-white/[0.07] pt-4">
+              <div className="mt-4 grid gap-2 border-t border-[rgba(255,255,255,0.07)] pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     navigate('/login');
                     setMobileMenuOpen(false);
                   }}
-                  className="rounded-2xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-3 text-left text-sm text-white/80"
+                  className="rounded-2xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-3.5 py-3 text-left text-sm text-white/80"
                 >
                   Log in
                 </button>
@@ -400,7 +396,7 @@ const NavBar = () => {
                     navigate('/register');
                     setMobileMenuOpen(false);
                   }}
-                  className="rounded-2xl border border-primary/30 bg-primary/10 px-3.5 py-3 text-left text-sm text-primary"
+                  className="rounded-2xl border border-[rgba(29,158,117,0.3)] bg-[rgba(29,158,117,0.1)] px-3.5 py-3 text-left text-sm text-[#1D9E75]"
                 >
                   Sign up
                 </button>
